@@ -1,0 +1,122 @@
+/*
+ * Stubstash design tokens.
+ * Taken from the Claude Design "Stubstash App" file. The app is dark-only by design
+ * (it's meant to feel like a venue at night), so there is one theme.
+ *
+ * Naming: --ss-<group>-<name>. Components should use these, never raw hex.
+ */
+:root {
+  /* ---- Surfaces (darkest to lightest) ---- */
+  --ss-bg-deep: #050407;       /* behind the app shell, overlays */
+  --ss-bg: #0a090c;            /* page background */
+  --ss-surface-0: #0d0d0e;     /* nav rails, sunken wells */
+  --ss-surface-1: #141516;     /* cards / panels */
+  --ss-surface-2: #1e2022;     /* inputs, chips, raised rows */
+  --ss-surface-3: #2d2f31;     /* pressed / neutral buttons */
+
+  /* ---- Lines ---- */
+  --ss-line-soft: #1e2022;     /* list dividers inside cards */
+  --ss-line: #2d2f31;          /* card borders */
+  --ss-line-strong: #404346;   /* input borders, outline buttons */
+
+  /* ---- Text ---- */
+  --ss-text: #eff2f5;
+  --ss-text-2: #dce0e3;
+  --ss-text-3: #b9bdc1;
+  --ss-text-muted: #9da1a5;
+  --ss-text-faint: #7c8084;
+  --ss-text-off: #5b5e62;
+  --ss-on-accent: #0a090c;     /* text on any bright fill */
+
+  /* ---- Brand palette ---- */
+  --ss-yellow: #f4b811;        /* primary accent */
+  --ss-butter: #fad672;        /* accent hover, bustout-ish highlights */
+  --ss-cream: #fce4a3;
+  --ss-teal: #76a9b9;
+  --ss-teal-light: #96beca;
+  --ss-ice: #b8d3db;
+  --ss-orange: #ffb41f;
+  --ss-amber: #ffa800;
+  --ss-olive: #9db161;
+  --ss-coral: #ff5f6c;
+  --ss-lavender: #b1a5d3;
+  --ss-violet: #9383c2;
+  --ss-slate: #404346;
+
+  /* The accent can be swapped per user later; components use --ss-accent. */
+  --ss-accent: var(--ss-yellow);
+  --ss-accent-hover: var(--ss-butter);
+  --ss-accent-soft: rgba(244, 184, 17, 0.12);
+  --ss-accent-glow: rgba(244, 184, 17, 0.35);
+
+  /* ---- Status ---- */
+  --ss-success: var(--ss-olive);
+  --ss-success-soft: rgba(157, 177, 97, 0.14);
+  --ss-danger: var(--ss-coral);
+  --ss-danger-soft: rgba(255, 95, 108, 0.12);
+  --ss-info: var(--ss-teal);
+
+  /* ---- Type ---- */
+  --ss-font: "Source Sans 3", "Source Sans Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ss-font-mono: Monaco, Consolas, "SFMono-Regular", Menlo, monospace;
+
+  --ss-fs-xs: 12px;
+  --ss-fs-sm: 13px;
+  --ss-fs-md: 15px;
+  --ss-fs-base: 16px;
+  --ss-fs-lg: 18px;
+  --ss-fs-xl: 22px;
+  --ss-fs-2xl: 28px;
+  --ss-fs-h1: clamp(38px, 6vw, 56px);
+  --ss-fs-hero: clamp(46px, 9vw, 84px);
+  --ss-fs-stat: 46px;
+
+  --ss-tracking-tight: -0.03em;
+  --ss-tracking-tighter: -0.045em;
+  --ss-tracking-mono: 0.14em;
+
+  /* ---- Space (4px grid) ---- */
+  --ss-space-1: 4px;
+  --ss-space-2: 8px;
+  --ss-space-3: 12px;
+  --ss-space-4: 16px;
+  --ss-space-5: 20px;
+  --ss-space-6: 24px;
+  --ss-space-8: 32px;
+  --ss-space-10: 40px;
+  --ss-gutter: 16px;
+
+  /* ---- Radii ---- */
+  --ss-radius-xs: 6px;
+  --ss-radius-sm: 10px;
+  --ss-radius-md: 14px;
+  --ss-radius-lg: 18px;
+  --ss-radius-xl: 22px;
+  --ss-radius-pill: 999px;
+
+  /* ---- Elevation ---- */
+  --ss-shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --ss-shadow-float: 0 30px 60px rgba(0, 0, 0, 0.6);
+
+  /* ---- Motion ---- */
+  --ss-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ss-dur-fast: 120ms;
+  --ss-dur: 220ms;
+
+  /* ---- Layout ---- */
+  --ss-content-max: 1180px;
+  --ss-nav-width: 236px;
+  --ss-topbar-h: 56px;
+  --ss-tabbar-h: 68px;
+  --ss-safe-top: env(safe-area-inset-top, 0px);
+  --ss-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Diagonal pinstripe used on image placeholders. */
+  --ss-stripes: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 14px);
+}
+
+@media (min-width: 820px) {
+  :root {
+    --ss-gutter: 36px;
+  }
+}

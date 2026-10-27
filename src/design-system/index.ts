@@ -1,0 +1,29 @@
+// Stubstash design system. Import components from "@/design-system".
+// Styles (tokens/base/utilities) are loaded once in main.ts.
+
+export { default as SsArt } from "./components/SsArt.vue";
+export { default as SsAvatar } from "./components/SsAvatar.vue";
+export { default as SsBackLink } from "./components/SsBackLink.vue";
+export { default as SsBadgeTile } from "./components/SsBadgeTile.vue";
+export { default as SsBarChart } from "./components/SsBarChart.vue";
+export { default as SsButton } from "./components/SsButton.vue";
+export { default as SsCard } from "./components/SsCard.vue";
+export { default as SsChip } from "./components/SsChip.vue";
+export { default as SsEmpty } from "./components/SsEmpty.vue";
+export { default as SsField } from "./components/SsField.vue";
+export { default as SsIcon } from "./components/SsIcon.vue";
+export { default as SsInput } from "./components/SsInput.vue";
+export { default as SsLogo } from "./components/SsLogo.vue";
+export { default as SsPageHeader } from "./components/SsPageHeader.vue";
+export { default as SsProgress } from "./components/SsProgress.vue";
+export { default as SsSheet } from "./components/SsSheet.vue";
+export { default as SsSkeleton } from "./components/SsSkeleton.vue";
+export { default as SsSpinner } from "./components/SsSpinner.vue";
+export { default as SsStars } from "./components/SsStars.vue";
+export { default as SsStatCard } from "./components/SsStatCard.vue";
+export { default as SsTag } from "./components/SsTag.vue";
+export { default as SsTextarea } from "./components/SsTextarea.vue";
+export { default as SsTicketRow } from "./components/SsTicketRow.vue";
+export { default as SsToastHost } from "./components/SsToastHost.vue";
+export { default as SsToggle } from "./components/SsToggle.vue";
+export type { IconName } from "./components/SsIcon.vue";

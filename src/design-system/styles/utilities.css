@@ -1,0 +1,115 @@
+/*
+ * A few shared text styles and layout helpers that repeat across the design.
+ * Prefer components; reach for these for one-off text.
+ */
+
+/* Mono, spaced, uppercase label: "SAM'S STAGE PASS · 2017—NOW" */
+.ss-kicker {
+  font-family: var(--ss-font-mono);
+  font-size: 11px;
+  letter-spacing: var(--ss-tracking-mono);
+  text-transform: uppercase;
+  color: var(--ss-accent);
+}
+
+/* Big tight headline */
+.ss-h1 {
+  font-weight: 900;
+  font-size: var(--ss-fs-h1);
+  line-height: 0.92;
+  letter-spacing: var(--ss-tracking-tight);
+  text-wrap: balance;
+}
+.ss-hero {
+  font-weight: 900;
+  font-size: var(--ss-fs-hero);
+  line-height: 0.9;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.ss-h2 {
+  font-weight: 900;
+  font-size: var(--ss-fs-xl);
+  line-height: 1.1;
+}
+.ss-h3 {
+  font-weight: 900;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.ss-muted {
+  color: var(--ss-text-muted);
+}
+.ss-faint {
+  color: var(--ss-text-faint);
+}
+.ss-mono {
+  font-family: var(--ss-font-mono);
+}
+.ss-num {
+  font-variant-numeric: tabular-nums;
+}
+.ss-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Page column: centered, max width, side gutters */
+.ss-page {
+  width: 100%;
+  max-width: var(--ss-content-max);
+  margin: 0 auto;
+  padding: 18px var(--ss-gutter) 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+@media (min-width: 820px) {
+  .ss-page {
+    padding-top: 32px;
+  }
+}
+
+/* Responsive auto-fit grids used everywhere in the design */
+.ss-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(var(--ss-grid-min, 300px), 1fr));
+  align-items: start;
+}
+.ss-grid--stretch {
+  align-items: stretch;
+}
+
+.ss-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ss-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ss-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ss-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
