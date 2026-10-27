@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<script src="stubstash-data.js"></script>
+<meta name="theme-color" content="#0a090c">
+<style>
+html,body{margin:0;background:#050407;}
+*{box-sizing:border-box}
+a{color:#f4b811;text-decoration:none}
+a:hover{color:#fad672;text-decoration:underline}
+input,textarea,button{font-family:inherit}
+input::placeholder,textarea::placeholder{color:#7c8084}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:rgba(124,128,132,.4);border-radius:8px}
+</style>
+</helmet>
+<div style="--acc: {{ acc }}; min-height:100vh; display:flex; align-items:center; justify-content:center; padding: {{ outerPad }}; background:#050407; font-family:'Source Sans 3','Source Sans Pro',system-ui,sans-serif; color:#eff2f5;">
+<div style="width: {{ shellW }}; height: {{ shellH }}; border-radius: {{ shellR }}; border: {{ shellB }}; overflow:hidden; display:flex; position:relative; background:#0a090c;">
+
+<sc-if value="{{ sOnboard }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1; display:flex; flex-direction:column; overflow:auto; background: radial-gradient(120% 70% at 50% 0%, rgba(244,184,17,.16), transparent 60%), #0a090c;">
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:20px 24px;">
+    <div style="font-weight:900; font-size:22px; letter-spacing:-.02em;">STUB<span style="color:var(--acc);">STASH</span></div>
+    <div style="display:flex; gap:6px;">
+      <sc-for list="{{ obDots }}" as="d" hint-placeholder-count="4"><div style="width: {{ d.w }}; height:6px; border-radius:6px; background: {{ d.bg }}; transition:all .25s;"></div></sc-for>
+    </div>
+  </div>
+  <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:24px;">
+  <div style="width:100%; max-width:440px; display:flex; flex-direction:column; gap:20px;">
+    <sc-if value="{{ ob0 }}" hint-placeholder-val="{{ true }}">
+      <div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">WELCOME TO THE PIT</div>
+      <div style="font-weight:900; font-size:52px; line-height:.92; letter-spacing:-.03em; text-wrap:balance;">Every show you’ve ever been to. Counted.</div>
+      <div style="font-size:18px; color:#b9bdc1; line-height:1.45; text-wrap:pretty;">Log gigs from setlist.fm in a tap, then watch the stats, maps and bragging rights stack up.</div>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+        <button onClick="{{ obNext }}" style="height:52px; border-radius:999px; border:0; background:#eff2f5; color:#0a090c; font-weight:700; font-size:17px; cursor:pointer;">Continue with Apple</button>
+        <button onClick="{{ obNext }}" style="height:52px; border-radius:999px; border:1px solid #404346; background:transparent; color:#eff2f5; font-weight:700; font-size:17px; cursor:pointer;">Continue with Google</button>
+        <button onClick="{{ obNext }}" style="height:52px; border-radius:999px; border:0; background:transparent; color:#b9bdc1; font-weight:600; font-size:16px; cursor:pointer;">Use email instead</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{ ob1 }}" hint-placeholder-val="{{ false }}">
+      <div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">STEP 1 · IMPORT</div>
+      <div style="font-weight:900; font-size:42px; line-height:.95; letter-spacing:-.03em;">Got a setlist.fm account?</div>
+      <div style="font-size:17px; color:#b9bdc1; line-height:1.45;">We’ll pull every show you’ve marked “I was there.” Read-only — we never write back.</div>
+      <div style="display:flex; align-items:center; gap:8px; height:56px; padding:0 18px; border-radius:14px; background:#1e2022; border:1px solid #404346;">
+        <span style="color:#7c8084; font-size:17px;">setlist.fm/user/</span>
+        <input value="{{ obUser }}" onChange="{{ setObUser }}" style="flex:1; min-width:0; background:transparent; border:0; outline:none; color:#eff2f5; font-size:17px; font-weight:700;"></input>
+      </div>
+      <sc-if value="{{ obFound }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; gap:14px; align-items:center; padding:16px; border-radius:14px; background:rgba(157,177,97,.14); border:1px solid rgba(157,177,97,.5);">
+          <div style="font-weight:900; font-size:40px; color:#fce4a3; line-height:1;">87</div>
+          <div style="font-size:15px; line-height:1.35;"><b>shows found</b> across 41 artists and 33 venues. Earliest: Phish, MSG, Dec 2017.</div>
+        </div>
+      </sc-if>
+      <button onClick="{{ obImport }}" style="height:52px; border-radius:999px; border:0; background:var(--acc); color:#0a090c; font-weight:900; font-size:17px; cursor:pointer;">{{ obImportLabel }}</button>
+      <button onClick="{{ obNext }}" style="background:transparent; border:0; color:#9da1a5; font-size:15px; cursor:pointer;">I’ll add shows myself</button>
+    </sc-if>
+    <sc-if value="{{ ob2 }}" hint-placeholder-val="{{ false }}">
+      <div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">STEP 2 · HOME BASE</div>
+      <div style="font-weight:900; font-size:42px; line-height:.95; letter-spacing:-.03em;">Where do you call home?</div>
+      <div style="font-size:17px; color:#b9bdc1; line-height:1.45;">We use it to count miles traveled and draw your road-trip lines on the map.</div>
+      <input value="{{ obCity }}" onChange="{{ setObCity }}" style="height:56px; padding:0 18px; border-radius:14px; background:#1e2022; border:1px solid #404346; outline:none; color:#eff2f5; font-size:17px; font-weight:700;"></input>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <sc-for list="{{ cityChips }}" as="c" hint-placeholder-count="3"><button onClick="{{ c.pick }}" style="padding:8px 14px; border-radius:999px; background:#1e2022; border:1px solid #2d2f31; color:#dce0e3; font-size:14px; font-weight:600; cursor:pointer;">{{ c.name }}</button></sc-for>
+      </div>
+      <button onClick="{{ obNext }}" style="height:52px; border-radius:999px; border:0; background:var(--acc); color:#0a090c; font-weight:900; font-size:17px; cursor:pointer;">Looks right</button>
+    </sc-if>
+    <sc-if value="{{ ob3 }}" hint-placeholder-val="{{ false }}">
+      <div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">YOU’RE IN</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="padding:18px; border-radius:16px; background:var(--acc); color:#0a090c;"><div style="font-weight:900; font-size:54px; line-height:.9;">87</div><div style="font-weight:700;">shows</div></div>
+        <div style="padding:18px; border-radius:16px; background:#fad672; color:#0a090c;"><div style="font-weight:900; font-size:54px; line-height:.9;">41</div><div style="font-weight:700;">artists</div></div>
+        <div style="padding:18px; border-radius:16px; background:#76a9b9; color:#0a090c;"><div style="font-weight:900; font-size:54px; line-height:.9;">1,204</div><div style="font-weight:700;">songs heard</div></div>
+        <div style="padding:18px; border-radius:16px; background:#1e2022; border:1px solid #404346;"><div style="font-weight:900; font-size:54px; line-height:.9;">18k</div><div style="font-weight:700;">miles</div></div>
+      </div>
+      <div style="font-weight:900; font-size:40px; line-height:.95; letter-spacing:-.03em;">That’s a lot of encores. Let’s go.</div>
+      <button onClick="{{ obDone }}" style="height:52px; border-radius:999px; border:0; background:var(--acc); color:#0a090c; font-weight:900; font-size:17px; cursor:pointer;">Open my dashboard</button>
+    </sc-if>
+  </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ inApp }}" hint-placeholder-val="{{ true }}">
+<sc-if value="{{ desk }}" hint-placeholder-val="{{ true }}">
+  <nav style="width:236px; flex-shrink:0; display:flex; flex-direction:column; gap:4px; padding:22px 14px; background:#0d0d0e; border-right:1px solid #1e2022;">
+    <button onClick="{{ goHome }}" style="background:transparent; border:0; text-align:left; padding:0 10px 18px; cursor:pointer; color:#eff2f5; font-weight:900; font-size:24px; letter-spacing:-.02em;">STUB<span style="color:var(--acc);">STASH</span></button>
+    <button onClick="{{ goLog }}" style="display:flex; align-items:center; justify-content:center; gap:8px; height:46px; margin:0 0 14px; border-radius:999px; border:0; background:var(--acc); color:#0a090c; font-weight:900; font-size:16px; cursor:pointer;"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M10 4v12M4 10h12"></path></svg>Log a show</button>
+    <button onClick="{{ goHome }}" style="display:flex; align-items:center; gap:12px; height:42px; padding:0 12px; border-radius:10px; border:0; background: {{ nav.home.bg }}; color: {{ nav.home.fg }}; font-weight:700; font-size:15px; cursor:pointer;"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M3 9.5L10 3.5l7 6V17h-4.5v-4.5h-5V17H3z"></path></svg>Dashboard</button>
+    <button onClick="{{ goShows }}" style="display:flex; align-items:center; gap:12px; height:42px; padding:0 12px; border-radius:10px; border:0; background: {{ nav.shows.bg }}; color: {{ nav.shows.fg }}; font-weight:700; font-size:15px; cursor:pointer;"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="16" height="10" rx="2"></rect><path d="M7 5v10" strokeDasharray="2 2"></path></svg>My shows</button>
+    <button onClick="{{ goMap }}" style="display:flex; align-items:center; gap:12px; height:42px; padding:0 12px; border-radius:10px; border:0; background: {{ nav.map.bg }}; color: {{ nav.map.fg }}; font-weight:700; font-size:15px; cursor:pointer;"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 18s6-5.5 6-10a6 6 0 10-12 0c0 4.5 6 10 6 10z"></path><circle cx="10" cy="8" r="2"></circle></svg>Map</button>
+    <button onClick="{{ goProfile }}" style="display:flex; align-items:center; gap:12px; height:42px; padding:0 12px; border-radius:10px; border:0; background: {{ nav.profile.bg }}; color: {{ nav.profile.fg }}; font-weight:700; font-size:15px; cursor:pointer;"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="10" cy="7" r="3.5"></circle><path d="M3 18c1-4 4-5.5 7-5.5s6 1.5 7 5.5"></path></svg>Profile & badges</button>
+    <div style="flex:1;"></div>
+    <sc-if value="{{ showInstallCard }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:14px; border-radius:14px; background:#1e2022; border:1px solid #2d2f31; display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
+      <div style="font-weight:900; font-size:16px; line-height:1.1;">Put Stubstash in your dock</div>
+      <div style="font-size:13px; color:#9da1a5; line-height:1.35;">Works offline at the venue. No app store.</div>
+      <button onClick="{{ openInstall }}" style="height:34px; border-radius:999px; border:1px solid var(--acc); background:transparent; color:var(--acc); font-weight:700; font-size:14px; cursor:pointer;">Install app</button>
+    </div>
+    </sc-if>
+    <button onClick="{{ goProfile }}" style="display:flex; align-items:center; gap:10px; padding:8px; border-radius:12px; border:0; background:transparent; color:#eff2f5; cursor:pointer; text-align:left;">
+      <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#f4b811,#76a9b9); display:flex; align-items:center; justify-content:center; color:#0a090c; font-weight:900;">S</div>
+      <div><div style="font-weight:700; font-size:14px;">Sam Okafor</div><div style="font-size:12px; color:#9da1a5;">@samgigs · 87 shows</div></div>
+    </button>
+  </nav>
+</sc-if>
+
+<div style="flex:1; min-width:0; display:flex; flex-direction:column; position:relative;">
+  <sc-if value="{{ mob }}" hint-placeholder-val="{{ false }}">
+    <div style="height:56px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 16px; padding-top: {{ topInset }}; box-sizing:content-box; border-bottom:1px solid #1e2022; background:#0a090c;">
+      <button onClick="{{ goHome }}" style="background:transparent; border:0; color:#eff2f5; font-weight:900; font-size:20px; letter-spacing:-.02em; cursor:pointer; padding:0;">STUB<span style="color:var(--acc);">STASH</span></button>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button onClick="{{ openInstall }}" style="width:36px; height:36px; border-radius:50%; border:1px solid #2d2f31; background:#141516; color:#dce0e3; display:flex; align-items:center; justify-content:center; cursor:pointer;"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M10 3v10M6 9l4 4 4-4M4 17h12"></path></svg></button>
+        <button onClick="{{ goProfile }}" style="width:36px; height:36px; border-radius:50%; border:0; background:linear-gradient(135deg,#f4b811,#76a9b9); color:#0a090c; font-weight:900; cursor:pointer;">S</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ sMap }}" hint-placeholder-val="{{ false }}">
+    <iframe src="Stubstash%20Map.html?v=pins&amp;region=us&amp;embed=1&amp;chips=1&amp;panel=1&amp;scroll=1" title="Venue map" style="flex:1; width:100%; border:0; display:block; background:#0a090c;"></iframe>
+  </sc-if>
+
+  <sc-if value="{{ notMap }}" hint-placeholder-val="{{ true }}">
+  <div ref="{{ scrollRef }}" style="flex:1; overflow-y:auto; overflow-x:hidden;">
+  <div style="max-width:1180px; margin:0 auto; padding: {{ pad }}; display:flex; flex-direction:column; gap:20px;">
+
+  <!-- HOME / DASHBOARD -->
+  <sc-if value="{{ sHome }}" hint-placeholder-val="{{ true }}">
+    <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:14px; background:#1e2022; border:1px solid #2d2f31;">
+        <div style="width:40px; height:40px; flex-shrink:0; border-radius:10px; background:var(--acc); color:#0a090c; font-weight:900; display:flex; align-items:center; justify-content:center; font-size:18px;">S</div>
+        <div style="flex:1; min-width:0; font-size:14px; line-height:1.3;"><b>Add to Home Screen</b><br><span style="color:#9da1a5;">Log the show before you leave the lot.</span></div>
+        <button onClick="{{ openInstall }}" style="height:34px; padding:0 14px; border-radius:999px; border:0; background:var(--acc); color:#0a090c; font-weight:700; cursor:pointer;">Install</button>
+        <button onClick="{{ dismissBanner }}" style="width:28px; height:28px; border:0; background:transparent; color:#7c8084; font-size:18px; cursor:pointer;">×</button>
+      </div>
+    </sc-if>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap;">
+      <div>
+        <div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">SAM’S STAGE PASS · 2017—NOW</div>
+        <div style="font-weight:900; font-size: {{ h1 }}; line-height:.92; letter-spacing:-.03em; margin-top:6px; text-wrap:balance;">87 shows deep. 13 to the Century Club.</div>
+      </div>
+      <div style="min-width:220px; flex:0 1 300px;">
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#9da1a5; margin-bottom:6px;"><span>Road to 100</span><b style="color:#eff2f5;">87%</b></div>
+        <div style="height:10px; border-radius:10px; background:#1e2022; overflow:hidden;"><div style="width:87%; height:100%; background:var(--acc); border-radius:10px;"></div></div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;">
+      <sc-for list="{{ statCards }}" as="c" hint-placeholder-count="6">
+        <div style="padding:18px; border-radius:18px; background: {{ c.bg }}; color: {{ c.fg }}; border:1px solid {{ c.bd }}; display:flex; flex-direction:column; gap:4px; min-height:132px; justify-content:space-between;">
+          <div style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; opacity:.8;">{{ c.k }}</div>
+          <div style="font-weight:900; font-size:46px; line-height:.9; letter-spacing:-.03em;">{{ c.v }}</div>
+          <div style="font-size:13px; opacity:.8;">{{ c.sub }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px;">
+      <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31; grid-column: span {{ wideSpan }};">
+        <div style="display:flex; justify-content:space-between; align-items:baseline;"><div style="font-weight:900; font-size:22px;">Shows per year</div><div style="font-size:13px; color:#9da1a5;">Peak: 2025 · 14 shows</div></div>
+        <div style="display:flex; align-items:flex-end; gap:8px; height:170px; margin-top:18px;">
+          <sc-for list="{{ years }}" as="y" hint-placeholder-count="10">
+            <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end;">
+              <div style="font-weight:900; font-size:13px;">{{ y.n }}</div>
+              <div style="width:100%; height: {{ y.h }}; background: {{ y.bg }}; border-radius:6px 6px 2px 2px; min-height:4px;"></div>
+              <div style="font-family:Monaco,Consolas,monospace; font-size:10px; color:#9da1a5;">{{ y.y }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding:20px; border-radius:18px; background:#76a9b9; color:#0a090c; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
+        <div style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.14em;">STREAK</div>
+        <div><div style="font-weight:900; font-size:72px; line-height:.85; letter-spacing:-.04em;">4 mo</div><div style="font-weight:700; font-size:17px; margin-top:6px;">in a row with at least one show</div></div>
+        <div style="display:flex; gap:5px;">
+          <sc-for list="{{ streakCells }}" as="s" hint-placeholder-count="12"><div style="flex:1; height:22px; border-radius:4px; background: {{ s.bg }};"></div></sc-for>
+        </div>
+        <div style="font-size:13px; color:#0a090c;">Longest: 7 months (2023). Next show keeps it alive.</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px;">
+      <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+        <div style="font-weight:900; font-size:22px; margin-bottom:12px;">Most-seen artists</div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <sc-for list="{{ topArtists }}" as="a" hint-placeholder-count="5">
+            <button onClick="{{ a.open }}" style="display:flex; align-items:center; gap:12px; background:transparent; border:0; padding:0; color:#eff2f5; cursor:pointer; text-align:left;">
+              <div style="width:44px; height:44px; flex-shrink:0; border-radius:50%; background: {{ a.ph }};"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:15px;"><span>{{ a.name }}</span><span style="font-weight:900; color:var(--acc);">{{ a.seen }}×</span></div>
+                <div style="height:6px; border-radius:6px; background:#1e2022; margin-top:6px;"><div style="height:100%; width: {{ a.w }}; border-radius:6px; background: {{ a.c }};"></div></div>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+        <div style="font-weight:900; font-size:22px; margin-bottom:12px;">Songs you’ve heard most</div>
+        <div style="display:flex; flex-direction:column;">
+          <sc-for list="{{ topSongs }}" as="s" hint-placeholder-count="6">
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-top:1px solid #1e2022;">
+              <div style="font-family:Monaco,Consolas,monospace; font-size:11px; color:#7c8084; width:20px;">{{ s.r }}</div>
+              <div style="flex:1; min-width:0;"><div style="font-weight:700; font-size:15px;">{{ s.t }}</div><div style="font-size:12px; color:#9da1a5;">{{ s.a }}</div></div>
+              <div style="font-weight:900; font-size:20px;">{{ s.n }}<span style="font-size:12px; color:#9da1a5; font-weight:600;"> live</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:14px;"><div style="font-weight:900; font-size:22px;">Rare catches</div><div style="font-size:13px; color:#9da1a5;">3 debuts · 5 bustouts caught all-time</div></div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;">
+        <sc-for list="{{ rare }}" as="r" hint-placeholder-count="3">
+          <button onClick="{{ r.open }}" style="text-align:left; padding:16px; border-radius:14px; background: {{ r.bg }}; color:#0a090c; border:0; cursor:pointer; display:flex; flex-direction:column; gap:6px;">
+            <div style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.14em; font-weight:700;">{{ r.kind }} · {{ r.date }}</div>
+            <div style="font-weight:900; font-size:26px; line-height:1;">{{ r.song }}</div>
+            <div style="font-size:14px; font-weight:600;">{{ r.artist }} — {{ r.note }}</div>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:baseline;"><div style="font-weight:900; font-size:22px;">Latest shows</div><button onClick="{{ goShows }}" style="background:transparent; border:0; color:var(--acc); font-weight:700; font-size:15px; cursor:pointer;">All 87 →</button></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px;">
+      <sc-for list="{{ recent }}" as="s" hint-placeholder-count="3">
+        <button onClick="{{ s.open }}" style="display:flex; text-align:left; border:0; padding:0; border-radius:14px; overflow:hidden; background:#141516; color:#eff2f5; cursor:pointer; position:relative; min-height:104px;">
+          <div style="width:84px; flex-shrink:0; background: {{ s.ph }}; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#0a090c; border-right:2px dashed #0a090c;">
+            <div style="font-weight:700; font-size:12px; letter-spacing:.1em;">{{ s.mon }}</div><div style="font-weight:900; font-size:32px; line-height:.95;">{{ s.day }}</div><div style="font-weight:700; font-size:12px;">{{ s.yr }}</div>
+          </div>
+          <div style="flex:1; min-width:0; padding:14px 16px; display:flex; flex-direction:column; gap:3px;">
+            <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.12em; color: {{ s.srcC }};">{{ s.src }}</span><span style="font-family:Monaco,Consolas,monospace; font-size:10px; color:#7c8084;">{{ s.n }}</span></div>
+            <div style="font-weight:900; font-size:20px; line-height:1.1;">{{ s.artist }}</div>
+            <div style="font-size:14px; color:#b9bdc1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.venue }} · {{ s.city }}</div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; margin-top:2px;"><span style="color:#9da1a5;">{{ s.songs }}</span><span style="color:var(--acc); letter-spacing:.08em;">{{ s.stars }}</span></div>
+          </div>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;"><div style="font-weight:900; font-size:22px;">Badges</div><button onClick="{{ goProfile }}" style="background:transparent; border:0; color:var(--acc); font-weight:700; font-size:15px; cursor:pointer;">5 of 8 →</button></div>
+      <div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:4px;">
+        <sc-for list="{{ badges }}" as="b" hint-placeholder-count="8">
+          <div style="flex:0 0 120px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center;">
+            <div style="width:72px; height:72px; border-radius:22px; transform:rotate(-6deg); background: {{ b.bg }}; border:2px dashed {{ b.bd }}; display:flex; align-items:center; justify-content:center; color: {{ b.fg }}; font-weight:900; font-size:22px;">{{ b.ini }}</div>
+            <div style="font-weight:700; font-size:13px; line-height:1.15; color: {{ b.tc }};">{{ b.k }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- SHOWS LIST -->
+  <sc-if value="{{ sShows }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;">
+      <div><div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">THE STUB DRAWER</div><div style="font-weight:900; font-size: {{ h1 }}; line-height:.92; letter-spacing:-.03em; margin-top:6px;">My shows</div></div>
+      <button onClick="{{ goLog }}" style="height:42px; padding:0 18px; border-radius:999px; border:0; background:var(--acc); color:#0a090c; font-weight:900; font-size:15px; cursor:pointer;">+ Log a show</button>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <sc-for list="{{ yearChips }}" as="c" hint-placeholder-count="4"><button onClick="{{ c.pick }}" style="padding:8px 16px; border-radius:999px; border:1px solid {{ c.bd }}; background: {{ c.bg }}; color: {{ c.fg }}; font-weight:700; font-size:14px; cursor:pointer;">{{ c.l }}</button></sc-for>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <sc-for list="{{ showList }}" as="s" hint-placeholder-count="6">
+        <button onClick="{{ s.open }}" style="display:flex; text-align:left; border:0; padding:0; border-radius:14px; overflow:hidden; background:#141516; color:#eff2f5; cursor:pointer; min-height:92px;">
+          <div style="width:84px; flex-shrink:0; background: {{ s.ph }}; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#0a090c; border-right:2px dashed #0a090c;">
+            <div style="font-weight:700; font-size:12px; letter-spacing:.1em;">{{ s.mon }}</div><div style="font-weight:900; font-size:30px; line-height:.95;">{{ s.day }}</div><div style="font-weight:700; font-size:12px;">{{ s.yr }}</div>
+          </div>
+          <div style="flex:1; min-width:0; padding:12px 16px; display:flex; flex-wrap:wrap; align-items:center; gap:4px 20px;">
+            <div style="flex:1 1 240px; min-width:0;">
+              <div style="font-weight:900; font-size:20px; line-height:1.1;">{{ s.artist }}</div>
+              <div style="font-size:14px; color:#b9bdc1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.venue }} · {{ s.city }}</div>
+            </div>
+            <div style="display:flex; gap:14px; align-items:center; font-size:13px; flex-wrap:wrap;">
+              <span style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.12em; color: {{ s.srcC }};">{{ s.src }}</span>
+              <span style="color:#9da1a5;">{{ s.songs }}</span>
+              <span style="color:var(--acc); letter-spacing:.08em;">{{ s.stars }}</span>
+            </div>
+          </div>
+        </button>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <!-- LOG / SEARCH -->
+  <sc-if value="{{ sLog }}" hint-placeholder-val="{{ false }}">
+    <div><div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">LOG A SHOW · SEARCHING SETLIST.FM</div><div style="font-weight:900; font-size: {{ h1 }}; line-height:.92; letter-spacing:-.03em; margin-top:6px;">Who’d you see?</div></div>
+    <div style="display:flex; align-items:center; gap:12px; height:62px; padding:0 20px; border-radius:16px; background:#1e2022; border:2px solid var(--acc);">
+      <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#9da1a5" strokeWidth="2" strokeLinecap="round"><circle cx="9" cy="9" r="5.5"></circle><path d="M13 13l4 4"></path></svg>
+      <input value="{{ q }}" onChange="{{ setQ }}" placeholder="Artist, venue or city" style="flex:1; min-width:0; background:transparent; border:0; outline:none; color:#eff2f5; font-size:20px; font-weight:700;"></input>
+      <sc-if value="{{ hasQ }}" hint-placeholder-val="{{ true }}"><button onClick="{{ clearQ }}" style="border:0; background:transparent; color:#9da1a5; font-size:22px; cursor:pointer;">×</button></sc-if>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <sc-for list="{{ quick }}" as="c" hint-placeholder-count="4"><button onClick="{{ c.pick }}" style="padding:7px 14px; border-radius:999px; background:#141516; border:1px solid #2d2f31; color:#dce0e3; font-size:14px; font-weight:600; cursor:pointer;">{{ c.l }}</button></sc-for>
+    </div>
+    <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+      <div style="font-size:14px; color:#9da1a5;">{{ resultCount }} setlists on setlist.fm · newest first</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <sc-for list="{{ results }}" as="r" hint-placeholder-count="5">
+          <div style="display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:14px; background:#141516; border:1px solid #2d2f31; flex-wrap:wrap;">
+            <div style="width:56px; text-align:center; flex-shrink:0;"><div style="font-family:Monaco,Consolas,monospace; font-size:11px; color:var(--acc);">{{ r.mon }}</div><div style="font-weight:900; font-size:26px; line-height:1;">{{ r.day }}</div><div style="font-size:12px; color:#9da1a5;">{{ r.yr }}</div></div>
+            <div style="flex:1 1 200px; min-width:0;">
+              <div style="font-weight:900; font-size:18px;">{{ r.artist }}</div>
+              <div style="font-size:14px; color:#b9bdc1;">{{ r.venue }} · {{ r.city }}</div>
+              <div style="font-size:12px; color:#7c8084; margin-top:2px;">{{ r.tour }} · {{ r.songs }} songs</div>
+            </div>
+            <button onClick="{{ r.log }}" style="height:40px; padding:0 18px; border-radius:999px; border:1px solid {{ r.bd }}; background: {{ r.bg }}; color: {{ r.fg }}; font-weight:900; font-size:14px; cursor:pointer; flex-shrink:0;">{{ r.label }}</button>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:28px; border-radius:18px; background:#141516; border:1px dashed #404346; text-align:center; display:flex; flex-direction:column; gap:8px; align-items:center;">
+        <div style="font-weight:900; font-size:26px;">Nothing on setlist.fm for “{{ q }}”</div>
+        <div style="color:#9da1a5; font-size:15px; max-width:420px;">Tiny venue? House show? Secret set? Add it yourself — it lives in Stubstash only.</div>
+      </div>
+    </sc-if>
+    <button onClick="{{ goAdd }}" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px 20px; border-radius:16px; background:linear-gradient(90deg, rgba(118,169,185,.3), rgba(118,169,185,.08)); border:1px solid #76a9b9; color:#eff2f5; cursor:pointer; text-align:left;">
+      <div><div style="font-weight:900; font-size:19px;">Can’t find it? Add it manually</div><div style="font-size:14px; color:#b8d3db;">Saved to Stubstash only — we don’t write back to setlist.fm.</div></div>
+      <span style="font-size:24px; font-weight:900;">→</span>
+    </button>
+  </sc-if>
+
+  <!-- ADD MANUALLY -->
+  <sc-if value="{{ sAdd }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex; align-items:center; gap:10px;"><button onClick="{{ goLog }}" style="border:0; background:transparent; color:#9da1a5; font-size:15px; font-weight:600; cursor:pointer; padding:0;">← Back to search</button></div>
+    <div><div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:#96beca;">ADD A SHOW · STUBSTASH ONLY</div><div style="font-weight:900; font-size: {{ h1 }}; line-height:.92; letter-spacing:-.03em; margin-top:6px;">You were there. Prove it.</div></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px; align-items:start;">
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31; display:flex; flex-direction:column; gap:12px;">
+          <div style="font-weight:900; font-size:20px;">The show</div>
+          <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:#b9bdc1;">Artist *<input value="{{ f.artist }}" onChange="{{ fArtist }}" placeholder="Who played?" style="height:46px; padding:0 14px; border-radius:10px; background:#1e2022; border:1px solid #404346; color:#eff2f5; font-size:16px; outline:none;"></input></label>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px;">
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:#b9bdc1;">Date *<input type="date" value="{{ f.date }}" onChange="{{ fDate }}" style="height:46px; padding:0 12px; border-radius:10px; background:#1e2022; border:1px solid #404346; color:#eff2f5; font-size:15px; outline:none; color-scheme:dark;"></input></label>
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:#b9bdc1;">City<input value="{{ f.city }}" onChange="{{ fCity }}" placeholder="Brooklyn, NY" style="height:46px; padding:0 14px; border-radius:10px; background:#1e2022; border:1px solid #404346; color:#eff2f5; font-size:16px; outline:none;"></input></label>
+          </div>
+          <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:#b9bdc1;">Venue *<input value="{{ f.venue }}" onChange="{{ fVenue }}" placeholder="Where?" style="height:46px; padding:0 14px; border-radius:10px; background:#1e2022; border:1px solid #404346; color:#eff2f5; font-size:16px; outline:none;"></input></label>
+        </div>
+        <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31; display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:baseline;"><div style="font-weight:900; font-size:20px;">Setlist</div><div style="font-size:13px; color:#9da1a5;">{{ songCount }} songs</div></div>
+          <div style="display:flex; flex-direction:column;">
+            <sc-for list="{{ fSongs }}" as="s" hint-placeholder-count="0">
+              <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid #1e2022;">
+                <span style="font-family:Monaco,Consolas,monospace; font-size:11px; color:#7c8084; width:20px;">{{ s.n }}</span>
+                <span style="flex:1; font-weight:700;">{{ s.t }}</span>
+                <button onClick="{{ s.rm }}" style="border:0; background:transparent; color:#7c8084; font-size:18px; cursor:pointer;">×</button>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <input value="{{ f.draft }}" onChange="{{ fDraft }}" onKeyDown="{{ draftKey }}" placeholder="Add a song, hit enter" style="flex:1; min-width:0; height:44px; padding:0 14px; border-radius:10px; background:#1e2022; border:1px solid #404346; color:#eff2f5; font-size:15px; outline:none;"></input>
+            <button onClick="{{ addSong }}" style="height:44px; padding:0 16px; border-radius:10px; border:0; background:#2d2f31; color:#eff2f5; font-weight:700; cursor:pointer;">Add</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31; display:flex; flex-direction:column; gap:14px;">
+          <div style="font-weight:900; font-size:20px;">Your night</div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;"><span style="font-size:13px; font-weight:700; color:#b9bdc1;">Rating</span>
+            <div style="display:flex; gap:2px;"><sc-for list="{{ rateStars }}" as="r" hint-placeholder-count="5"><button onClick="{{ r.set }}" style="border:0; background:transparent; font-size:30px; line-height:1; color: {{ r.c }}; cursor:pointer; padding:2px;">★</button></sc-for></div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;"><span style="font-size:13px; font-weight:700; color:#b9bdc1;">Who was there with you</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;"><sc-for list="{{ friendChips }}" as="c" hint-placeholder-count="3"><button onClick="{{ c.toggle }}" style="display:flex; align-items:center; gap:6px; padding:5px 12px 5px 5px; border-radius:999px; border:1px solid {{ c.bd }}; background: {{ c.bg }}; color:#eff2f5; font-weight:700; font-size:14px; cursor:pointer;"><span style="width:24px; height:24px; border-radius:50%; background: {{ c.c }}; color:#0a090c; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900;">{{ c.i }}</span>{{ c.name }}</button></sc-for></div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px;">
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:#b9bdc1;">Seat / section<input value="{{ f.seat }}" onChange="{{ fSeat }}" placeholder="GA" style="height:44px; padding:0 12px; border-radius:10px; background:#1e2022; border:1px solid #404346; color:#eff2f5; font-size:15px; outline:none; min-width:0;"></input></label>
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:#b9bdc1;">Ticket price<input value="{{ f.price }}" onChange="{{ fPrice }}" placeholder="$" style="height:44px; padding:0 12px; border-radius:10px; background:#1e2022; border:1px solid #404346; color:#eff2f5; font-size:15px; outline:none; min-width:0;"></input></label>
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:#b9bdc1;">Merch<input value="{{ f.merch }}" onChange="{{ fMerch }}" placeholder="Tee?" style="height:44px; padding:0 12px; border-radius:10px; background:#1e2022; border:1px solid #404346; color:#eff2f5; font-size:15px; outline:none; min-width:0;"></input></label>
+          </div>
+        </div>
+        <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31; display:flex; flex-direction:column; gap:12px;">
+          <div style="font-weight:900; font-size:20px;">Memories</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <button onClick="{{ addPhoto }}" style="height:96px; border-radius:12px; border:2px dashed #404346; background:#0d0d0e; color:#dce0e3; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;"><span style="font-size:24px; font-weight:900; color:var(--acc);">+</span>{{ photoLabel }}</button>
+            <button onClick="{{ scanStub }}" style="height:96px; border-radius:12px; border:2px dashed {{ stubBd }}; background:#0d0d0e; color:#dce0e3; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;"><span style="font-size:13px; font-family:Monaco,Consolas,monospace; letter-spacing:.12em; color:#76a9b9;">{{ stubTag }}</span>{{ stubLabel }}</button>
+          </div>
+          <textarea value="{{ f.notes }}" onChange="{{ fNotes }}" placeholder="What made this one special?" rows="3" style="padding:12px 14px; border-radius:10px; background:#1e2022; border:1px solid #404346; color:#eff2f5; font-size:15px; outline:none; resize:vertical;"></textarea>
+        </div>
+        <button onClick="{{ saveShow }}" style="height:56px; border-radius:999px; border:0; background: {{ saveBg }}; color: {{ saveFg }}; font-weight:900; font-size:18px; cursor:pointer;">{{ saveLabel }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- SHOW DETAIL -->
+  <sc-if value="{{ sShow }}" hint-placeholder-val="{{ false }}">
+    <button onClick="{{ goShows }}" style="align-self:flex-start; border:0; background:transparent; color:#9da1a5; font-size:15px; font-weight:600; cursor:pointer; padding:0;">← My shows</button>
+    <div style="position:relative; border-radius:22px; overflow:hidden; min-height:300px; background: {{ d.ph }}; display:flex; flex-direction:column; justify-content:flex-end;">
+      <div style="position:absolute; top:14px; right:14px; padding:5px 10px; border-radius:6px; background:rgba(10,9,12,.7); font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.1em; color:#dce0e3;">ARTIST IMAGE · {{ d.imgSrc }}</div>
+      <div style="position:relative; padding:24px; background:linear-gradient(180deg, transparent, rgba(10,9,12,.92)); display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <span style="padding:4px 10px; border-radius:999px; background:var(--acc); color:#0a090c; font-weight:900; font-size:13px;">Show {{ d.n }}</span>
+          <span style="padding:4px 10px; border-radius:999px; background:rgba(10,9,12,.7); font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.1em; color: {{ d.srcC }};">{{ d.src }}</span>
+        </div>
+        <button onClick="{{ d.openArtist }}" style="align-self:flex-start; border:0; background:transparent; padding:0; color:#ffffff; cursor:pointer; text-align:left; font-weight:900; font-size: {{ hero }}; line-height:.9; letter-spacing:-.035em;">{{ d.artist }}</button>
+        <div style="font-size:18px; font-weight:600; color:#dce0e3;">{{ d.long }} · <button onClick="{{ d.openVenue }}" style="border:0; background:transparent; padding:0; color:var(--acc); font-size:18px; font-weight:700; cursor:pointer;">{{ d.venue }}</button> · {{ d.city }}</div>
+        <div style="font-size:14px; color:#b9bdc1;">{{ d.tour }}</div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;">
+      <div style="padding:14px; border-radius:14px; background:#141516; border:1px solid #2d2f31;"><div style="font-weight:900; font-size:34px; line-height:1;">{{ d.songN }}</div><div style="font-size:13px; color:#9da1a5;">songs played</div></div>
+      <div style="padding:14px; border-radius:14px; background:#141516; border:1px solid #2d2f31;"><div style="font-weight:900; font-size:34px; line-height:1; color:#96beca;">{{ d.firsts }}</div><div style="font-size:13px; color:#9da1a5;">first-time hears</div></div>
+      <div style="padding:14px; border-radius:14px; background:#141516; border:1px solid #2d2f31;"><div style="font-weight:900; font-size:34px; line-height:1; color:var(--acc);">{{ d.rares }}</div><div style="font-size:13px; color:#9da1a5;">bustouts &amp; debuts</div></div>
+      <div style="padding:14px; border-radius:14px; background:#141516; border:1px solid #2d2f31;"><div style="font-weight:900; font-size:34px; line-height:1;">{{ d.artistN }}</div><div style="font-size:13px; color:#9da1a5;">time seeing them</div></div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px; align-items:start;">
+      <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;"><div style="font-weight:900; font-size:22px;">Setlist</div><div style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.1em; color:#7c8084;">{{ d.setSrc }}</div></div>
+        <sc-for list="{{ d.sets }}" as="set" hint-placeholder-count="2">
+          <div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc); margin:14px 0 4px;">{{ set.name }}</div>
+          <sc-for list="{{ set.songs }}" as="s" hint-placeholder-count="5">
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-top:1px solid #1e2022;">
+              <span style="font-family:Monaco,Consolas,monospace; font-size:11px; color:#7c8084; width:20px;">{{ s.num }}</span>
+              <span style="flex:1; font-weight:700; font-size:16px;">{{ s.t }}</span>
+              <sc-if value="{{ s.has }}" hint-placeholder-val="{{ false }}"><span style="padding:3px 8px; border-radius:6px; background: {{ s.bg }}; color:#0a090c; font-family:Monaco,Consolas,monospace; font-size:10px; font-weight:700; letter-spacing:.08em; white-space:nowrap;">{{ s.tag }}</span></sc-if>
+            </div>
+          </sc-for>
+        </sc-for>
+        <sc-if value="{{ d.noSets }}" hint-placeholder-val="{{ false }}"><div style="padding:18px; border-radius:12px; border:1px dashed #404346; color:#9da1a5; text-align:center; margin-top:10px;">{{ d.emptyMsg }}</div></sc-if>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31; display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;"><div style="font-weight:900; font-size:22px;">Your night</div><div style="color:var(--acc); font-size:22px; letter-spacing:.06em;">{{ d.stars }}</div></div>
+          <sc-if value="{{ d.hasWith }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="display:flex;"><sc-for list="{{ d.with }}" as="w" hint-placeholder-count="2"><div style="width:34px; height:34px; border-radius:50%; background: {{ w.c }}; border:2px solid #141516; margin-right:-8px; color:#0a090c; font-weight:900; display:flex; align-items:center; justify-content:center;">{{ w.i }}</div></sc-for></div>
+            <div style="font-size:14px; padding-left:8px;">with <b>{{ d.withNames }}</b></div>
+          </div>
+          </sc-if>
+          <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;">
+            <div><div style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.12em; color:#7c8084;">SEAT</div><div style="font-weight:700; margin-top:2px;">{{ d.seat }}</div></div>
+            <div><div style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.12em; color:#7c8084;">PAID</div><div style="font-weight:700; margin-top:2px;">{{ d.price }}</div></div>
+            <div><div style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.12em; color:#7c8084;">MERCH</div><div style="font-weight:700; margin-top:2px;">{{ d.merch }}</div></div>
+          </div>
+          <sc-if value="{{ d.hasNotes }}" hint-placeholder-val="{{ true }}"><div style="font-size:17px; line-height:1.45; padding:14px; border-radius:12px; background:#1e2022; font-style:italic; text-wrap:pretty;">“{{ d.notes }}”</div></sc-if>
+        </div>
+        <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;"><div style="font-weight:900; font-size:22px;">Photos &amp; stub</div><div style="font-size:13px; color:#9da1a5;">{{ d.photoN }} photos</div></div>
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px;">
+            <div style="grid-column:span 3; height:88px; border-radius:10px; background:repeating-linear-gradient(90deg,#fce4a3 0 1px,transparent 1px 7px),#fad672; color:#0a090c; display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-left:8px dotted #141516;">
+              <div><div style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.12em;">SCANNED TICKET STUB</div><div style="font-weight:900; font-size:18px;">{{ d.artist }}</div></div><div style="font-weight:900; font-size:14px; text-align:right;">{{ d.mon }} {{ d.day }}<br>{{ d.seat }}</div>
+            </div>
+            <sc-for list="{{ d.photos }}" as="p" hint-placeholder-count="3"><div style="aspect-ratio:1; border-radius:8px; background: {{ p.bg }}; display:flex; align-items:flex-end; padding:6px; font-family:Monaco,Consolas,monospace; font-size:9px; color:rgba(255,255,255,.8);">YOUR PHOTO</div></sc-for>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button onClick="{{ shareShow }}" style="flex:1; height:50px; border-radius:999px; border:0; background:var(--acc); color:#0a090c; font-weight:900; font-size:16px; cursor:pointer;">Make a share card</button>
+          <button onClick="{{ goAdd }}" style="height:50px; padding:0 22px; border-radius:999px; border:1px solid #404346; background:transparent; color:#eff2f5; font-weight:700; font-size:16px; cursor:pointer;">Edit</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ARTIST -->
+  <sc-if value="{{ sArtist }}" hint-placeholder-val="{{ false }}">
+    <button onClick="{{ goBack }}" style="align-self:flex-start; border:0; background:transparent; color:#9da1a5; font-size:15px; font-weight:600; cursor:pointer; padding:0;">← Back</button>
+    <div style="display:flex; gap:24px; align-items:flex-end; flex-wrap:wrap;">
+      <div style="width:200px; height:200px; border-radius:50%; flex-shrink:0; background: {{ ar.ph }}; position:relative; display:flex; align-items:flex-end; justify-content:center; padding-bottom:20px;"><span style="padding:4px 8px; border-radius:6px; background:rgba(10,9,12,.7); font-family:Monaco,Consolas,monospace; font-size:9px; letter-spacing:.1em; color:#dce0e3;">{{ ar.img }}</span></div>
+      <div style="flex:1 1 280px; min-width:0;">
+        <div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">{{ ar.genre }} · FIRST SEEN {{ ar.first }}</div>
+        <div style="font-weight:900; font-size: {{ hero }}; line-height:.88; letter-spacing:-.035em; margin-top:6px;">{{ ar.name }}</div>
+        <div style="font-size:18px; color:#b9bdc1; margin-top:8px;">Seen <b style="color:var(--acc);">{{ ar.seen }} times</b> · last {{ ar.last }} · {{ ar.uniq }} different songs heard</div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; align-items:start;">
+      <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+        <div style="font-weight:900; font-size:22px;">Songs you’re still chasing</div>
+        <div style="font-size:14px; color:#9da1a5; margin:2px 0 12px;">Their most-played songs you haven’t caught yet.</div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;"><sc-for list="{{ ar.chasing }}" as="c" hint-placeholder-count="3"><span style="padding:8px 14px; border-radius:999px; border:1px dashed var(--acc); color:var(--acc); font-weight:700;">{{ c }}</span></sc-for></div>
+        <div style="font-weight:900; font-size:22px; margin-top:22px;">Heard most</div>
+        <sc-for list="{{ ar.songs }}" as="s" hint-placeholder-count="2"><div style="display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid #1e2022;"><span style="font-weight:700;">{{ s.t }}</span><b>{{ s.n }}×</b></div></sc-for>
+      </div>
+      <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+        <div style="font-weight:900; font-size:22px; margin-bottom:10px;">Your {{ ar.name }} shows</div>
+        <sc-for list="{{ ar.shows }}" as="s" hint-placeholder-count="2">
+          <button onClick="{{ s.open }}" style="width:100%; display:flex; gap:12px; align-items:center; padding:10px 0; border:0; border-top:1px solid #1e2022; background:transparent; color:#eff2f5; cursor:pointer; text-align:left;">
+            <div style="width:52px; text-align:center;"><div style="font-family:Monaco,Consolas,monospace; font-size:10px; color:var(--acc);">{{ s.mon }}</div><div style="font-weight:900; font-size:22px; line-height:1;">{{ s.day }}</div><div style="font-size:11px; color:#9da1a5;">{{ s.yr }}</div></div>
+            <div style="flex:1; min-width:0;"><div style="font-weight:700;">{{ s.venue }}</div><div style="font-size:13px; color:#9da1a5;">{{ s.city }} · {{ s.songs }}</div></div>
+            <span style="color:var(--acc);">{{ s.stars }}</span>
+          </button>
+        </sc-for>
+        <div style="font-size:13px; color:#7c8084; margin-top:10px;">+ older shows imported from setlist.fm</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- VENUE -->
+  <sc-if value="{{ sVenue }}" hint-placeholder-val="{{ false }}">
+    <button onClick="{{ goBack }}" style="align-self:flex-start; border:0; background:transparent; color:#9da1a5; font-size:15px; font-weight:600; cursor:pointer; padding:0;">← Back</button>
+    <div style="position:relative; border-radius:22px; overflow:hidden; min-height:280px; background: {{ ve.ph }}; display:flex; flex-direction:column; justify-content:flex-end;">
+      <div style="position:absolute; top:14px; right:14px; padding:5px 10px; border-radius:6px; background:rgba(10,9,12,.7); font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.1em; color:#dce0e3;">VENUE PHOTO · {{ ve.img }}</div>
+      <div style="padding:24px; background:linear-gradient(180deg, transparent, rgba(10,9,12,.92));">
+        <div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">{{ ve.city }} · CAP {{ ve.cap }}</div>
+        <div style="font-weight:900; font-size: {{ hero }}; line-height:.9; letter-spacing:-.035em; margin-top:6px;">{{ ve.name }}</div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px;">
+      <div style="padding:16px; border-radius:14px; background:var(--acc); color:#0a090c;"><div style="font-weight:900; font-size:40px; line-height:1;">{{ ve.visits }}×</div><div style="font-weight:700;">visits</div></div>
+      <div style="padding:16px; border-radius:14px; background:#141516; border:1px solid #2d2f31;"><div style="font-weight:900; font-size:40px; line-height:1;">{{ ve.first }}</div><div style="color:#9da1a5;">first visit</div></div>
+      <div style="padding:16px; border-radius:14px; background:#141516; border:1px solid #2d2f31;"><div style="font-weight:900; font-size:40px; line-height:1;">{{ ve.rank }}</div><div style="color:#9da1a5;">your most-visited</div></div>
+      <div style="padding:16px; border-radius:14px; background:#141516; border:1px solid #2d2f31;"><div style="font-weight:900; font-size:40px; line-height:1;">{{ ve.miles }}</div><div style="color:#9da1a5;">miles from home</div></div>
+    </div>
+    <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;"><div style="font-weight:900; font-size:22px;">Shows here</div><button onClick="{{ goMap }}" style="border:0; background:transparent; color:var(--acc); font-weight:700; cursor:pointer;">See on map →</button></div>
+      <sc-for list="{{ ve.shows }}" as="s" hint-placeholder-count="2">
+        <button onClick="{{ s.open }}" style="width:100%; display:flex; gap:12px; align-items:center; padding:10px 0; border:0; border-top:1px solid #1e2022; background:transparent; color:#eff2f5; cursor:pointer; text-align:left;">
+          <div style="width:44px; height:44px; border-radius:50%; background: {{ s.ph }}; flex-shrink:0;"></div>
+          <div style="flex:1; min-width:0;"><div style="font-weight:700;">{{ s.artist }}</div><div style="font-size:13px; color:#9da1a5;">{{ s.mon }} {{ s.day }}, {{ s.yr }} · {{ s.songs }}</div></div>
+          <span style="color:var(--acc);">{{ s.stars }}</span>
+        </button>
+      </sc-for>
+      <div style="font-size:13px; color:#7c8084; margin-top:10px;">+ older visits imported from setlist.fm</div>
+    </div>
+  </sc-if>
+
+  <!-- PROFILE / YEAR IN REVIEW -->
+  <sc-if value="{{ sProfile }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
+      <div style="width:88px; height:88px; border-radius:50%; background:linear-gradient(135deg,#f4b811,#76a9b9); color:#0a090c; font-weight:900; font-size:40px; display:flex; align-items:center; justify-content:center;">S</div>
+      <div style="flex:1 1 200px;"><div style="font-weight:900; font-size:36px; line-height:1;">Sam Okafor</div><div style="color:#9da1a5; font-size:16px; margin-top:4px;">@samgigs · Brooklyn, NY · stubstash.app/samgigs</div></div>
+      <button onClick="{{ togglePub }}" style="display:flex; align-items:center; gap:10px; padding:8px 14px 8px 8px; border-radius:999px; border:1px solid #2d2f31; background:#141516; color:#eff2f5; font-weight:700; cursor:pointer;"><span style="width:40px; height:24px; border-radius:24px; background: {{ pubBg }}; position:relative; display:block;"><span style="position:absolute; top:3px; left: {{ pubX }}; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .15s;"></span></span>{{ pubLabel }}</button>
+    </div>
+
+    <div style="border-radius:24px; overflow:hidden; background:var(--acc); color:#0a090c; padding:28px; display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:24px; align-items:end;">
+      <div>
+        <div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; font-weight:700;">YEAR IN REVIEW</div>
+        <div style="font-weight:900; font-size:96px; line-height:.82; letter-spacing:-.05em; margin-top:8px;">2026</div>
+        <div style="font-weight:900; font-size:28px; line-height:1; margin-top:12px; text-wrap:balance;">12 shows. 214 songs. One Harpua.</div>
+        <button onClick="{{ shareYear }}" style="margin-top:18px; height:46px; padding:0 20px; border-radius:999px; border:0; background:#0a090c; color:var(--acc); font-weight:900; font-size:15px; cursor:pointer;">Share my year</button>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <sc-for list="{{ yirCells }}" as="c" hint-placeholder-count="6"><div style="padding:12px; border-radius:14px; background:rgba(10,9,12,.1); border:2px solid #0a090c;"><div style="font-weight:900; font-size:28px; line-height:1;">{{ c.v }}</div><div style="font-weight:700; font-size:13px;">{{ c.k }}</div></div></sc-for>
+      </div>
+    </div>
+
+    <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+      <div style="font-weight:900; font-size:22px; margin-bottom:14px;">Badges <span style="color:#9da1a5; font-weight:600; font-size:15px;">5 of 8 earned</span></div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px;">
+        <sc-for list="{{ badges }}" as="b" hint-placeholder-count="8">
+          <div style="padding:14px; border-radius:14px; background:#0d0d0e; border:1px solid #2d2f31; display:flex; flex-direction:column; gap:10px;">
+            <div style="width:52px; height:52px; border-radius:16px; transform:rotate(-6deg); background: {{ b.bg }}; border:2px dashed {{ b.bd }}; display:flex; align-items:center; justify-content:center; color: {{ b.fg }}; font-weight:900; font-size:18px;">{{ b.ini }}</div>
+            <div><div style="font-weight:900; font-size:15px; color: {{ b.tc }};">{{ b.k }}</div><div style="font-size:13px; color:#9da1a5; line-height:1.3;">{{ b.d }}</div><div style="font-family:Monaco,Consolas,monospace; font-size:10px; color:var(--acc); margin-top:4px;">{{ b.prog }}</div></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;"><div style="font-weight:900; font-size:22px;">Friends &amp; head-to-head</div><button onClick="{{ goFriends }}" style="border:0; background:transparent; color:var(--acc); font-weight:700; cursor:pointer;">+ Find friends</button></div>
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <sc-for list="{{ friends }}" as="fr" hint-placeholder-count="3">
+          <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+            <div style="display:flex; gap:10px; align-items:center; flex:1 1 200px;"><div style="width:40px; height:40px; border-radius:50%; background: {{ fr.c }}; color:#0a090c; font-weight:900; display:flex; align-items:center; justify-content:center;">{{ fr.i }}</div><div><div style="font-weight:700;">{{ fr.name }}</div><div style="font-size:13px; color:#9da1a5;">{{ fr.shared }} shows together</div></div></div>
+            <div style="flex:2 1 260px; display:flex; flex-direction:column; gap:4px;">
+              <div style="display:flex; align-items:center; gap:8px; font-size:12px;"><span style="width:36px; color:#9da1a5;">You</span><div style="flex:1; height:8px; border-radius:8px; background:#1e2022;"><div style="height:100%; border-radius:8px; width: {{ fr.youW }}; background:var(--acc);"></div></div><b style="width:28px; text-align:right;">87</b></div>
+              <div style="display:flex; align-items:center; gap:8px; font-size:12px;"><span style="width:36px; color:#9da1a5;">{{ fr.first }}</span><div style="flex:1; height:8px; border-radius:8px; background:#1e2022;"><div style="height:100%; border-radius:8px; width: {{ fr.w }}; background: {{ fr.c }};"></div></div><b style="width:28px; text-align:right;">{{ fr.shows }}</b></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button onClick="{{ openInstall }}" style="height:44px; padding:0 18px; border-radius:999px; border:1px solid #404346; background:transparent; color:#eff2f5; font-weight:700; cursor:pointer;">Install the app</button>
+      <button onClick="{{ goOnboard }}" style="height:44px; padding:0 18px; border-radius:999px; border:1px solid #404346; background:transparent; color:#eff2f5; font-weight:700; cursor:pointer;">Re-import from setlist.fm</button>
+    </div>
+  </sc-if>
+
+  <!-- FRIENDS -->
+  <sc-if value="{{ sFriends }}" hint-placeholder-val="{{ false }}">
+    <button onClick="{{ goProfile }}" style="align-self:flex-start; border:0; background:transparent; color:#9da1a5; font-size:15px; font-weight:600; cursor:pointer; padding:0;">← Profile</button>
+    <div><div style="font-family:Monaco,Consolas,monospace; font-size:11px; letter-spacing:.14em; color:var(--acc);">FIND YOUR PEOPLE</div><div style="font-weight:900; font-size: {{ h1 }}; line-height:.92; letter-spacing:-.03em; margin-top:6px;">Who’s in your crew?</div></div>
+
+    <sc-if value="{{ hasIncoming }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; align-items:center; gap:14px; padding:16px; border-radius:16px; background:rgba(244,184,17,.1); border:1px solid var(--acc); flex-wrap:wrap;">
+      <div style="width:44px; height:44px; border-radius:50%; background:#96beca; color:#0a090c; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">D</div>
+      <div style="flex:1 1 220px; min-width:0;"><div style="font-weight:900; font-size:17px;">Dev Patel wants to add you</div><div style="font-size:14px; color:#b9bdc1;">You were both at The National · Forest Hills · Jun 20</div></div>
+      <div style="display:flex; gap:8px;">
+        <button onClick="{{ declineReq }}" style="height:38px; padding:0 14px; border-radius:999px; border:1px solid #404346; background:transparent; color:#eff2f5; font-weight:700; cursor:pointer;">Ignore</button>
+        <button onClick="{{ acceptReq }}" style="height:38px; padding:0 16px; border-radius:999px; border:0; background:var(--acc); color:#0a090c; font-weight:900; cursor:pointer;">Accept</button>
+      </div>
+    </div>
+    </sc-if>
+
+    <div style="display:flex; align-items:center; gap:12px; height:56px; padding:0 18px; border-radius:16px; background:#1e2022; border:1px solid #404346;">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#9da1a5" strokeWidth="2" strokeLinecap="round"><circle cx="9" cy="9" r="5.5"></circle><path d="M13 13l4 4"></path></svg>
+      <input value="{{ fq }}" onChange="{{ setFq }}" placeholder="Search by name or @handle" style="flex:1; min-width:0; background:transparent; border:0; outline:none; color:#eff2f5; font-size:18px; font-weight:700;"></input>
+    </div>
+
+    <sc-if value="{{ fSearching }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:8px 20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+        <sc-for list="{{ fResults }}" as="p" hint-placeholder-count="2">
+          <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid #1e2022;">
+            <div style="width:44px; height:44px; border-radius:50%; background: {{ p.c }}; color:#0a090c; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ p.i }}</div>
+            <div style="flex:1; min-width:0;"><div style="font-weight:700;">{{ p.name }} <span style="color:#7c8084; font-weight:600;">{{ p.h }}</span></div><div style="font-size:13px; color:#9da1a5;">{{ p.why }}</div></div>
+            <button onClick="{{ p.add }}" style="height:36px; padding:0 14px; border-radius:999px; border:1px solid {{ p.bd }}; background: {{ p.bg }}; color: {{ p.fg }}; font-weight:900; font-size:14px; cursor:pointer; flex-shrink:0;">{{ p.label }}</button>
+          </div>
+        </sc-for>
+        <sc-if value="{{ fNone }}" hint-placeholder-val="{{ false }}"><div style="padding:16px 0; color:#9da1a5;">No one by that name yet — send them an invite link below.</div></sc-if>
+      </div>
+    </sc-if>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px; align-items:start;">
+      <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31;">
+        <div style="font-weight:900; font-size:22px;">Were at your shows</div>
+        <div style="font-size:14px; color:#9da1a5; margin:2px 0 8px;">Public profiles that logged the same nights as you.</div>
+        <sc-for list="{{ fSuggest }}" as="p" hint-placeholder-count="3">
+          <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid #1e2022;">
+            <div style="width:44px; height:44px; border-radius:50%; background: {{ p.c }}; color:#0a090c; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ p.i }}</div>
+            <div style="flex:1; min-width:0;"><div style="font-weight:700;">{{ p.name }}</div><div style="font-size:13px; color:#9da1a5;">{{ p.why }}</div></div>
+            <button onClick="{{ p.add }}" style="height:36px; padding:0 14px; border-radius:999px; border:1px solid {{ p.bd }}; background: {{ p.bg }}; color: {{ p.fg }}; font-weight:900; font-size:14px; cursor:pointer; flex-shrink:0;">{{ p.label }}</button>
+          </div>
+        </sc-for>
+        <div style="font-weight:900; font-size:22px; margin-top:18px;">From your contacts</div>
+        <sc-if value="{{ contactsOn }}" hint-placeholder-val="{{ false }}">
+          <sc-for list="{{ fContacts }}" as="p" hint-placeholder-count="2">
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid #1e2022;">
+              <div style="width:44px; height:44px; border-radius:50%; background: {{ p.c }}; color:#0a090c; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ p.i }}</div>
+              <div style="flex:1; min-width:0;"><div style="font-weight:700;">{{ p.name }}</div><div style="font-size:13px; color:#9da1a5;">{{ p.why }}</div></div>
+              <button onClick="{{ p.add }}" style="height:36px; padding:0 14px; border-radius:999px; border:1px solid {{ p.bd }}; background: {{ p.bg }}; color: {{ p.fg }}; font-weight:900; font-size:14px; cursor:pointer; flex-shrink:0;">{{ p.label }}</button>
+            </div>
+          </sc-for>
+        </sc-if>
+        <sc-if value="{{ contactsOff }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ syncContacts }}" style="width:100%; margin-top:10px; height:46px; border-radius:12px; border:1px dashed #404346; background:transparent; color:#eff2f5; font-weight:700; cursor:pointer;">Check my contacts</button>
+          <div style="font-size:12px; color:#7c8084; margin-top:6px;">Numbers are matched privately and never stored.</div>
+        </sc-if>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <div style="padding:20px; border-radius:18px; background:var(--acc); color:#0a090c; display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
+          <div style="width:132px; height:132px; flex-shrink:0; padding:8px; border-radius:12px; background:#ffffff; display:grid; grid-template-columns:repeat(21,1fr);">
+            <sc-for list="{{ qr }}" as="q" hint-placeholder-count="0"><div style="background: {{ q }};"></div></sc-for>
+          </div>
+          <div style="flex:1 1 160px; display:flex; flex-direction:column; gap:6px;">
+            <div style="font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.14em; font-weight:700;">AT THE SHOW?</div>
+            <div style="font-weight:900; font-size:24px; line-height:1;">Scan to add me</div>
+            <div style="font-size:14px; font-weight:600;">Show this to the people next to you on the rail. Works offline.</div>
+          </div>
+        </div>
+        <div style="padding:20px; border-radius:18px; background:#141516; border:1px solid #2d2f31; display:flex; flex-direction:column; gap:12px;">
+          <div style="font-weight:900; font-size:22px;">Invite link</div>
+          <div style="display:flex; gap:8px;">
+            <div style="flex:1; min-width:0; height:46px; padding:0 14px; border-radius:10px; background:#1e2022; border:1px solid #404346; display:flex; align-items:center; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">stubstash.app/add/samgigs</div>
+            <button onClick="{{ copyInvite }}" style="height:46px; padding:0 18px; border-radius:10px; border:0; background:#eff2f5; color:#0a090c; font-weight:900; cursor:pointer;">{{ copyLabel }}</button>
+          </div>
+          <div style="font-size:13px; color:#9da1a5; line-height:1.4;">Friends who aren’t on Stubstash yet: tag them in “Who was there” on any show and they’ll get the invite with that show already in their log.</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="height: {{ bottomSpace }};"></div>
+  </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ mob }}" hint-placeholder-val="{{ false }}">
+    <div style="flex-shrink:0; display:flex; align-items:center; justify-content:space-around; height:68px; padding-bottom: {{ botInset }}; box-sizing:content-box; background:#0d0d0e; border-top:1px solid #1e2022;">
+      <button onClick="{{ goHome }}" style="width:64px; height:52px; border:0; background:transparent; color: {{ nav.home.mfg }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:11px; font-weight:700; cursor:pointer;"><svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M3 9.5L10 3.5l7 6V17h-4.5v-4.5h-5V17H3z"></path></svg>Home</button>
+      <button onClick="{{ goShows }}" style="width:64px; height:52px; border:0; background:transparent; color: {{ nav.shows.mfg }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:11px; font-weight:700; cursor:pointer;"><svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="16" height="10" rx="2"></rect><path d="M7 5v10" strokeDasharray="2 2"></path></svg>Shows</button>
+      <button onClick="{{ goLog }}" style="width:58px; height:58px; margin-top:-22px; border-radius:50%; border:4px solid #0a090c; background:var(--acc); color:#0a090c; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 6px 20px rgba(244,184,17,.35);"><svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><path d="M10 4v12M4 10h12"></path></svg></button>
+      <button onClick="{{ goMap }}" style="width:64px; height:52px; border:0; background:transparent; color: {{ nav.map.mfg }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:11px; font-weight:700; cursor:pointer;"><svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 18s6-5.5 6-10a6 6 0 10-12 0c0 4.5 6 10 6 10z"></path><circle cx="10" cy="8" r="2"></circle></svg>Map</button>
+      <button onClick="{{ goProfile }}" style="width:64px; height:52px; border:0; background:transparent; color: {{ nav.profile.mfg }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:11px; font-weight:700; cursor:pointer;"><svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="10" cy="7" r="3.5"></circle><path d="M3 18c1-4 4-5.5 7-5.5s6 1.5 7 5.5"></path></svg>Me</button>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ install }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeInstall }}" style="position:absolute; inset:0; z-index:50; background:rgba(5,4,7,.7); backdrop-filter:blur(4px); display:flex; align-items: {{ sheetAlign }}; justify-content:center; padding: {{ sheetPad }};">
+    <div onClick="{{ stop }}" style="width:100%; max-width:440px; background:#1e2022; border:1px solid #404346; border-radius: {{ sheetR }}; padding:24px; display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; gap:14px; align-items:center;">
+        <div style="width:64px; height:64px; border-radius:16px; background:var(--acc); color:#0a090c; font-weight:900; font-size:30px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">S</div>
+        <div><div style="font-weight:900; font-size:22px; line-height:1.05;">Install Stubstash</div><div style="font-size:14px; color:#9da1a5;">stubstash.app · free · ~1 MB</div></div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; font-size:15px;">
+        <div style="display:flex; gap:10px;"><b style="color:var(--acc);">✓</b>Log shows offline — syncs when you’re back on signal</div>
+        <div style="display:flex; gap:10px;"><b style="color:var(--acc);">✓</b>Full-screen, launches from your home screen</div>
+        <div style="display:flex; gap:10px;"><b style="color:var(--acc);">✓</b>Nudge the morning after to rate the show</div>
+      </div>
+      <sc-if value="{{ mob }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:14px; border-radius:12px; background:#141516; font-size:14px; line-height:1.5; color:#dce0e3;">On iPhone: tap <b>Share</b> <span style="display:inline-flex; width:20px; height:20px; border:1.5px solid #dce0e3; border-radius:4px; align-items:center; justify-content:center; font-size:12px; vertical-align:middle;">↑</span> then <b>Add to Home Screen</b>.</div>
+      </sc-if>
+      <div style="display:flex; gap:10px;">
+        <button onClick="{{ closeInstall }}" style="flex:1; height:48px; border-radius:999px; border:1px solid #404346; background:transparent; color:#eff2f5; font-weight:700; font-size:15px; cursor:pointer;">Not now</button>
+        <button onClick="{{ doInstall }}" style="flex:1; height:48px; border-radius:999px; border:0; background:var(--acc); color:#0a090c; font-weight:900; font-size:15px; cursor:pointer;">Install</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ sharing }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeShare }}" style="position:absolute; inset:0; z-index:50; background:rgba(5,4,7,.8); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:20px; overflow:auto;">
+    <div onClick="{{ stop }}" style="display:flex; flex-direction:column; gap:14px; align-items:center;">
+      <div style="width:300px; height:533px; border-radius:20px; overflow:hidden; background: {{ card.bg }}; color:#0a090c; display:flex; flex-direction:column; padding:26px; position:relative; box-shadow:0 30px 80px rgba(0,0,0,.6);">
+        <div style="display:flex; justify-content:space-between; font-family:Monaco,Consolas,monospace; font-size:10px; letter-spacing:.14em; font-weight:700;"><span>STUBSTASH</span><span>{{ card.kicker }}</span></div>
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:10px;">
+          <div style="font-weight:900; font-size:17px;">{{ card.pre }}</div>
+          <div style="font-weight:900; font-size:58px; line-height:.84; letter-spacing:-.045em; text-wrap:balance;">{{ card.big }}</div>
+          <div style="font-weight:700; font-size:16px; line-height:1.25;">{{ card.sub }}</div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; border-top:3px solid #0a090c; padding-top:12px;">
+          <sc-for list="{{ card.stats }}" as="c" hint-placeholder-count="3"><div><div style="font-weight:900; font-size:26px; line-height:1;">{{ c.v }}</div><div style="font-size:11px; font-weight:700;">{{ c.k }}</div></div></sc-for>
+        </div>
+        <div style="font-family:Monaco,Consolas,monospace; font-size:9px; margin-top:12px;">stubstash.app/samgigs · setlist via setlist.fm</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button onClick="{{ cycleCard }}" style="height:44px; padding:0 16px; border-radius:999px; border:1px solid #404346; background:#1e2022; color:#eff2f5; font-weight:700; cursor:pointer;">Shuffle colors</button>
+        <button onClick="{{ saveCard }}" style="height:44px; padding:0 18px; border-radius:999px; border:0; background:#eff2f5; color:#0a090c; font-weight:900; cursor:pointer;">Share to Stories</button>
+        <button onClick="{{ closeShare }}" style="height:44px; width:44px; border-radius:50%; border:1px solid #404346; background:#1e2022; color:#eff2f5; font-size:18px; cursor:pointer;">×</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute; left:50%; transform:translateX(-50%); bottom: {{ toastBottom }}; z-index:60; padding:12px 20px; border-radius:999px; background:var(--acc); color:#0a090c; font-weight:900; font-size:15px; box-shadow:0 10px 30px rgba(0,0,0,.5); white-space:nowrap;">{{ toast }}</div>
+</sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;frame&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;responsive&quot;,&quot;phone&quot;],&quot;default&quot;:&quot;responsive&quot;,&quot;tsType&quot;:&quot;'responsive'|'phone'&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;onboard&quot;,&quot;log&quot;,&quot;add&quot;,&quot;show&quot;,&quot;map&quot;,&quot;profile&quot;,&quot;friends&quot;,&quot;shows&quot;,&quot;artist&quot;,&quot;venue&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#f4b811&quot;,&quot;#fad672&quot;,&quot;#76a9b9&quot;,&quot;#eff2f5&quot;],&quot;default&quot;:&quot;#f4b811&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Look&quot;}}">
+class Component extends DCLogic {
+  state = { screen:null, prev:'home', step:0, showId:'s84', artist:'The National', venueId:'foresthills', q:'Billy Strings', logged:{}, toast:null,
+    install:false, share:null, cardIx:0, bannerOff:false, w:window.innerWidth, ready:!!window.GIG, yf:'All', extra:[], pub:true,
+    obUser:'samgigs', obState:'idle', obCity:'Brooklyn, NY',
+    f:{artist:'',date:'',venue:'',city:'',songs:[],draft:'',rating:0,with:[],seat:'',price:'',merch:'',notes:'',stub:false,photos:0} };
+  scroller = React.createRef();
+  componentDidMount(){
+    this.onR=()=>this.setState({w:window.innerWidth}); window.addEventListener('resize',this.onR);
+    const p=new URLSearchParams(location.search).get('screen'); if(p) this.setState({screen:p});
+    if(!window.GIG){ this.poll=setInterval(()=>{ if(window.GIG){clearInterval(this.poll); this.setState({ready:true});} },50); }
+    this.onMsg=e=>{ if(e.data&&e.data.type==='gig-venue') this.go('venue',{venueId:e.data.id}); }; window.addEventListener('message',this.onMsg);
+  }
+  componentWillUnmount(){ window.removeEventListener('resize',this.onR); window.removeEventListener('message',this.onMsg); clearInterval(this.poll); }
+  cur(){ return this.state.screen||this.props.startScreen||'home'; }
+  go(screen,extra){ this.setState({screen,prev:this.cur(),...(extra||{})}); const el=this.scroller.current; if(el) el.scrollTop=0; }
+  flash(m){ this.setState({toast:m}); clearTimeout(this.tt); this.tt=setTimeout(()=>this.setState({toast:null}),2600); }
+  setF(k,v){ this.setState(s=>({f:{...s.f,[k]:v}})); }
+  addSong(){ const t=this.state.f.draft.trim(); if(!t) return; this.setState(s=>({f:{...s.f,songs:[...s.f.songs,t],draft:''}})); }
+  renderVals(){
+    const G=window.GIG, st=this.state, acc=this.props.accent??'#f4b811';
+    const phone=(this.props.frame??'responsive')==='phone', mob=phone||st.w<820, screen=this.cur();
+    const base={acc, mob, desk:!mob, scrollRef:this.scroller, shellW:phone?'390px':'100%', shellH:phone?'844px':'100vh', shellR:phone?'48px':'0px',
+      shellB:phone?'10px solid #1e2022':'0px solid transparent', outerPad:phone?'32px':'0px', topInset:phone?'34px':'0px', botInset:phone?'18px':'0px'};
+    if(!G) return base;
+    const fd=d=>{const x=new Date(d+'T12:00:00');return{mon:x.toLocaleString('en-US',{month:'short'}).toUpperCase(),day:String(x.getDate()).padStart(2,'0'),yr:String(x.getFullYear()),long:x.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})};};
+    const stars=r=>'★'.repeat(Math.floor(r))+(r%1?'½':'')+'☆'.repeat(Math.max(0,5-Math.ceil(r)));
+    const all=[...st.extra,...G.shows];
+    const venueOf=s=>G.venues[s.venue]||{name:s.venueName||'Unknown venue',city:s.city||'—',ph:G.ph('#76a9b9cc','#2d2f31'),visits:1,img:'Foursquare Places',cap:'—',first:'2026'};
+    const artOf=n=>G.artists[n]||{ph:G.ph('#76a9b9','#fad672'),seen:1,first:'2026',last:'2026',genre:'—',img:'TheAudioDB',uniq:0,chasing:[],c:['#76a9b9']};
+    const cnt=s=>s.songsN||s.sets.reduce((a,x)=>a+x.songs.length,0);
+    const stub=s=>{const v=venueOf(s),a=artOf(s.artist),n=cnt(s);return{...fd(s.date),id:s.id,artist:s.artist,venue:v.name,city:v.city,n:'#'+s.n,songs:n?n+' songs':'No setlist yet',stars:stars(s.rating||0),
+      src:s.src==='manual'?'ADDED BY YOU':'SETLIST.FM',srcC:s.src==='manual'?'#96beca':'#96beca',ph:a.ph,open:()=>this.go('show',{showId:s.id})};};
+    const navC=k=>{const on=(k==='shows'&&['shows','show'].includes(screen))||(k==='profile'&&screen==='friends')||k===screen||(k==='home'&&screen==='log'&&false);return{bg:on?'rgba(244,184,17,.12)':'transparent',fg:on?acc:'#b9bdc1',mfg:on?acc:'#7c8084'};};
+    const pad=mob?'18px 16px':'32px 36px';
+    const v={...base, ready:true, pad, h1:mob?'38px':'56px', hero:mob?'46px':'84px', wideSpan:mob?'1':'2', bottomSpace:mob?'8px':'24px',
+      sOnboard:screen==='onboard', inApp:screen!=='onboard', sHome:screen==='home', sShows:screen==='shows', sLog:screen==='log', sAdd:screen==='add', sShow:screen==='show',
+      sArtist:screen==='artist', sVenue:screen==='venue', sProfile:screen==='profile', sMap:screen==='map', notMap:screen!=='map',
+      nav:{home:navC('home'),shows:navC('shows'),map:navC('map'),profile:navC('profile')},
+      goHome:()=>this.go('home'), goShows:()=>this.go('shows'), goMap:()=>this.go('map'), goProfile:()=>this.go('profile'), goLog:()=>this.go('log'),
+      goAdd:()=>{ if(screen==='log'&&!st.f.artist&&st.q&&!G.search.some(r=>r.artist.toLowerCase().includes(st.q.toLowerCase()))) this.setF('artist',st.q); this.go('add'); },
+      goBack:()=>this.go(st.prev&&st.prev!==screen?st.prev:'home'), goOnboard:()=>this.setState({screen:'onboard',step:0,obState:'idle'}),
+      openInstall:()=>this.setState({install:true}), closeInstall:()=>this.setState({install:false}), stop:e=>e.stopPropagation(),
+      doInstall:()=>{this.setState({install:false,bannerOff:true});this.flash('Installed — find Stubstash on your home screen');},
+      dismissBanner:()=>this.setState({bannerOff:true}), showBanner:mob&&!st.bannerOff, showInstallCard:!st.bannerOff,
+      install:st.install, sheetAlign:mob?'flex-end':'center', sheetPad:mob?'0px':'24px', sheetR:mob?'24px 24px 0 0':'20px',
+      hasToast:!!st.toast, toast:st.toast, toastBottom:mob?(phone?'110px':'92px'):'28px'};
+    // onboarding
+    v.obDots=[0,1,2,3].map(i=>({w:i===st.step?'22px':'6px',bg:i<=st.step?acc:'#404346'}));
+    Object.assign(v,{ob0:st.step===0,ob1:st.step===1,ob2:st.step===2,ob3:st.step===3,obUser:st.obUser,obCity:st.obCity,obFound:st.obState==='found',
+      obImportLabel:st.obState==='idle'?'Find my shows':st.obState==='loading'?'Digging through setlist.fm…':'Import 87 shows',
+      setObUser:e=>this.setState({obUser:e.target.value,obState:'idle'}), setObCity:e=>this.setState({obCity:e.target.value}),
+      cityChips:['Brooklyn, NY','Chicago, IL','Denver, CO'].map(n=>({name:n,pick:()=>this.setState({obCity:n})})),
+      obNext:()=>this.setState(s=>({step:Math.min(3,s.step+1)})), obDone:()=>this.setState({screen:'home',step:0}),
+      obImport:()=>{ if(st.obState==='idle'){this.setState({obState:'loading'});setTimeout(()=>this.setState({obState:'found'}),1100);} else if(st.obState==='found') this.setState({step:2}); }});
+    // dashboard
+    const S=G.stats;
+    v.statCards=[{k:'Shows',v:'87',sub:'since Dec 2017',hero:1},{k:'Artists',v:'41',sub:'14 seen more than once'},{k:'Venues',v:'33',sub:'MSG is your home turf'},
+      {k:'Songs heard',v:'1,204',sub:'612 different songs'},{k:'Miles traveled',v:'18.4k',sub:'from Brooklyn, NY'},{k:'Cities',v:'19',sub:'in 4 countries'}]
+      .map(c=>({...c,bg:c.hero?acc:'#141516',fg:c.hero?'#0a090c':'#eff2f5',bd:c.hero?acc:'#2d2f31'}));
+    v.years=S.perYear.map(([y,n])=>({y:"'"+String(y).slice(2),n,h:(n/14*100)+'%',bg:y===2026?acc:'#404346'}));
+    v.streakCells=[1,1,0,1,1,1,0,0,1,1,1,1].map((o,i)=>({bg:o?(i>=8?'#0a090c':'rgba(10,9,12,.45)'):'rgba(255,255,255,.35)'}));
+    v.topArtists=Object.entries(G.artists).sort((a,b)=>b[1].seen-a[1].seen).slice(0,5).map(([n,a])=>({name:n,seen:a.seen,w:(a.seen/14*100)+'%',ph:a.ph,c:a.c[0],open:()=>this.go('artist',{artist:n})}));
+    v.topSongs=S.topSongs.slice(0,6).map(([t,a,n],i)=>({t,a,n,r:String(i+1).padStart(2,'0')}));
+    const tagMap={bustout:{l:'BUSTOUT',bg:'#f4b811'},debut:{l:'DEBUT',bg:'#eff2f5'},first:{l:'FIRST TIME',bg:'#96beca'}};
+    v.rare=S.rare.map(r=>({...r,kind:tagMap[r.kind].l,bg:r.kind==='debut'?'#eff2f5':r.kind==='bustout'?'#fad672':'#96beca',open:()=>this.go('show',{showId:r.show})}));
+    v.badges=G.badges.map(b=>({...b,ini:b.k.split(' ').map(w=>w[0]).join('').slice(0,2),bg:b.on?b.c:'#141516',bd:b.on?'#0a090c':'#404346',fg:b.on?'#0a090c':'#5b5e62',tc:b.on?'#eff2f5':'#7c8084',prog:b.on?'EARNED':(b.prog||'LOCKED')}));
+    v.recent=all.slice(0,3).map(stub);
+    // shows list
+    v.yearChips=['All','2026','2025','Festivals'].map(l=>{const on=st.yf===l;return{l,bg:on?acc:'transparent',fg:on?'#0a090c':'#dce0e3',bd:on?acc:'#404346',pick:()=>this.setState({yf:l})};});
+    v.showList=all.filter(s=>st.yf==='All'||(st.yf==='Festivals'?s.fest:s.date.startsWith(st.yf))).map(stub);
+    // search
+    const q=st.q.trim().toLowerCase();
+    const res=q?G.search.filter(r=>(r.artist+' '+r.venue+' '+r.city).toLowerCase().includes(q)):[];
+    Object.assign(v,{q:st.q,hasQ:!!st.q,setQ:e=>this.setState({q:e.target.value}),clearQ:()=>this.setState({q:''}),
+      quick:['Billy Strings','Phish','Japanese Breakfast','Brooklyn Steel'].map(l=>({l,pick:()=>this.setState({q:l})})),
+      hasResults:res.length>0,noResults:!!q&&res.length===0,resultCount:res.length,
+      results:res.map(r=>{const done=r.have||st.logged[r.id];return{...r,...fd(r.date),label:r.have?'In your log':st.logged[r.id]?'Logged ✓':'I was there',
+        bg:done?'transparent':acc,fg:done?'#9da1a5':'#0a090c',bd:done?'#404346':acc,
+        log:()=>{ if(done) return; const n=88+st.extra.length; this.setState(s=>({logged:{...s.logged,[r.id]:true},extra:[{id:'x'+r.id,n,artist:r.artist,date:r.date,venueName:r.venue,city:r.city,tour:r.tour,src:'setlist.fm',rating:0,with:[],seat:'—',price:'—',merch:'—',notes:'',photos:0,songsN:r.songs,sets:[]},...s.extra]})); this.flash('Logged! That’s show #'+n); }};})});
+    // add form
+    const f=st.f, valid=f.artist.trim()&&f.date&&f.venue.trim();
+    Object.assign(v,{f,songCount:f.songs.length,fSongs:f.songs.map((t,i)=>({t,n:String(i+1).padStart(2,'0'),rm:()=>this.setF('songs',f.songs.filter((_,j)=>j!==i))})),
+      fArtist:e=>this.setF('artist',e.target.value),fDate:e=>this.setF('date',e.target.value),fVenue:e=>this.setF('venue',e.target.value),fCity:e=>this.setF('city',e.target.value),
+      fSeat:e=>this.setF('seat',e.target.value),fPrice:e=>this.setF('price',e.target.value),fMerch:e=>this.setF('merch',e.target.value),fNotes:e=>this.setF('notes',e.target.value),
+      fDraft:e=>this.setF('draft',e.target.value),draftKey:e=>{if(e.key==='Enter'){e.preventDefault();this.addSong();}},addSong:()=>this.addSong(),
+      rateStars:[1,2,3,4,5].map(n=>({c:n<=f.rating?acc:'#404346',set:()=>this.setF('rating',n)})),
+      friendChips:G.friends.map(fr=>{const first=fr.name.split(' ')[0],on=f.with.includes(first);return{name:first,i:first[0],c:fr.c,bg:on?'rgba(244,184,17,.15)':'#1e2022',bd:on?acc:'#404346',
+        toggle:()=>this.setF('with',on?f.with.filter(x=>x!==first):[...f.with,first])};}),
+      photoLabel:f.photos?f.photos+' photo'+(f.photos>1?'s':'')+' added':'Add photos',addPhoto:()=>this.setF('photos',f.photos+3),
+      stubTag:f.stub?'SCANNED ✓':'CAMERA',stubLabel:f.stub?'Stub saved':'Scan ticket stub',stubBd:f.stub?'#76a9b9':'#404346',scanStub:()=>{this.setF('stub',true);if(!f.date)this.flash('Stub read — date & venue filled in');if(!f.date)this.setState(s=>({f:{...s.f,stub:true,date:s.f.date||'2026-10-17',venue:s.f.venue||'Union Pool',city:s.f.city||'Brooklyn, NY'}}));},
+      saveBg:valid?acc:'#2d2f31',saveFg:valid?'#0a090c':'#7c8084',saveLabel:valid?'Save to my shows':'Artist, date & venue to save',
+      saveShow:()=>{ if(!valid){this.flash('Need artist, date and venue');return;} const id='m'+Date.now(),n=88+st.extra.length;
+        this.setState(s=>({extra:[{id,n,artist:f.artist.trim(),date:f.date,venueName:f.venue.trim(),city:f.city||'—',tour:'',src:'manual',rating:f.rating,with:f.with,seat:f.seat||'—',price:f.price||'—',merch:f.merch||'—',notes:f.notes,photos:f.photos,sets:f.songs.length?[{name:'Set',songs:f.songs}]:[]},...s.extra],
+          f:{artist:'',date:'',venue:'',city:'',songs:[],draft:'',rating:0,with:[],seat:'',price:'',merch:'',notes:'',stub:false,photos:0}}));
+        this.go('show',{showId:id}); this.flash('Saved! Show #'+n+' is in the books'); }});
+    // detail
+    const s=all.find(x=>x.id===st.showId)||G.shows[3], sv=venueOf(s), sa=artOf(s.artist);
+    let num=0,firsts=0,rares=0;
+    const sets=s.sets.map(set=>({name:set.name.toUpperCase(),songs:set.songs.map(x=>{const t=Array.isArray(x)?x[0]:x,k=Array.isArray(x)?x[1]:null;num++;if(k==='first')firsts++;if(k==='bustout'||k==='debut')rares++;
+      return{t,num:String(num).padStart(2,'0'),has:!!k,tag:k?(tagMap[k].l+(x[2]?' · '+x[2].toUpperCase():'')):'',bg:k?tagMap[k].bg:''};})}));
+    const fc=Object.fromEntries(G.friends.map(x=>[x.name.split(' ')[0],x.c]));
+    const pcols=[sa.c[0],'#2d2f31',sa.c[1]||'#7561b1','#404346','#404346','#76a9b9'];
+    const sameArtist=all.filter(x=>x.artist===s.artist), ix=sameArtist.length-sameArtist.indexOf(s);
+    const ordinal=n=>n+(['th','st','nd','rd'][(n%100-20)%10]||['th','st','nd','rd'][n%100]||'th');
+    v.d={...fd(s.date),artist:s.artist,venue:sv.name,city:sv.city,tour:s.tour||'',n:'#'+s.n,ph:sa.ph,imgSrc:sa.img.toUpperCase(),src:s.src==='manual'?'ADDED BY YOU':'VIA SETLIST.FM',srcC:s.src==='manual'?'#fce4a3':'#96beca',
+      songN:cnt(s)||'—',firsts,rares,artistN:ordinal(Math.max(1,(sa.seen||1)-(sameArtist.length-ix))),sets,noSets:sets.length===0,
+      emptyMsg:s.src==='manual'?'No setlist yet — tap Edit to add songs.':'Pulling '+cnt(s)+' songs from setlist.fm…',setSrc:s.src==='manual'?'ENTERED BY YOU':'SOURCE: SETLIST.FM',
+      stars:stars(s.rating||0),hasWith:s.with.length>0,with:s.with.map(n=>({i:n[0],c:fc[n]||'#9383c2'})),withNames:s.with.join(' & '),seat:s.seat,price:s.price,merch:s.merch,
+      hasNotes:!!s.notes,notes:s.notes,photoN:s.photos,photos:Array.from({length:Math.min(6,s.photos)},(_,i)=>({bg:G.ph(pcols[i%6],'#141516')})),
+      openArtist:()=>this.go('artist',{artist:s.artist}),openVenue:()=>{ if(G.venues[s.venue]) this.go('venue',{venueId:s.venue}); }};
+    // artist
+    const an=st.artist, A=artOf(an);
+    v.ar={name:an,ph:A.ph,img:(A.img||'').toUpperCase(),genre:(A.genre||'').toUpperCase(),first:A.first,last:A.last,seen:A.seen,uniq:A.uniq,chasing:A.chasing,
+      songs:S.topSongs.filter(x=>x[1]===an).map(([t,,n])=>({t,n})),shows:all.filter(x=>x.artist===an).map(stub)};
+    if(!v.ar.songs.length) v.ar.songs=[{t:'—',n:0}];
+    // venue
+    const V=G.venues[st.venueId]||sv, vids=Object.keys(G.venues).sort((a,b)=>G.venues[b].visits-G.venues[a].visits);
+    const mi=(a,b)=>{const R=3959,r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dg=r(b.lng-a.lng);const h=Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dg/2)**2;return Math.round(2*R*Math.asin(Math.sqrt(h)));};
+    v.ve={...V,rank:'#'+(vids.indexOf(st.venueId)+1),miles:V.lat?mi(G.home,V).toLocaleString():'—',shows:all.filter(x=>x.venue===st.venueId).map(stub)};
+    // profile
+    v.yirCells=[{v:'12',k:'shows'},{v:'9',k:'artists'},{v:'7',k:'venues'},{v:'3,210',k:'miles'},{v:'4',k:'first-timers'},{v:'Phish',k:'top artist · 3×'}];
+    v.friends=G.friends.map(x=>({...x,i:x.name[0],first:x.name.split(' ')[0],w:(x.shows/120*100)+'%',youW:(87/120*100)+'%'}));
+    Object.assign(v,{pubBg:st.pub?acc:'#404346',pubX:st.pub?'19px':'3px',pubLabel:st.pub?'Public profile':'Private',togglePub:()=>this.setState(x=>({pub:!x.pub}))});
+    // friends
+    const people={sug:[{name:'Alex Kim',h:'@alexk',why:'At 4 of your shows · incl. Phish, Dick’s Aug 29',c:'#fad672'},{name:'Rosa Lima',h:'@rosalive',why:'At 2 of your shows · Billy Strings, Red Rocks',c:'#fad672'},{name:'Theo Grant',h:'@theog',why:'At Brooklyn Steel with you 3 times',c:'#96beca'}],
+      con:[{name:'Jamie Ortiz',h:'@jamieo',why:'In your contacts · 31 shows logged',c:'#96beca'},{name:'Chris Wu',h:'@cwu',why:'In your contacts · 12 shows logged',c:'#fce4a3'}],
+      all:[{name:'Morgan Ellis',h:'@morganlive',why:'58 shows · 2 mutual friends',c:'#f4b811'},{name:'Maya Chen',h:'@mayasees',why:'Already friends · 23 shows together',c:'#76a9b9',friend:true}]};
+    const fst=st.fr||{};
+    const pp=p=>{const s=p.friend?'friends':fst[p.h];return{...p,i:p.name[0],label:s==='friends'?'Friends':s==='sent'?'Requested':'Add',
+      bg:s?'transparent':acc,fg:s?'#9da1a5':'#0a090c',bd:s?'#404346':acc,add:()=>{ if(s) return; this.setState(x=>({fr:{...(x.fr||{}),[p.h]:'sent'}})); this.flash('Request sent to '+p.name.split(' ')[0]); }};};
+    const fq=(st.fq||'').trim().toLowerCase(), pool=[...people.sug,...people.con,...people.all];
+    const fr=fq?pool.filter(p=>(p.name+' '+p.h).toLowerCase().includes(fq.replace(/^@/,''))):[];
+    let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+    const finder=(r,c)=>{for(const [R0,C0] of [[0,0],[0,14],[14,0]]){const y=r-R0,x=c-C0;if(y>=0&&y<7&&x>=0&&x<7)return (y===0||y===6||x===0||x===6||(y>=2&&y<=4&&x>=2&&x<=4));}return null;};
+    Object.assign(v,{sFriends:screen==='friends',goFriends:()=>this.go('friends'),fq:st.fq||'',setFq:e=>this.setState({fq:e.target.value}),fSearching:!!fq,fResults:fr.map(pp),fNone:!!fq&&fr.length===0,
+      fSuggest:people.sug.map(pp),fContacts:people.con.map(pp),contactsOn:!!st.contacts,contactsOff:!st.contacts,syncContacts:()=>this.setState({contacts:true}),
+      hasIncoming:!st.reqDone,acceptReq:()=>{this.setState({reqDone:true});this.flash('You and Dev are now friends');},declineReq:()=>this.setState({reqDone:true}),
+      copyLabel:st.copied?'Copied':'Copy',copyInvite:()=>{this.setState({copied:true});this.flash('Invite link copied');},
+      qr:Array.from({length:441},(_,k)=>{const r=Math.floor(k/21),c=k%21,f=finder(r,c);return (f===null?rnd()>.52:f)?'#0a090c':'#ffffff';})});
+    // share card
+    const pal=[[acc],['#76a9b9'],['#fce4a3'],['#96beca'],['#fad672']], bg=pal[st.cardIx%pal.length][0];
+    v.sharing=!!st.share;
+    v.card=st.share==='year'?{bg,kicker:'2026 WRAPPED',pre:'My year in live music',big:'12 SHOWS',sub:'Phish ×3, one Harpua, and a road trip to Red Rocks.',stats:[{v:'214',k:'songs'},{v:'7',k:'venues'},{v:'3.2k',k:'miles'}]}
+      :{bg,kicker:v.d.mon+' '+v.d.day+' '+v.d.yr,pre:'I was there:',big:s.artist.toUpperCase(),sub:sv.name+' · '+sv.city,stats:[{v:String(cnt(s)||'—'),k:'songs'},{v:String(firsts),k:'first hears'},{v:v.d.artistN,k:'time'}]};
+    Object.assign(v,{shareShow:()=>this.setState({share:'show'}),shareYear:()=>this.setState({share:'year'}),closeShare:()=>this.setState({share:null}),
+      cycleCard:()=>this.setState(x=>({cardIx:x.cardIx+1})),saveCard:()=>{this.setState({share:null});this.flash('Card saved — ready for Stories');}});
+    return v;
+  }
+}
+</script>
+</body>
+</html>
