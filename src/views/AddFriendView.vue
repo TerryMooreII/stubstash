@@ -1,7 +1,109 @@
 <script setup lang="ts">
-// TODO: placeholder, replaced by the real screen.
+// /add/:handle: the "Scan to add me" / invite-link landing page.
+import { computed, onMounted, ref } from "vue";
+import { SsAvatar, SsButton, SsSpinner } from "@/design-system";
+import AuthFrame from "./auth/AuthFrame.vue";
+import { useAuth } from "@/stores/auth";
+import { useUi } from "@/stores/ui";
+import { publicProfile, social } from "@/lib/api";
+import { errorMessage } from "@/lib/supabase";
+import { plural } from "@/lib/format";
+import type { PublicProfile } from "@/lib/types";
+
+const props = defineProps<{ handle: string }>();
+const auth = useAuth();
+const ui = useUi();
+
+const loading = ref(true);
+const person = ref<PublicProfile | null>(null);
+const busy = ref(false);
+const clean = computed(() => props.handle.replace(/^@/, ""));
+const next = computed(() => `/add/${encodeURIComponent(clean.value)}`);
+
+onMounted(async () => {
+  await auth.init();
+  try {
+    person.value = await publicProfile(clean.value);
+  } catch {
+    person.value = null;
+  } finally {
+    loading.value = false;
+  }
+});
+
+const name = computed(() => person.value?.display_name || `@${person.value?.handle ?? clean.value}`);
+
+async function add() {
+  if (!person.value) return;
+  busy.value = true;
+  try {
+    const res = await social.request(person.value.handle);
+    person.value = { ...person.value, friendship: res };
+    ui.flash(res === "friends" ? `You and ${name.value} are now friends` : `Request sent to ${name.value}`);
+  } catch (e) {
+    ui.error(errorMessage(e));
+  } finally {
+    busy.value = false;
+  }
+}
 </script>
 
 <template>
-  <div class="ss-page"><h1 class="ss-h1">AddFriendView</h1></div>
+  <AuthFrame v-if="loading" title="Finding them…"><SsSpinner :size="28" /></AuthFrame>
+
+  <AuthFrame
+    v-else-if="!person"
+    kicker="HMM"
+    title="No one by that handle."
+    :lede="`We couldn't find @${clean} on Stubstash. Double-check the link.`"
+  >
+    <SsButton :to="auth.signedIn ? '/app/friends' : '/'" variant="outline" size="lg" block>
+      {{ auth.signedIn ? "Find friends" : "What's Stubstash?" }}
+    </SsButton>
+  </AuthFrame>
+
+  <AuthFrame v-else kicker="ADD TO YOUR CREW" :title="person.is_self ? 'That\'s you!' : name">
+    <div class="who">
+      <SsAvatar :name="person.display_name || person.handle" :path="person.avatar_path" :size="72" :me="person.is_self" />
+      <div>
+        <div class="who__handle">@{{ person.handle }}</div>
+        <div class="who__sub">
+          <template v-if="person.show_count != null">{{ plural(person.show_count, "show") }} logged</template>
+          <template v-else>Private profile</template>
+          <template v-if="person.home_city"> · {{ person.home_city }}</template>
+        </div>
+      </div>
+    </div>
+
+    <template v-if="person.is_self">
+      <p class="note">Share this link so friends can add you.</p>
+      <SsButton to="/app/friends" size="lg" block>Go to friends</SsButton>
+    </template>
+    <template v-else-if="!auth.signedIn">
+      <p class="note">Stubstash logs every show you've been to, with setlists, stats and a map. Join to add {{ name }} and compare shows.</p>
+      <SsButton :to="{ name: 'signup', query: { next } }" size="lg" block>Join Stubstash to add @{{ person.handle }}</SsButton>
+      <SsButton :to="{ name: 'login', query: { next } }" variant="ghost">I already have an account</SsButton>
+    </template>
+    <template v-else-if="person.friendship === 'friends'">
+      <p class="note">You're already friends.</p>
+      <SsButton :to="`/u/${person.handle}`" size="lg" block>See their shows</SsButton>
+    </template>
+    <template v-else-if="person.friendship === 'sent'">
+      <p class="note">Request sent. You'll see their shows once they accept.</p>
+      <SsButton to="/app" variant="outline" size="lg" block>Back to my dashboard</SsButton>
+    </template>
+    <template v-else>
+      <SsButton size="lg" block :loading="busy" @click="add">
+        {{ person.friendship === "received" ? "Accept friend request" : "Add friend" }}
+      </SsButton>
+      <SsButton to="/app" variant="ghost">Not now</SsButton>
+    </template>
+  </AuthFrame>
 </template>
+
+<style scoped>
+.who { display: flex; gap: 16px; align-items: center; }
+.who__handle { font-weight: 900; font-size: 20px; }
+.who__sub { color: var(--ss-text-muted); font-size: 15px; }
+.note { color: var(--ss-text-3); font-size: 16px; line-height: 1.45; }
+</style>

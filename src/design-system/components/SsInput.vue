@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Text input in the design's style. size="xl" is the big search box with an
 // accent border; prefix shows static text before the value ("setlist.fm/user/").
-import { ref } from "vue";
+import { computed, ref, useAttrs } from "vue";
 import SsIcon, { type IconName } from "./SsIcon.vue";
 
 const model = defineModel<string>({ default: "" });
@@ -26,15 +26,28 @@ withDefaults(
   { type: "text", size: "md" },
 );
 const emit = defineEmits<{ enter: []; clear: [] }>();
+// Class/style go on the wrapper; everything else (aria-*, role, data-*) on the <input>.
+defineOptions({ inheritAttrs: false });
+const attrs = useAttrs();
+const inputAttrs = computed(() => {
+  const { class: _c, style: _s, ...rest } = attrs;
+  return rest;
+});
 const input = ref<HTMLInputElement>();
 defineExpose({ focus: () => input.value?.focus() });
 </script>
 
 <template>
-  <div class="ss-input" :class="[`ss-input--${size}`, { 'is-invalid': invalid }]" @click="input?.focus()">
+  <div
+    class="ss-input"
+    :class="[`ss-input--${size}`, { 'is-invalid': invalid }, $attrs.class]"
+    :style="$attrs.style as any"
+    @click="input?.focus()"
+  >
     <SsIcon v-if="icon" :name="icon" :size="size === 'xl' ? 22 : 18" class="ss-input__icon" />
     <span v-if="prefix" class="ss-input__prefix">{{ prefix }}</span>
     <input
+      v-bind="inputAttrs"
       :id="id"
       ref="input"
       v-model="model"

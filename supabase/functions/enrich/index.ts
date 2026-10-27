@@ -11,7 +11,7 @@ import { HttpError, isCron, json, serve, sleep } from "../_shared/http.ts";
 import { adminClient } from "../_shared/supabase.ts";
 
 const ARTIST_BATCH = 8;
-const VENUE_BATCH = 12;
+const VENUE_BATCH = 8;
 const UA = `Stubstash/1.0 (+${Deno.env.get("CONTACT_EMAIL") ?? "https://stubstash.app"})`;
 
 interface Img { url: string; source: string; credit: string }
@@ -101,6 +101,26 @@ async function nominatim(q: string): Promise<any | null> {
   return Array.isArray(d) && d.length ? d[0] : null;
 }
 
+/**
+ * Search names to try for a venue, most specific first:
+ *   "ACL Live at The Moody Theater" -> [full, "The Moody Theater", "Moody Theater"]
+ *   "Red Rocks Amphitheatre (Morrison)" -> [full, "Red Rocks Amphitheatre"]
+ */
+export function nameVariants(name: string): string[] {
+  const out = [name.trim()];
+  const add = (s: string) => {
+    const t = s.trim();
+    if (t.length >= 3 && !out.includes(t)) out.push(t);
+  };
+  const noParens = name.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+  add(noParens);
+  const at = noParens.match(/\bat\s+(.+)$/i);
+  if (at) add(at[1]!);
+  const base = at ? at[1]! : noParens;
+  add(base.replace(/^the\s+/i, ""));
+  return out.slice(0, 3);
+}
+
 async function wikidataVenue(qid: string): Promise<{ img: Img | null; capacity: number | null }> {
   const d = await getJson(`https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`);
   const claims = d?.entities?.[qid]?.claims ?? {};
@@ -126,11 +146,17 @@ async function enrichVenues(db: ReturnType<typeof adminClient>) {
       image_checked_at: new Date().toISOString(),
     };
 
-    let hit = await nominatim(`${v.name}, ${place}`);
-    // Reject matches that landed far from setlist.fm's city (wrong "Fillmore", etc.)
-    if (hit && v.city_lat != null && v.city_lng != null) {
-      const dLat = Math.abs(Number(hit.lat) - v.city_lat), dLng = Math.abs(Number(hit.lon) - v.city_lng);
-      if (dLat > 0.6 || dLng > 0.8) hit = null;
+    // Try the full name first, then simpler variants (max 3 lookups per venue).
+    let hit: any = null;
+    for (const name of nameVariants(v.name)) {
+      const where = v.city ? `${name}, ${v.city}` : `${name}, ${place}`;
+      hit = await nominatim(where);
+      // Reject matches that landed far from setlist.fm's city (wrong "Fillmore", etc.)
+      if (hit && v.city_lat != null && v.city_lng != null) {
+        const dLat = Math.abs(Number(hit.lat) - v.city_lat), dLng = Math.abs(Number(hit.lon) - v.city_lng);
+        if (dLat > 0.6 || dLng > 0.8) hit = null;
+      }
+      if (hit) break;
     }
 
     if (hit && v.geo_source !== "user") {

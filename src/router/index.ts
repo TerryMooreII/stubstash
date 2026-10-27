@@ -70,8 +70,10 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior(to, _from, saved) {
+  scrollBehavior(to, from, saved) {
     if (saved) return saved;
+    // Filters/search kept in the query string shouldn't jump the page.
+    if (to.path === from.path) return false;
     if (to.hash) return { el: to.hash, behavior: "smooth" };
     return { top: 0 };
   },

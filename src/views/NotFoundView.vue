@@ -1,7 +1,13 @@
 <script setup lang="ts">
-// TODO: placeholder, replaced by the real screen.
+import { SsButton } from "@/design-system";
+import AuthFrame from "./auth/AuthFrame.vue";
+import { useAuth } from "@/stores/auth";
+
+const auth = useAuth();
 </script>
 
 <template>
-  <div class="ss-page"><h1 class="ss-h1">NotFoundView</h1></div>
+  <AuthFrame kicker="ERROR 404 · NO SETLIST FOUND" title="Wrong venue." lede="This page isn't on the bill. Maybe the link has a typo, or the show moved.">
+    <SsButton :to="auth.signedIn ? '/app' : '/'" size="lg" block>{{ auth.signedIn ? "Back to my dashboard" : "Back to the front door" }}</SsButton>
+  </AuthFrame>
 </template>
