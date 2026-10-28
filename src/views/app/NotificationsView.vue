@@ -33,7 +33,7 @@ async function open(n: AppNotification) {
       <SsButton v-if="store.unread" size="sm" variant="outline" @click="store.markRead()">
           <SsIcon name="check" :size="16" />Mark all read
         </SsButton>
-        <SsButton size="sm" variant="ghost" to="/app/me#notifications" aria-label="Notification settings">
+        <SsButton size="sm" variant="ghost" to="/app/settings?section=notifications" aria-label="Notification settings">
           <SsIcon name="settings" :size="16" />Settings
         </SsButton>
     </SsPageHeader>

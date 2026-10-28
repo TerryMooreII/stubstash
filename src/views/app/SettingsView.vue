@@ -3,9 +3,10 @@ import { SITE_HOST } from "@/lib/url";
 // Account settings: profile, home base, privacy, notifications, setlist.fm,
 // install, password and sign out.
 import { computed, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import NotificationSettings from "@/components/notifications/NotificationSettings.vue";
 import {
-  SsAvatar, SsBackLink, SsButton, SsCard, SsField, SsIcon, SsInput, SsPageHeader, SsSpinner, SsToggle,
+  SsAvatar, SsBackLink, SsButton, SsCard, SsField, SsIcon, SsInput, SsPageHeader, SsSpinner, SsToggle, type IconName,
 } from "@/design-system";
 import { searchPlaces, type PlaceResult } from "@/lib/geocode";
 import { removeFile, upload } from "@/lib/media";
@@ -18,6 +19,29 @@ import { useUi } from "@/stores/ui";
 const auth = useAuth();
 const ui = useUi();
 const router = useRouter();
+const route = useRoute();
+
+// ---------------------------------------------------------------- sections
+// One settings hub: a menu (side on desktop, chips on phones) and one section at a time.
+type Section = "profile" | "notifications" | "privacy" | "setlistfm" | "app" | "admin" | "account";
+const sections = computed(() =>
+  ([
+    { key: "profile", label: "Profile", icon: "user" },
+    { key: "notifications", label: "Notifications", icon: "bell" },
+    { key: "privacy", label: "Privacy", icon: "lock" },
+    { key: "setlistfm", label: "setlist.fm", icon: "refresh" },
+    { key: "app", label: "App", icon: "download" },
+    ...(auth.isAdmin ? [{ key: "admin", label: "Admin", icon: "settings" }] : []),
+    { key: "account", label: "Account", icon: "logout" },
+  ] as { key: Section; label: string; icon: IconName }[]),
+);
+const section = computed<Section>(() => {
+  const q = route.query.section;
+  return sections.value.some((x) => x.key === q) ? (q as Section) : "profile";
+});
+function goSection(key: Section) {
+  router.replace({ query: key === "profile" ? {} : { section: key } });
+}
 
 // ---------------------------------------------------------------- profile
 const displayName = ref(auth.profile?.display_name ?? "");
@@ -196,9 +220,24 @@ async function signOut() {
     <SsBackLink to="/app/me" label="Profile" />
     <SsPageHeader kicker="Settings" title="Your account" />
 
-    <div class="cols">
-      <div class="ss-stack col">
+    <div class="hub">
+      <nav class="menu" aria-label="Settings sections">
+        <button
+          v-for="x in sections"
+          :key="x.key"
+          type="button"
+          class="menu__item"
+          :class="{ on: section === x.key }"
+          :aria-current="section === x.key ? 'page' : undefined"
+          @click="goSection(x.key)"
+        >
+          <SsIcon :name="x.icon" :size="18" />{{ x.label }}
+        </button>
+      </nav>
+
+      <div class="ss-stack panel">
         <!-- Profile -->
+        <template v-if="section === 'profile'">
         <SsCard title="Profile">
           <div class="avatar-row">
             <SsAvatar :name="auth.displayName" :path="auth.profile?.avatar_path" me :size="72" />
@@ -221,7 +260,6 @@ async function signOut() {
           </form>
         </SsCard>
 
-        <!-- Home base -->
         <SsCard title="Home base">
           <template #aside>{{ auth.profile?.home_city ?? "Not set" }}</template>
           <p class="note">We only store the city. It's used for miles traveled and the lines on your map.</p>
@@ -243,9 +281,16 @@ async function signOut() {
             </li>
           </ul>
         </SsCard>
+        </template>
+
+        <!-- Notifications -->
+        <SsCard v-else-if="section === 'notifications'" title="Notifications">
+          <template #aside><RouterLink to="/app/notifications" class="aside-link">See all →</RouterLink></template>
+          <NotificationSettings />
+        </SsCard>
 
         <!-- Privacy -->
-        <SsCard title="Privacy">
+        <SsCard v-else-if="section === 'privacy'" title="Privacy">
           <div class="setting">
             <div class="setting__text">
               <div class="setting__title">Public profile</div>
@@ -257,19 +302,9 @@ async function signOut() {
             <SsToggle v-model="isPublic" plain :label="isPublic ? 'On' : 'Off'" />
           </div>
         </SsCard>
-      </div>
-
-      <div class="ss-stack col">
-        <!-- Notifications -->
-        <SsCard title="Notifications">
-          <p class="note">Friend requests, friends' shows, badges and the morning-after nudge: in the app and as push alerts.</p>
-          <SsButton to="/app/me#notifications" variant="outline" size="sm" class="test-btn">
-            <SsIcon name="bell" :size="16" />Manage notifications
-          </SsButton>
-        </SsCard>
 
         <!-- setlist.fm -->
-        <SsCard title="setlist.fm">
+        <SsCard v-else-if="section === 'setlistfm'" title="setlist.fm">
           <p class="note">
             <template v-if="auth.profile?.setlistfm_username">
               Linked to <b>setlist.fm/user/{{ auth.profile.setlistfm_username }}</b>. Importing again only adds shows you
@@ -282,22 +317,25 @@ async function signOut() {
           </SsButton>
         </SsCard>
 
-        <!-- Install -->
-        <SsCard v-if="!ui.isStandalone" title="Get the app">
-          <p class="note">Install Stubstash to your home screen or dock. It works offline at the venue.</p>
-          <SsButton size="sm" variant="accent-outline" @click="ui.installSheetOpen = true">
-            <SsIcon name="download" :size="16" />Install app
-          </SsButton>
+        <!-- App -->
+        <SsCard v-else-if="section === 'app'" title="The app">
+          <template v-if="!ui.isStandalone">
+            <p class="note">Install Stubstash to your home screen or dock. It opens like an app, works offline at the venue, and on iPhone it's needed for push alerts.</p>
+            <SsButton size="sm" variant="accent-outline" @click="ui.installSheetOpen = true">
+              <SsIcon name="download" :size="16" />Install app
+            </SsButton>
+          </template>
+          <p v-else class="note">You're using the installed app. Nice.</p>
         </SsCard>
 
         <!-- Admin (admins only) -->
-        <SsCard v-if="auth.isAdmin" title="Admin">
-          <p class="ss-muted">Users, catalog cleanup and system health.</p>
+        <SsCard v-else-if="section === 'admin'" title="Admin">
+          <p class="note">Users, catalog cleanup and system health.</p>
           <SsButton to="/app/admin" variant="outline" size="sm"><SsIcon name="lock" :size="16" />Open admin</SsButton>
         </SsCard>
 
         <!-- Account -->
-        <SsCard title="Account">
+        <SsCard v-else title="Account">
           <div class="email">
             <span class="ss-muted">Signed in as</span> <b class="email__addr">{{ email }}</b>
           </div>
@@ -328,15 +366,61 @@ async function signOut() {
 </template>
 
 <style scoped>
-.cols {
+.hub {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
-  gap: 14px;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
-.col {
-  gap: 14px;
-  min-width: 0;
+.menu {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--ss-radius-sm);
+  background: transparent;
+  color: var(--ss-text-3);
+  font-weight: 700;
+  font-size: 15px;
+  text-align: left;
+  white-space: nowrap;
+}
+.menu__item:hover { color: var(--ss-text); background: rgba(255, 255, 255, 0.03); }
+.menu__item.on { background: var(--ss-accent-soft); color: var(--ss-accent); }
+.panel { gap: 14px; min-width: 0; max-width: 720px; }
+.aside-link { font-size: 14px; font-weight: 700; }
+@media (max-width: 760px) {
+  .hub { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  /* Phones: sections become a row of chips you can swipe. */
+  .menu {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+    margin: 0 -16px;
+    padding: 0 16px 2px;
+    scrollbar-width: none;
+  }
+  .menu::-webkit-scrollbar { display: none; }
+  .menu__item {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: var(--ss-radius-pill);
+    border: 1px solid var(--ss-line);
+    background: var(--ss-surface-1);
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .menu__item.on { border-color: var(--ss-accent); }
 }
 .avatar-row {
   display: flex;

@@ -3,14 +3,14 @@ import { SITE_HOST } from "@/lib/url";
 // Profile: yours at /app/me, anyone's at /u/:handle.
 // Shows year in review, badges and friends (or, for someone else, their latest
 // shows and the shows you were both at). Private profiles show a friend prompt.
-import { computed, nextTick, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import {
   SsAvatar, SsBadgeTile, SsButton, SsCard, SsEmpty, SsIcon, SsSkeleton, SsTicketRow, SsToggle,
 } from "@/design-system";
 import HeadToHead from "@/components/people/HeadToHead.vue";
 import YearInReviewCard from "@/components/people/YearInReviewCard.vue";
-import NotificationSettings from "@/components/notifications/NotificationSettings.vue";
+import { useNotifications } from "@/stores/notifications";
 import { badges as loadBadges, publicProfile, social, userLog } from "@/lib/api";
 import { mediumDate, place, plural } from "@/lib/format";
 import { errorMessage } from "@/lib/supabase";
@@ -25,7 +25,7 @@ const auth = useAuth();
 const log = useLog();
 const ui = useUi();
 const router = useRouter();
-const route = useRoute();
+const notifications = useNotifications();
 
 const isSelf = computed(
   () => !props.handle || (!!auth.profile && props.handle.replace(/^@/, "").toLowerCase() === auth.profile.handle.toLowerCase()),
@@ -97,16 +97,6 @@ async function load() {
 }
 watch(() => [props.handle, auth.userId, auth.profile?.handle], load, { immediate: true });
 
-// "/app/me#notifications": the section renders after loading, so scroll once it's there.
-watch(
-  () => [route.hash, canView.value] as const,
-  async ([hash]) => {
-    if (hash !== "#notifications") return;
-    await nextTick();
-    document.getElementById("notifications")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  },
-  { immediate: true },
-);
 
 // ---- public toggle (self)
 const isPublic = computed({
@@ -179,7 +169,21 @@ const latest = computed(() => otherLog.value.slice(0, 6));
             </div>
           </template>
         </div>
-        <SsToggle v-if="isSelf" v-model="isPublic" on-label="Public profile" off-label="Private" />
+        <div v-if="isSelf" class="head__tools">
+          <SsToggle v-model="isPublic" on-label="Public profile" off-label="Private" />
+          <SsButton
+            variant="outline"
+            size="sm"
+            square
+            to="/app/notifications"
+            class="bell"
+            :aria-label="notifications.unread ? `Notifications, ${notifications.unread} unread` : 'Notifications'"
+          >
+            <SsIcon name="bell" :size="18" />
+            <span v-if="notifications.unread" class="bell__n">{{ notifications.unread > 99 ? "99+" : notifications.unread }}</span>
+          </SsButton>
+          <SsButton variant="outline" size="sm" to="/app/settings"><SsIcon name="settings" :size="16" />Settings</SsButton>
+        </div>
         <SsButton
           v-else-if="other"
           :variant="other.friendship === 'friends' || other.friendship === 'sent' ? 'outline' : 'primary'"
@@ -241,14 +245,6 @@ const latest = computed(() => otherLog.value.slice(0, 6));
               :target="b.target"
             />
           </div>
-        </SsCard>
-
-        <!-- Self: notifications -->
-        <SsCard v-if="isSelf" id="notifications" title="Notifications">
-          <template #aside>
-            <RouterLink to="/app/notifications" class="link">See all →</RouterLink>
-          </template>
-          <NotificationSettings />
         </SsCard>
 
         <!-- Self: friends head-to-head -->
@@ -314,14 +310,6 @@ const latest = computed(() => otherLog.value.slice(0, 6));
         </template>
       </template>
 
-      <!-- Self actions -->
-      <div v-if="isSelf" class="actions">
-        <SsButton v-if="!ui.isStandalone" variant="outline" size="sm" @click="ui.installSheetOpen = true">
-          <SsIcon name="download" :size="16" />Install the app
-        </SsButton>
-        <SsButton variant="outline" size="sm" to="/app/settings"><SsIcon name="settings" :size="16" />Settings</SsButton>
-        <SsButton variant="outline" size="sm" to="/app/welcome"><SsIcon name="refresh" :size="16" />Re-import from setlist.fm</SsButton>
-      </div>
     </template>
   </div>
 </template>
@@ -332,6 +320,28 @@ const latest = computed(() => otherLog.value.slice(0, 6));
   gap: 18px;
   align-items: center;
   flex-wrap: wrap;
+}
+.head__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bell { position: relative; }
+.bell__n {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--ss-radius-pill);
+  background: var(--ss-accent);
+  color: var(--ss-on-accent);
+  font-size: 11px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
 }
 .head__text {
   flex: 1 1 200px;
@@ -402,10 +412,5 @@ const latest = computed(() => otherLog.value.slice(0, 6));
   font-size: 13px;
   color: var(--ss-text-muted);
   white-space: nowrap;
-}
-.actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 </style>
