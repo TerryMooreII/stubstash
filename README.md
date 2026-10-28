@@ -57,9 +57,17 @@ design/                 Claude Design reference files
 | `/u/:handle` | Public profile (if public, or you're friends) |
 | `/add/:handle`, `/invite/:token` | Friend link and "you were there" invites |
 
-## Hosting
+## Hosting (GitHub Pages)
 
-The build is a static SPA. Any static host works; configure it to serve `index.html` for unknown paths (SPA fallback), and add the deployed URL to Supabase Auth's Site URL and Redirect URLs (`/app/auth/callback`, `/app/reset-password`).
+`.github/workflows/deploy.yml` tests, builds and deploys on every push to `main` (or run it by hand from the Actions tab). The site lands at `https://terrymooreii.github.io/stubstash/`.
+
+One-time setup:
+
+1. **Settings → Pages → Source:** GitHub Actions.
+2. **Settings → Secrets and variables → Actions → Variables:** add `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` and `VITE_VAPID_PUBLIC_KEY` (same values as `.env.local`; all are public).
+3. **Supabase → Authentication → URL Configuration:** set Site URL to `https://terrymooreii.github.io/stubstash/` and add redirect URLs `https://terrymooreii.github.io/stubstash/app/auth/callback` and `https://terrymooreii.github.io/stubstash/app/reset-password`.
+
+The build reads `BASE_PATH` (the workflow sets it from the Pages config, so a custom domain switches to `/` automatically). Pages has no SPA rewrites, so the workflow copies `index.html` to `404.html`. Deep links work, but the response status is 404. Any other static host works too: serve `index.html` for unknown paths.
 
 ## Credits
 

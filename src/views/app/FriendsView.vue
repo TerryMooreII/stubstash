@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appUrl } from "@/lib/url";
 // Find and manage friends: incoming requests, search, people who were at your
 // shows, a scannable QR code, an invite link, and your current friends.
 import { computed, onMounted, ref, watch } from "vue";
@@ -31,7 +32,7 @@ const results = ref<PersonCard[]>([]);
 const searching = ref(false);
 const searched = ref(false);
 
-const inviteUrl = computed(() => `${location.origin}/add/${auth.profile?.handle ?? ""}`);
+const inviteUrl = computed(() => appUrl(`/add/${auth.profile?.handle ?? ""}`));
 const inviteDisplay = computed(() => inviteUrl.value.replace(/^https?:\/\//, ""));
 const canShare = typeof navigator !== "undefined" && "share" in navigator;
 

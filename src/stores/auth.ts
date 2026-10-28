@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { appUrl } from "@/lib/url";
 import { getMyProfile, updateMyProfile } from "@/lib/api";
 import type { Profile } from "@/lib/types";
 
@@ -50,7 +51,7 @@ export const useAuth = defineStore("auth", () => {
       email,
       password,
       options: {
-        emailRedirectTo: `${location.origin}/app/auth/callback`,
+        emailRedirectTo: appUrl("/app/auth/callback"),
         data: handle ? { handle } : undefined,
       },
     });
@@ -68,7 +69,7 @@ export const useAuth = defineStore("auth", () => {
 
   async function sendPasswordReset(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${location.origin}/app/reset-password`,
+      redirectTo: appUrl("/app/reset-password"),
     });
     if (error) throw error;
   }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appUrl } from "@/lib/url";
 // Two modes:
 //   /app/log/manual        add a show that isn't on setlist.fm (lives in Stubstash only)
 //   /app/shows/:id/edit    edit your night (and, for shows you added, the show itself)
@@ -175,7 +176,7 @@ async function saveCompanions(attendanceId: string, previousNames: string[]) {
   for (const r of fresh) {
     try {
       const { token } = await social.createInvite(attendanceId, r.id);
-      invites.value.push({ name: r.name, url: `${location.origin}/invite/${token}` });
+      invites.value.push({ name: r.name, url: appUrl(`/invite/${token}`) });
     } catch {
       /* invites are a bonus; don't block saving */
     }

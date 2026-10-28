@@ -7,11 +7,16 @@ import { ExpirationPlugin } from "workbox-expiration";
 
 declare const self: ServiceWorkerGlobalScope;
 
+// Path the app is served from ("/" or "/stubstash/"), taken from the SW scope.
+const BASE = new URL(self.registration.scope).pathname;
+/** Resolve an app path like "/app/shows/1" against the base path. */
+const appPath = (p: string) => (p.startsWith(BASE) ? p : BASE + p.replace(/^\//, ""));
+
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
 // SPA: serve index.html for app routes when offline.
-registerRoute(new NavigationRoute(createHandlerBoundToURL("/index.html")));
+registerRoute(new NavigationRoute(createHandlerBoundToURL(`${BASE}index.html`)));
 
 // Google Fonts
 registerRoute(
@@ -51,8 +56,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title ?? "Stubstash", {
       body: data.body ?? "",
-      icon: "/icons/icon-192.png",
-      badge: "/icons/badge-72.png",
+      icon: `${BASE}icons/icon-192.png`,
+      badge: `${BASE}icons/badge-72.png`,
       tag: data.tag,
       data: { url: data.url ?? "/app" },
     }),
@@ -61,7 +66,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = new URL((event.notification.data?.url as string) ?? "/app", self.location.origin).href;
+  const url = new URL(appPath((event.notification.data?.url as string) ?? "/app"), self.location.origin).href;
   event.waitUntil(
     (async () => {
       const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });

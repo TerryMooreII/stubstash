@@ -4,7 +4,12 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Sub-path the app is served from. GitHub Pages project sites use "/<repo>/";
+// the deploy workflow sets BASE_PATH. Local dev and custom domains use "/".
+const base = (process.env.BASE_PATH ?? "/").replace(/\/?$/, "/");
+
 export default defineConfig({
+  base,
   plugins: [
     vue(),
     VitePWA({
@@ -22,22 +27,22 @@ export default defineConfig({
         name: "Stubstash",
         short_name: "Stubstash",
         description: "Every show. Every song. Every mile. Your concert log, stats and map.",
-        id: "/app",
-        start_url: "/app",
-        scope: "/",
+        id: `${base}app`,
+        start_url: `${base}app`,
+        scope: base,
         display: "standalone",
         orientation: "portrait",
         background_color: "#0a090c",
         theme_color: "#0a090c",
         categories: ["music", "lifestyle", "entertainment"],
         icons: [
-          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: `${base}icons/icon-192.png`, sizes: "192x192", type: "image/png" },
+          { src: `${base}icons/icon-512.png`, sizes: "512x512", type: "image/png" },
+          { src: `${base}icons/icon-maskable-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
         shortcuts: [
-          { name: "Log a show", short_name: "Log", url: "/app/log" },
-          { name: "My map", short_name: "Map", url: "/app/map" },
+          { name: "Log a show", short_name: "Log", url: `${base}app/log` },
+          { name: "My map", short_name: "Map", url: `${base}app/map` },
         ],
       },
       devOptions: { enabled: false, type: "module" },
