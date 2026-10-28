@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { PROFILE_BANNER } from "@/lib/heroImage";
 import { SITE_HOST } from "@/lib/url";
-// Big accent "YEAR IN REVIEW" card with year chips, six stat cells and a share button.
+// Big "YEAR IN REVIEW" card over a concert venue photo with year chips, six stat cells and a share button.
 import { computed, ref, watch } from "vue";
 import { SsSkeleton } from "@/design-system";
 import ShareCardSheet from "@/components/share/ShareCardSheet.vue";
@@ -82,7 +83,7 @@ const card = computed<ShareCard>(() => {
 </script>
 
 <template>
-  <section class="yir" aria-label="Year in review">
+  <section class="yir" aria-label="Year in review" :style="{ '--yir-photo': `url(${PROFILE_BANNER})` }">
     <div class="yir__main">
       <div class="yir__kicker">YEAR IN REVIEW</div>
       <div class="yir__year ss-num">{{ year }}</div>
@@ -116,11 +117,15 @@ const card = computed<ShareCard>(() => {
 </template>
 
 <style scoped>
+/* Concert venue photo, darkened (more toward the bottom) so the stats read. */
 .yir {
   border-radius: 24px;
   overflow: hidden;
-  background: var(--ss-accent);
-  color: var(--ss-on-accent);
+  background:
+    linear-gradient(180deg, rgba(10, 9, 12, 0.15) 0%, rgba(10, 9, 12, 0.7) 100%),
+    var(--yir-photo) center 65% / cover no-repeat,
+    var(--ss-surface-2);
+  color: #fff;
   padding: 28px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
@@ -140,6 +145,7 @@ const card = computed<ShareCard>(() => {
   font-size: 11px;
   letter-spacing: var(--ss-tracking-mono);
   font-weight: 700;
+  color: var(--ss-accent);
 }
 .yir__year {
   font-weight: 900;
@@ -147,6 +153,7 @@ const card = computed<ShareCard>(() => {
   line-height: 0.82;
   letter-spacing: -0.05em;
   margin-top: 8px;
+  color: var(--ss-accent);
 }
 .yir__chips {
   display: flex;
@@ -157,15 +164,16 @@ const card = computed<ShareCard>(() => {
 .yir__chip {
   padding: 4px 10px;
   border-radius: var(--ss-radius-pill);
-  border: 2px solid var(--ss-on-accent);
-  background: transparent;
-  color: var(--ss-on-accent);
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(10, 9, 12, 0.3);
+  color: #fff;
   font-weight: 700;
   font-size: 13px;
 }
 .yir__chip.is-on {
-  background: var(--ss-on-accent);
-  color: var(--ss-accent);
+  background: var(--ss-accent);
+  border-color: var(--ss-accent);
+  color: var(--ss-on-accent);
 }
 .yir__headline {
   font-weight: 900;
@@ -173,6 +181,7 @@ const card = computed<ShareCard>(() => {
   line-height: 1;
   margin-top: 12px;
   text-wrap: balance;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
 .yir__share {
   margin-top: 18px;
@@ -180,13 +189,13 @@ const card = computed<ShareCard>(() => {
   padding: 0 20px;
   border-radius: var(--ss-radius-pill);
   border: 0;
-  background: var(--ss-bg);
-  color: var(--ss-accent);
+  background: var(--ss-accent);
+  color: var(--ss-on-accent);
   font-weight: 900;
   font-size: 15px;
 }
 .yir__share:hover {
-  background: #000;
+  background: var(--ss-accent-hover);
 }
 .yir__cells {
   display: grid;
@@ -197,8 +206,10 @@ const card = computed<ShareCard>(() => {
 .yir__cell {
   padding: 12px;
   border-radius: 14px;
-  background: rgba(10, 9, 12, 0.1);
-  border: 2px solid var(--ss-on-accent);
+  background: rgba(10, 9, 12, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   min-width: 0;
 }
 .yir__cell-v {
@@ -209,5 +220,6 @@ const card = computed<ShareCard>(() => {
 .yir__cell-k {
   font-weight: 700;
   font-size: 13px;
+  color: var(--ss-text-2);
 }
 </style>

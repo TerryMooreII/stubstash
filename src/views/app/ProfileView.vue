@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { PROFILE_BANNER } from "@/lib/heroImage";
 import { SITE_HOST } from "@/lib/url";
 // Profile: yours at /app/me, anyone's at /u/:handle.
 // Shows year in review, badges and friends (or, for someone else, their latest
@@ -152,9 +151,6 @@ const latest = computed(() => otherLog.value.slice(0, 6));
     <template v-else>
       <!-- Header -->
       <header class="head">
-        <div class="head__bg" aria-hidden="true">
-          <img :src="PROFILE_BANNER" alt="" decoding="async" />
-        </div>
         <SsAvatar :name="name || handle" :path="avatarPath" :me="isSelf" :size="88" />
         <div class="head__text">
           <template v-if="loading && !name">
@@ -311,32 +307,10 @@ const latest = computed(() => otherLog.value.slice(0, 6));
 
 <style scoped>
 .head {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
   display: flex;
   gap: 18px;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
-  min-height: 220px;
-  padding: 24px;
-  border-radius: var(--ss-radius-xl);
-  background: var(--ss-surface-2);
-}
-/* Concert venue photo behind the header, darkened toward the bottom so the text reads. */
-.head__bg { position: absolute; inset: 0; z-index: -1; }
-.head__bg img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 65%;
-  filter: saturate(1.15);
-}
-.head__bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 35%, rgba(10, 9, 12, 0.85) 100%);
 }
 .head__text {
   flex: 1 1 200px;
@@ -349,7 +323,7 @@ const latest = computed(() => otherLog.value.slice(0, 6));
   overflow-wrap: anywhere;
 }
 .head__meta {
-  color: var(--ss-text-2);
+  color: var(--ss-text-muted);
   font-size: 16px;
   margin-top: 4px;
   overflow-wrap: anywhere;
