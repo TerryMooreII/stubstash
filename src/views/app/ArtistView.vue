@@ -3,6 +3,7 @@
 import { computed, ref, watch } from "vue";
 import { SsArt, SsBackLink, SsCard, SsChip, SsEmpty, SsIcon, SsSkeleton, SsStars } from "@/design-system";
 import { artistStats, getArtist } from "@/lib/api";
+import { genericConcertPhoto } from "@/lib/heroImage";
 import { errorMessage } from "@/lib/supabase";
 import { dateParts, monthYear, num, parseDate, place, plural } from "@/lib/format";
 import type { ArtistStats } from "@/lib/types";
@@ -32,6 +33,15 @@ async function load() {
 }
 watch(() => props.id, load, { immediate: true });
 
+// Banner: the artist photo blurred behind a sharp portrait. With no artist
+// photo (or one that fails to load), a tinted generic concert shot instead.
+const imgFailed = ref(false);
+watch(() => props.id, () => (imgFailed.value = false));
+const hasPhoto = computed(() => !!artist.value?.image_url && !imgFailed.value);
+const bannerSrc = computed(() =>
+  hasPhoto.value ? artist.value!.image_url! : genericConcertPhoto(props.id),
+);
+
 const shows = computed(() => log.entries.filter((e) => e.artist_id === props.id));
 const kicker = computed(() => {
   const parts: string[] = [];
@@ -55,8 +65,13 @@ const kicker = computed(() => {
     <SsEmpty v-else-if="error || !artist" title="Artist not found" :body="error ?? 'This artist may have been removed.'" />
 
     <template v-else>
-      <header class="hero">
+      <header class="hero" :class="{ 'hero--generic': !hasPhoto }">
+        <div class="hero__bg" aria-hidden="true">
+          <img :src="bannerSrc" alt="" referrerpolicy="no-referrer" decoding="async" />
+          <div v-if="!hasPhoto" class="hero__tint" />
+        </div>
         <SsArt
+          v-if="hasPhoto"
           class="hero__img"
           shape="circle"
           :src="artist.image_url"
@@ -64,6 +79,7 @@ const kicker = computed(() => {
           :alt="artist.name"
           :credit="artist.image_credit"
           eager
+          @error="imgFailed = true"
         />
         <div class="hero__text">
           <div v-if="kicker" class="ss-kicker">{{ kicker }}</div>
@@ -120,12 +136,43 @@ const kicker = computed(() => {
 </template>
 
 <style scoped>
-.hero { display: flex; gap: 24px; align-items: flex-end; flex-wrap: wrap; }
-.hero__img { width: 200px; height: 200px; }
+.hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  gap: 24px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  min-height: 280px;
+  padding: 24px;
+  border-radius: var(--ss-radius-xl);
+  background: var(--ss-surface-2);
+}
+.hero__bg { position: absolute; inset: 0; z-index: -1; }
+.hero__bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  /* Blurred copy of the portrait: colour and mood without competing with it. */
+  filter: blur(28px) brightness(0.5) saturate(1.3);
+  transform: scale(1.25);
+}
+.hero__bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(10, 9, 12, 0.85));
+}
+/* Generic stock photo: sharp but mono and tinted, same treatment as the show page. */
+.hero--generic .hero__bg img { filter: grayscale(1) contrast(1.15) brightness(0.55); transform: none; }
+.hero__tint { position: absolute; inset: 0; background: var(--ss-accent); mix-blend-mode: multiply; opacity: 0.85; }
+.hero__img { width: 200px; height: 200px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
 @media (max-width: 520px) { .hero__img { width: 140px; height: 140px; } }
 .hero__text { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .hero__name { overflow-wrap: anywhere; }
-.hero__line { font-size: 18px; color: var(--ss-text-3); }
+.hero__line { font-size: 18px; color: var(--ss-text-2); }
 .accent { color: var(--ss-accent); }
 .hero__ext { font-size: 14px; font-weight: 700; display: inline-flex; gap: 4px; align-items: center; }
 .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--ss-line-soft); }

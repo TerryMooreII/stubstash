@@ -17,6 +17,7 @@ const props = withDefaults(
   { shape: "rect", alt: "" },
 );
 
+const emit = defineEmits<{ error: [] }>();
 const failed = ref(false);
 watch(() => props.src, () => (failed.value = false));
 const showImg = computed(() => !!props.src && !failed.value);
@@ -36,7 +37,7 @@ const creditText = computed(() => {
       :loading="eager ? 'eager' : 'lazy'"
       referrerpolicy="no-referrer"
       decoding="async"
-      @error="failed = true"
+      @error="failed = true; emit('error')"
     />
     <span v-if="creditText && showImg" class="ss-art__credit" :title="credit ?? undefined">{{ creditText }}</span>
     <slot />

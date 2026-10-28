@@ -8,6 +8,7 @@ import ShareCardSheet from "@/components/share/ShareCardSheet.vue";
 import type { ShareCard } from "@/components/share/shareCard";
 import { getAttendance, setlistfm, showSetlist, showStats, updateAttendance } from "@/lib/api";
 import { dateParts, longDate, money, ordinal, place } from "@/lib/format";
+import { heroCandidates } from "@/lib/heroImage";
 import { signedUrl, signedUrls } from "@/lib/media";
 import { errorMessage } from "@/lib/supabase";
 import type { AttendanceDetail, SetlistSong, ShowStats } from "@/lib/types";
@@ -28,6 +29,7 @@ const stats = ref<ShowStats | null>(null);
 const loading = ref(true);
 const notFound = ref(false);
 const photoUrls = ref<Record<string, string>>({});
+const photosReady = ref(false);
 const stubUrl = ref<string | null>(null);
 
 async function load() {
@@ -40,7 +42,11 @@ async function load() {
     stats.value = st;
     notFound.value = !a;
     if (a) {
-      if (a.photos.length) signedUrls("photos", a.photos.map((p) => p.storage_path)).then((u) => (photoUrls.value = u));
+      photosReady.value = !a.photos.length;
+      if (a.photos.length)
+        signedUrls("photos", a.photos.map((p) => p.storage_path))
+          .then((u) => (photoUrls.value = u))
+          .finally(() => (photosReady.value = true));
       stubUrl.value = a.stub_path ? await signedUrl("stubs", a.stub_path) : null;
       if (route.query.rate === "1" && mine.value && a.rating == null) rateOpen.value = true;
     }
@@ -57,6 +63,27 @@ const mine = computed(() => !!att.value && att.value.user_id === auth.userId);
 const show = computed(() => att.value?.show);
 const d = computed(() => (show.value ? dateParts(show.value.event_date) : null));
 const venuePlace = computed(() => (show.value ? place(show.value.venue.city, show.value.venue.state_code, show.value.venue.country_code) : ""));
+// Header image: your first photo, then artist, venue, then a generic concert shot.
+// heroSkip moves down the list when an image fails to load.
+const heroSkip = ref(0);
+watch(() => props.id, () => (heroSkip.value = 0));
+const heroList = computed(() => {
+  const a = att.value;
+  if (!a) return [];
+  const first = a.photos[0];
+  return heroCandidates({
+    seed: a.show.id,
+    photo: first ? photoUrls.value[first.storage_path] : null,
+    artist: a.show.artist,
+    venue: a.show.venue,
+  });
+});
+const hero = computed(() => {
+  // Wait for signed photo URLs so the header doesn't flash the artist image first.
+  if (!photosReady.value) return null;
+  const list = heroList.value;
+  return list[Math.min(heroSkip.value, list.length - 1)] ?? null;
+});
 const isManual = computed(() => show.value?.source === "manual");
 
 // ---- setlist grouped by set
@@ -161,14 +188,17 @@ const shareCard = computed<ShareCard>(() => {
     <template v-else>
       <!-- Hero -->
       <SsArt
-        :src="show.artist.image_url"
+        :src="hero?.src"
         :seed="show.artist.name"
-        :alt="show.artist.name"
-        :credit="show.artist.image_credit"
-        credit-label="ARTIST IMAGE"
+        :alt="hero?.kind === 'photo' ? 'Your photo from the show' : hero?.kind === 'venue' ? show.venue.name : hero?.kind === 'artist' ? show.artist.name : ''"
+        :credit="hero?.credit"
+        :credit-label="hero?.label"
         class="hero"
+        :class="hero && `hero--${hero.kind}`"
         eager
+        @error="heroSkip++"
       >
+        <div v-if="hero?.kind === 'generic'" class="hero__tint" aria-hidden="true" />
         <div class="hero__body">
           <div class="hero__pills">
             <span v-if="stats?.show_number" class="pill pill--accent">Show {{ stats.show_number }}</span>
@@ -318,6 +348,15 @@ const shareCard = computed<ShareCard>(() => {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+}
+/* Generic stock photos: dimmed, mono and tinted with the accent so they read as mood, not as the band. */
+.hero--generic :deep(img) { filter: grayscale(1) contrast(1.15) brightness(0.55); }
+.hero__tint {
+  position: absolute;
+  inset: 0;
+  background: var(--ss-accent);
+  mix-blend-mode: multiply;
+  opacity: 0.85;
 }
 .hero__body {
   position: relative;

@@ -2,7 +2,7 @@
 // Mirrors the SQL in supabase/migrations (see 20261027003542_stats.sql etc.).
 
 export type DataSource = "setlistfm" | "manual";
-export type GeoSource = "nominatim" | "city" | "user" | "none";
+export type GeoSource = "nominatim" | "wikidata" | "photon" | "city" | "user" | "none";
 export type FriendshipState = "friends" | "sent" | "received" | null;
 
 export interface Profile {

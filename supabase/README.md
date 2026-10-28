@@ -62,4 +62,4 @@ Check recent job calls with `select * from net._http_response order by created d
 
 ## Image and data credits
 
-Setlists from setlist.fm. Artist images from fanart.tv, TheAudioDB and Wikimedia Commons. Venue locations from OpenStreetMap (Nominatim); venue photos and capacities from Wikidata/Wikimedia Commons. The app shows `image_credit` wherever an image appears.
+Setlists from setlist.fm. Artist images: Deezer first, then fanart.tv, TheAudioDB and Wikimedia Commons (MusicBrainz fills in missing artist ids). Venue locations: Wikidata coordinates, then Photon and Nominatim (OpenStreetMap), with Open-Meteo for city centres; venue photos and capacities from Wikidata/Wikipedia/Wikimedia Commons. The app shows `image_credit` wherever an image appears.

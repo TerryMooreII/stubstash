@@ -72,4 +72,4 @@ Pages has no SPA rewrites, so the workflow copies `index.html` to `404.html`: de
 
 ## Credits
 
-Setlists from [setlist.fm](https://www.setlist.fm). Images from Wikimedia Commons, fanart.tv and TheAudioDB. Map data © OpenStreetMap contributors, tiles © CARTO. Stubstash isn't affiliated with setlist.fm.
+Setlists from [setlist.fm](https://www.setlist.fm). Artist images from Deezer, fanart.tv, TheAudioDB and Wikimedia Commons; venue images from Wikimedia Commons; generic concert photos are CC0 (see `public/concert/CREDITS.md`). Artist ids from MusicBrainz. Geocoding by Wikidata, Photon (komoot), Nominatim and Open-Meteo. Map data © OpenStreetMap contributors, tiles © CARTO. Stubstash isn't affiliated with setlist.fm.
