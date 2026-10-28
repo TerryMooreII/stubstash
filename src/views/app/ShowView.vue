@@ -191,8 +191,6 @@ const shareCard = computed<ShareCard>(() => {
         :src="hero?.src"
         :seed="show.artist.name"
         :alt="hero?.kind === 'photo' ? 'Your photo from the show' : hero?.kind === 'venue' ? show.venue.name : hero?.kind === 'artist' ? show.artist.name : ''"
-        :credit="hero?.credit"
-        :credit-label="hero?.label"
         class="hero"
         :class="hero && `hero--${hero.kind}`"
         eager
