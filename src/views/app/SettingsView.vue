@@ -341,6 +341,12 @@ async function signOut() {
           </SsButton>
         </SsCard>
 
+        <!-- Admin (admins only) -->
+        <SsCard v-if="auth.isAdmin" title="Admin">
+          <p class="ss-muted">Users, catalog cleanup and system health.</p>
+          <SsButton to="/app/admin" variant="outline" size="sm"><SsIcon name="lock" :size="16" />Open admin</SsButton>
+        </SsCard>
+
         <!-- Account -->
         <SsCard title="Account">
           <div class="email">

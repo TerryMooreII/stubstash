@@ -5,11 +5,14 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { appUrl } from "@/lib/url";
 import { getMyProfile, updateMyProfile } from "@/lib/api";
+import { admin } from "@/lib/admin";
 import type { Profile } from "@/lib/types";
 
 export const useAuth = defineStore("auth", () => {
   const session = ref<Session | null>(null);
   const profile = ref<Profile | null>(null);
+  /** Shows the admin page link. The server checks admin rights on every admin call regardless. */
+  const isAdmin = ref(false);
   const ready = ref(false);
   let initPromise: Promise<void> | null = null;
 
@@ -21,6 +24,7 @@ export const useAuth = defineStore("auth", () => {
 
   async function loadProfile() {
     profile.value = session.value ? await getMyProfile() : null;
+    isAdmin.value = session.value ? await admin.isAdmin().catch(() => false) : false;
     // Keep the timezone current so morning-after nudges arrive at 10am local.
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (profile.value && tz && profile.value.timezone !== tz) {
@@ -39,7 +43,7 @@ export const useAuth = defineStore("auth", () => {
       supabase.auth.onAuthStateChange((event, s) => {
         const changedUser = s?.user.id !== session.value?.user.id;
         session.value = s;
-        if (event === "SIGNED_OUT") profile.value = null;
+        if (event === "SIGNED_OUT") { profile.value = null; isAdmin.value = false; }
         else if (changedUser || event === "USER_UPDATED") loadProfile().catch(() => {});
       });
     })();
@@ -83,6 +87,7 @@ export const useAuth = defineStore("auth", () => {
     await supabase.auth.signOut();
     session.value = null;
     profile.value = null;
+    isAdmin.value = false;
   }
 
   async function saveProfile(patch: Partial<Profile>) {
@@ -91,7 +96,7 @@ export const useAuth = defineStore("auth", () => {
   }
 
   return {
-    session, profile, ready, userId, signedIn, needsOnboarding, displayName, firstName,
+    session, profile, isAdmin, ready, userId, signedIn, needsOnboarding, displayName, firstName,
     init, loadProfile, signUp, signIn, sendPasswordReset, updatePassword, signOut, saveProfile,
   };
 });

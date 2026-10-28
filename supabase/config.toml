@@ -430,3 +430,6 @@ verify_jwt = false
 
 [functions.push]
 verify_jwt = false
+
+[functions.admin]
+verify_jwt = true

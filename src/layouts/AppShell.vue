@@ -34,6 +34,9 @@ const items: { key: "home" | "shows" | "map" | "profile"; label: string; short: 
         <RouterLink v-for="i in items" :key="i.key" :to="i.to" class="side__item" :class="{ 'is-active': active === i.key }">
           <SsIcon :name="i.icon" />{{ i.label }}
         </RouterLink>
+        <RouterLink v-if="auth.isAdmin" to="/app/admin" class="side__item" :class="{ 'is-active': active === 'admin' }">
+          <SsIcon name="lock" />Admin
+        </RouterLink>
       </template>
       <div class="side__spacer" />
       <div v-if="ui.showInstallNudge" class="side__install">

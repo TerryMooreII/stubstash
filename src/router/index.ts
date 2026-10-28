@@ -5,12 +5,14 @@ declare module "vue-router" {
   interface RouteMeta {
     /** Requires a signed-in user. */
     auth?: boolean;
+    /** Admins only (others are sent to the dashboard). */
+    admin?: boolean;
     /** Only for signed-out visitors (login/signup); signed-in users go to /app. */
     guestOnly?: boolean;
     /** Allowed before onboarding is finished. */
     preOnboarding?: boolean;
     /** Which bottom/side nav item to highlight. */
-    nav?: "home" | "shows" | "log" | "map" | "profile";
+    nav?: "home" | "shows" | "log" | "map" | "profile" | "admin";
     title?: string;
   }
 }
@@ -47,6 +49,7 @@ const routes: RouteRecordRaw[] = [
       { path: "map", name: "map", component: () => import("@/views/app/MapView.vue"), meta: { nav: "map", title: "Map" } },
       { path: "me", name: "me", component: () => import("@/views/app/ProfileView.vue"), meta: { nav: "profile", title: "Profile" } },
       { path: "friends", name: "friends", component: () => import("@/views/app/FriendsView.vue"), meta: { nav: "profile", title: "Friends" } },
+      { path: "admin", name: "admin", component: () => import("@/views/app/AdminView.vue"), meta: { nav: "admin", admin: true, title: "Admin" } },
       { path: "settings", name: "settings", component: () => import("@/views/app/SettingsView.vue"), meta: { nav: "profile", title: "Settings" } },
     ],
   },
@@ -85,6 +88,9 @@ router.beforeEach(async (to) => {
 
   if (to.meta.auth && !auth.signedIn) {
     return { name: "login", query: { next: to.fullPath } };
+  }
+  if (to.matched.some((r) => r.meta.admin) && !auth.isAdmin) {
+    return { name: "dashboard" };
   }
   if (to.meta.guestOnly && auth.signedIn) {
     return typeof to.query.next === "string" && to.query.next.startsWith("/") ? to.query.next : { name: "dashboard" };
