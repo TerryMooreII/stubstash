@@ -204,6 +204,9 @@ const items: { key: "home" | "shows" | "map" | "profile"; label: string; short: 
   flex: 1;
   min-width: 0;
 }
+.shell--mobile .main {
+  padding-top: calc(var(--ss-topbar-h) + var(--ss-safe-top));
+}
 .shell--mobile .content {
   padding-bottom: calc(var(--ss-tabbar-h) + var(--ss-safe-bottom) + 8px);
 }
@@ -214,8 +217,11 @@ const items: { key: "home" | "shows" | "map" | "profile"; label: string; short: 
 
 /* ---- mobile top bar ---- */
 .top {
-  position: sticky;
+  /* Fixed (not sticky) so it stays put during iOS scroll bounce. */
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 20;
   height: var(--ss-topbar-h);
   padding: var(--ss-safe-top) 16px 0;

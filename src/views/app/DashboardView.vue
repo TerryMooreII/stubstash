@@ -221,7 +221,7 @@ const earned = computed(() => badgeList.value.filter((b) => b.earned).length);
 }
 
 .more { font-weight: 700; font-size: 15px; }
-.badges { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.badges { position: relative; display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
 
 .hero-empty {
   padding: 32px 24px;

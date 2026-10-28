@@ -39,6 +39,10 @@ const status = computed(() =>
 </template>
 
 <style scoped>
+.ss-badge {
+  /* Contains the visually-hidden label so it can't poke out of scrolling rows. */
+  position: relative;
+}
 .ss-badge--compact {
   flex: 0 0 120px;
   display: flex;

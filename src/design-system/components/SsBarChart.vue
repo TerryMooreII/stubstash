@@ -41,6 +41,7 @@ const summary = computed(() => props.data.map((d) => `${d.label}: ${d.value}`).j
 
 <style scoped>
 .ss-bars-scroll.can-scroll {
+  position: relative;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;

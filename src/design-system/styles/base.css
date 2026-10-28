@@ -7,6 +7,8 @@
 }
 
 html {
+  /* Never scroll sideways. iOS Safari ignores overflow on <body> alone. */
+  overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   color-scheme: dark;
@@ -26,7 +28,14 @@ body {
 
 body {
   min-height: 100dvh;
-  overflow-x: hidden;
+  /* clip (not hidden) keeps <body> from becoming a scroll container, so sticky
+     and fixed bars keep working. position: relative makes body the frame for
+     stray absolutely-positioned bits, so they get clipped too. */
+  position: relative;
+  overflow-x: clip;
+}
+@supports not (overflow: clip) {
+  body { overflow-x: hidden; }
 }
 
 #app {
