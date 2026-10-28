@@ -95,24 +95,29 @@ async function prune() {
     </SsEmpty>
 
     <div v-else-if="!data" class="tiles">
-      <SsSkeleton v-for="i in 7" :key="i" height="110px" radius="var(--ss-radius-lg)" />
+      <SsSkeleton v-for="i in 6" :key="i" height="110px" radius="var(--ss-radius-lg)" />
     </div>
 
     <template v-else>
       <!-- Headline numbers -->
       <div class="tiles">
+        <!-- Row 1: people · Row 2: shows and suspensions -->
         <button type="button" class="tile-btn" @click="emit('go', 'users')">
-          <SsStatCard label="USERS" :value="num(data.totals.users)" tone="accent" :caption="`${num(data.totals.users_30d)} in 30 days`" />
+          <SsStatCard
+            label="USERS"
+            :value="num(data.totals.users)"
+            tone="accent"
+            :caption="`+${num(data.totals.users_7d)} this week · ${num(data.totals.users_30d)} in 30 days`"
+          />
         </button>
-        <SsStatCard label="NEW · 7 DAYS" :value="num(data.totals.users_7d)" />
         <SsStatCard label="ACTIVE · 7 DAYS" :value="num(data.totals.active_7d)" caption="signed in" />
+        <button type="button" class="tile-btn" @click="emit('go', 'users')">
+          <SsStatCard label="UNCONFIRMED" :value="num(data.totals.unconfirmed)" caption="email not confirmed" />
+        </button>
         <SsStatCard label="SHOWS LOGGED" :value="num(data.totals.attendances)" :caption="`${num(data.totals.shows)} shows in catalog`" />
         <SsStatCard label="LOGGED · 7 DAYS" :value="num(data.totals.attendances_7d)" />
         <button type="button" class="tile-btn" @click="emit('go', 'users')">
           <SsStatCard label="SUSPENDED" :value="num(data.totals.suspended)" />
-        </button>
-        <button type="button" class="tile-btn" @click="emit('go', 'users')">
-          <SsStatCard label="UNCONFIRMED" :value="num(data.totals.unconfirmed)" caption="email not confirmed" />
         </button>
       </div>
 
@@ -207,7 +212,8 @@ async function prune() {
 .ov { display: flex; flex-direction: column; gap: 16px; }
 .ov__bar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 .small { font-size: 13px; }
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 420px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .tile-btn { display: block; padding: 0; border: 0; background: none; text-align: left; color: inherit; border-radius: var(--ss-radius-lg); }
 .tile-btn > * { height: 100%; }
 .tile-btn:hover :deep(.ss-stat) { border-color: var(--ss-line-strong); }
