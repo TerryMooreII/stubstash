@@ -57,17 +57,18 @@ design/                 Claude Design reference files
 | `/u/:handle` | Public profile (if public, or you're friends) |
 | `/add/:handle`, `/invite/:token` | Friend link and "you were there" invites |
 
-## Hosting (GitHub Pages)
+## Hosting (GitHub Pages at stubstash.terrymooreii.dev)
 
-`.github/workflows/deploy.yml` tests, builds and deploys on every push to `main` (or run it by hand from the Actions tab). The site lands at `https://terrymooreii.github.io/stubstash/`.
+`.github/workflows/deploy.yml` tests, builds and deploys on every push to `main` (or run it by hand from the Actions tab). `public/CNAME` holds the domain.
 
 One-time setup:
 
-1. **Settings → Pages → Source:** GitHub Actions.
-2. **Settings → Secrets and variables → Actions → Variables:** add `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` and `VITE_VAPID_PUBLIC_KEY` (same values as `.env.local`; all are public).
-3. **Supabase → Authentication → URL Configuration:** set Site URL to `https://terrymooreii.github.io/stubstash/` and add redirect URLs `https://terrymooreii.github.io/stubstash/app/auth/callback` and `https://terrymooreii.github.io/stubstash/app/reset-password`.
+1. **DNS** (terrymooreii.dev): `CNAME` record `stubstash` → `terrymooreii.github.io`.
+2. **GitHub → Settings → Pages:** Source = GitHub Actions; Custom domain = `stubstash.terrymooreii.dev`; tick Enforce HTTPS once the certificate is issued.
+3. **GitHub → Settings → Secrets and variables → Actions → Variables:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY` (same values as `.env.local`; all public).
+4. **Supabase → Authentication → URL Configuration:** Site URL `https://stubstash.terrymooreii.dev`; Redirect URLs `https://stubstash.terrymooreii.dev/app/auth/callback`, `https://stubstash.terrymooreii.dev/app/reset-password` (plus the localhost ones for dev).
 
-The build reads `BASE_PATH` (the workflow sets it from the Pages config, so a custom domain switches to `/` automatically). Pages has no SPA rewrites, so the workflow copies `index.html` to `404.html`. Deep links work, but the response status is 404. Any other static host works too: serve `index.html` for unknown paths.
+Pages has no SPA rewrites, so the workflow copies `index.html` to `404.html`: deep links work, with a 404 status. The app also supports a sub-path build (`BASE_PATH=/something/`) if ever needed.
 
 ## Credits
 

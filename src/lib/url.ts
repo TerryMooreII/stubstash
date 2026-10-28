@@ -5,3 +5,6 @@
 export function appUrl(path: string): string {
   return location.origin + import.meta.env.BASE_URL.replace(/\/$/, "") + path;
 }
+
+/** Public host shown on share cards and profile links. */
+export const SITE_HOST = "stubstash.terrymooreii.dev";

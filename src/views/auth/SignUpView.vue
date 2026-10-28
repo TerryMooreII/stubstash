@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SITE_HOST } from "@/lib/url";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsField, SsInput } from "@/design-system";
@@ -76,7 +77,7 @@ async function submit() {
       <SsField label="Password" hint="8+ characters, letters and numbers">
         <SsInput v-model="password" type="password" autocomplete="new-password" placeholder="Make it a good one" size="lg" />
       </SsField>
-      <SsField label="Handle (optional)" hint="Your public link: stubstash.app/u/handle" :error="handleOk ? null : 'Letters, numbers or underscores, 3 to 24 long'">
+      <SsField label="Handle (optional)" :hint="`Your public link: ${SITE_HOST}/u/handle`" :error="handleOk ? null : 'Letters, numbers or underscores, 3 to 24 long'">
         <SsInput v-model="handle" prefix="@" autocomplete="username" placeholder="samgigs" size="lg" :maxlength="25" />
       </SsField>
       <p v-if="error" class="error" role="alert">{{ error }}</p>

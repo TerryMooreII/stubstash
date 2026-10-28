@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SITE_HOST } from "@/lib/url";
 // Big accent "YEAR IN REVIEW" card with year chips, six stat cells and a share button.
 import { computed, ref, watch } from "vue";
 import { SsSkeleton } from "@/design-system";
@@ -75,7 +76,7 @@ const card = computed<ShareCard>(() => {
       { v: num(d?.venues ?? 0), k: "venues" },
       { v: compact(d?.miles ?? 0), k: "miles" },
     ],
-    footer: `stubstash.app/u/${props.handle}`,
+    footer: `${SITE_HOST}/u/${props.handle}`,
   };
 });
 </script>

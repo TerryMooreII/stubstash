@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SITE_HOST } from "@/lib/url";
 // Profile: yours at /app/me, anyone's at /u/:handle.
 // Shows year in review, badges and friends (or, for someone else, their latest
 // shows and the shows you were both at). Private profiles show a friend prompt.
@@ -136,7 +137,7 @@ async function friendAction() {
   }
 }
 
-const profileUrl = computed(() => `stubstash.app/u/${handle.value}`);
+const profileUrl = computed(() => `${SITE_HOST}/u/${handle.value}`);
 const latest = computed(() => otherLog.value.slice(0, 6));
 </script>
 

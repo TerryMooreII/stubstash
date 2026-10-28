@@ -12,7 +12,7 @@ import { adminClient } from "../_shared/supabase.ts";
 
 const ARTIST_BATCH = 8;
 const VENUE_BATCH = 8;
-const UA = `Stubstash/1.0 (+${Deno.env.get("CONTACT_EMAIL") ?? "https://stubstash.app"})`;
+const UA = `Stubstash/1.0 (+${Deno.env.get("CONTACT_EMAIL") ?? "https://stubstash.terrymooreii.dev"})`;
 
 interface Img { url: string; source: string; credit: string }
 

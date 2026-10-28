@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SITE_HOST } from "@/lib/url";
 // Account settings: profile, home base, privacy, notifications, setlist.fm,
 // install, password and sign out.
 import { computed, onMounted, ref, watch } from "vue";
@@ -254,7 +255,7 @@ async function signOut() {
             <SsField label="Name">
               <SsInput v-model="displayName" placeholder="What friends call you" :maxlength="60" autocomplete="name" />
             </SsField>
-            <SsField label="Handle" :error="handleError" hint="Your profile lives at stubstash.app/u/your-handle">
+            <SsField label="Handle" :error="handleError" :hint="`Your profile lives at ${SITE_HOST}/u/your-handle`">
               <SsInput v-model="handle" prefix="@" :maxlength="24" autocomplete="username" :invalid="!!handleError" />
             </SsField>
             <SsButton type="submit" :disabled="!profileDirty" :loading="savingProfile" class="save">Save profile</SsButton>

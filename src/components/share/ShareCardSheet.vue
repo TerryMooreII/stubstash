@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SITE_HOST } from "@/lib/url";
 // Stories-sized (9:16) share card from the design. "Shuffle colors" cycles the
 // card palette; "Share" renders a PNG and uses the native share sheet when it
 // can, otherwise downloads the image.
@@ -18,7 +19,7 @@ const ui = useUi();
 const colorIx = ref(0);
 const bg = computed(() => CARD_COLORS[colorIx.value % CARD_COLORS.length]);
 const footer = computed(
-  () => props.card.footer ?? `stubstash.app/${auth.profile?.handle ?? ""} · setlist via setlist.fm`,
+  () => props.card.footer ?? `${SITE_HOST}/u/${auth.profile?.handle ?? ""} · setlist via setlist.fm`,
 );
 const cardEl = ref<HTMLElement>();
 const busy = ref(false);

@@ -37,8 +37,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # "/stubstash" on <user>.github.io/stubstash, "" with a custom domain.
-          BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+          # Served from the root of stubstash.terrymooreii.dev.
+          BASE_PATH: /
           # Public values (they ship in the browser bundle anyway). Set them under
           # Settings > Secrets and variables > Actions > Variables.
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
