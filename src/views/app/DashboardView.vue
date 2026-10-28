@@ -60,7 +60,8 @@ const years = computed(() => {
   const py = s.value?.per_year ?? [];
   if (!py.length) return [];
   const map = new Map(py.map((p) => [p.year, p.n]));
-  const start = Math.max(py[0]!.year, thisYear - 11);
+  // Every year from the first show to now (empty years show as 0).
+  const start = py[0]!.year;
   const end = Math.max(thisYear, py[py.length - 1]!.year);
   const out = [];
   for (let y = start; y <= end; y++) out.push({ label: "'" + String(y).slice(2), value: map.get(y) ?? 0, highlight: y === thisYear });
@@ -136,7 +137,7 @@ const earned = computed(() => badgeList.value.filter((b) => b.earned).length);
       <div class="ss-grid ss-grid--stretch">
         <SsCard title="Shows per year" class="wide">
           <template #aside>{{ peak }}</template>
-          <SsBarChart :data="years" />
+          <SsBarChart :data="years" :min-column="26" />
         </SsCard>
         <StreakCard :streak="s.streak" />
       </div>

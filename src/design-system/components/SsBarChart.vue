@@ -1,18 +1,31 @@
 <script setup lang="ts">
 // Vertical bar chart ("Shows per year"): value above each bar, mono label below.
 // The highlighted bar uses the accent; others use slate.
-import { computed } from "vue";
+// With `minColumn`, bars never get thinner than that: the chart scrolls sideways
+// instead and starts scrolled to the right (most recent).
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 
 const props = withDefaults(
-  defineProps<{ data: { label: string; value: number; highlight?: boolean }[]; height?: number }>(),
-  { height: 170 },
+  defineProps<{ data: { label: string; value: number; highlight?: boolean }[]; height?: number; minColumn?: number }>(),
+  { height: 170, minColumn: 0 },
 );
+const GAP = 8;
+const scroller = ref<HTMLElement>();
+const minWidth = computed(() => (props.minColumn ? props.data.length * (props.minColumn + GAP) - GAP : 0));
+function toEnd() {
+  nextTick(() => {
+    if (scroller.value) scroller.value.scrollLeft = scroller.value.scrollWidth;
+  });
+}
+onMounted(toEnd);
+watch(() => props.data.length, toEnd);
 const max = computed(() => Math.max(1, ...props.data.map((d) => d.value)));
 const summary = computed(() => props.data.map((d) => `${d.label}: ${d.value}`).join(", "));
 </script>
 
 <template>
-  <div class="ss-bars" :style="{ height: height + 'px' }" role="img" :aria-label="summary">
+  <div ref="scroller" class="ss-bars-scroll" :class="{ 'can-scroll': minColumn > 0 }">
+  <div class="ss-bars" :style="{ height: height + 'px', minWidth: minWidth ? minWidth + 'px' : undefined }" role="img" :aria-label="summary">
     <div v-for="d in data" :key="d.label" class="ss-bars__col">
       <div class="ss-bars__n ss-num">{{ d.value }}</div>
       <div
@@ -23,9 +36,16 @@ const summary = computed(() => props.data.map((d) => `${d.label}: ${d.value}`).j
       <div class="ss-bars__label">{{ d.label }}</div>
     </div>
   </div>
+  </div>
 </template>
 
 <style scoped>
+.ss-bars-scroll.can-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  padding-bottom: 4px;
+}
 .ss-bars {
   display: flex;
   align-items: flex-end;
