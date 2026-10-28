@@ -118,6 +118,9 @@ const out = [
   ["icons/icon-192.png", 192, "rounded"],
   ["icons/icon-512.png", 512, "rounded"],
   ["icons/icon-maskable-512.png", 512, "maskable"],
+  ["icons/icon-maskable-192.png", 192, "maskable"],
+  ["icons/favicon-32.png", 32, "rounded"], // PNG fallback for browsers without SVG favicons
+  ["icons/favicon-16.png", 16, "rounded"],
   ["icons/apple-touch-icon.png", 180, "maskable"], // iOS rounds corners itself; no transparency
   ["icons/badge-72.png", 72, "badge"],
 ];

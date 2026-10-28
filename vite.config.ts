@@ -19,7 +19,7 @@ export default defineConfig({
       filename: "sw.ts",
       registerType: "prompt",
       injectRegister: false,
-      includeAssets: ["favicon.svg", "icons/apple-touch-icon.png"],
+      includeAssets: ["favicon.svg", "icons/apple-touch-icon.png", "icons/favicon-32.png", "icons/favicon-16.png"],
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2,webmanifest}"],
       },
@@ -36,8 +36,10 @@ export default defineConfig({
         theme_color: "#0a090c",
         categories: ["music", "lifestyle", "entertainment"],
         icons: [
-          { src: `${base}icons/icon-192.png`, sizes: "192x192", type: "image/png" },
-          { src: `${base}icons/icon-512.png`, sizes: "512x512", type: "image/png" },
+          { src: `${base}icons/icon-192.png`, sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: `${base}icons/icon-512.png`, sizes: "512x512", type: "image/png", purpose: "any" },
+          // Android crops these to its own shape (circle, squircle...); the mark sits in the safe zone.
+          { src: `${base}icons/icon-maskable-192.png`, sizes: "192x192", type: "image/png", purpose: "maskable" },
           { src: `${base}icons/icon-maskable-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
         shortcuts: [
