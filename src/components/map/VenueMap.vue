@@ -44,7 +44,9 @@ let ro: ResizeObserver | null = null;
 let fitted = false;
 const markers = new Map<string, L.Marker | L.CircleMarker>();
 
-const streets = ref(true);
+// City/street names on the map. CARTO has no dark style without roads, so
+// this only toggles labels.
+const labels = ref(true);
 const activeRegion = ref("all");
 
 type Placed = MapVenue & { lat: number; lng: number };
@@ -237,7 +239,7 @@ onMounted(() => {
   });
   m.attributionControl.setPrefix(false);
   L.control.zoom({ position: "bottomright" }).addTo(m);
-  tiles = L.tileLayer(tileUrl(streets.value ? "dark_all" : "dark_nolabels"), {
+  tiles = L.tileLayer(tileUrl(labels.value ? "dark_all" : "dark_nolabels"), {
     attribution: ATTRIBUTION,
     maxZoom: 19,
     detectRetina: false,
@@ -282,7 +284,7 @@ watch(
     if (m === "arcs" && placed.value.length) year.value = maxYear.value;
   },
 );
-watch(streets, (on) => tiles?.setUrl(tileUrl(on ? "dark_all" : "dark_nolabels")));
+watch(labels, (on) => tiles?.setUrl(tileUrl(on ? "dark_all" : "dark_nolabels")));
 watch(
   () => props.scrollZoom,
   (on) => (on ? map.value?.scrollWheelZoom.enable() : map.value?.scrollWheelZoom.disable()),
@@ -304,8 +306,8 @@ watch(
       >
         {{ r.label }}
       </button>
-      <button type="button" class="vm-chip vm-chip--gap" :class="{ on: streets }" :aria-pressed="streets" @click="streets = !streets">
-        Streets
+      <button type="button" class="vm-chip vm-chip--gap" :class="{ on: labels }" :aria-pressed="labels" @click="labels = !labels">
+        Labels
       </button>
     </div>
 
