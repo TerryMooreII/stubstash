@@ -77,7 +77,6 @@ const kicker = computed(() => {
           :src="artist.image_url"
           :seed="artist.name"
           :alt="artist.name"
-          :credit="artist.image_credit"
           eager
           @error="imgFailed = true"
         />
