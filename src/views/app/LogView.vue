@@ -38,6 +38,20 @@ const error = ref<string | null>(null);
 const justLogged = reactive<Record<string, string>>({});
 const busy = reactive<Record<string, boolean>>({});
 const queued = reactive<Record<string, boolean>>({});
+// Expanded result cards (setlist + notes), so people can check it's the right night.
+const expanded = reactive<Record<string, boolean>>({});
+function toggle(id: string) {
+  expanded[id] = !expanded[id];
+}
+/** Song number where each set starts (numbering runs through the whole show). */
+function setStarts(r: SetlistResult): number[] {
+  let n = 1;
+  return (r.sets ?? []).map((set) => {
+    const start = n;
+    n += set.songs.length;
+    return start;
+  });
+}
 
 const DEFAULT_QUICK = ["Phish", "Billy Strings", "Taylor Swift", "Red Rocks"];
 const quick = computed(() => {
@@ -216,19 +230,29 @@ const matchedNote = computed(() =>
         <template v-if="mode === 'find' && searched"> · {{ searched }}</template>
       </div>
       <ul class="list">
-        <li v-for="r in results" :key="r.setlistfm_id" class="result">
-          <div class="result__date">
-            <div class="result__mon">{{ dateParts(r.date).mon }}</div>
-            <div class="result__day">{{ dateParts(r.date).day }}</div>
-            <div class="result__yr">{{ dateParts(r.date).yr }}</div>
-          </div>
-          <div class="result__body">
-            <div class="result__artist">{{ r.artist }}</div>
-            <div class="result__venue">{{ r.venue }}<template v-if="r.city"> · {{ place(r.city, r.state_code, r.country_code) }}</template></div>
-            <div class="result__meta">
-              <template v-if="r.tour">{{ r.tour }} · </template>{{ r.songs ? `${r.songs} songs` : "No setlist yet" }}
+        <li v-for="r in results" :key="r.setlistfm_id" class="result" :class="{ 'is-open': expanded[r.setlistfm_id] }">
+          <button
+            type="button"
+            class="result__toggle"
+            :aria-expanded="!!expanded[r.setlistfm_id]"
+            :aria-controls="`setlist-${r.setlistfm_id}`"
+            @click="toggle(r.setlistfm_id)"
+          >
+            <div class="result__date">
+              <div class="result__mon">{{ dateParts(r.date).mon }}</div>
+              <div class="result__day">{{ dateParts(r.date).day }}</div>
+              <div class="result__yr">{{ dateParts(r.date).yr }}</div>
             </div>
-          </div>
+            <div class="result__body">
+              <div class="result__artist">{{ r.artist }}</div>
+              <div class="result__venue">{{ r.venue }}<template v-if="r.city"> · {{ place(r.city, r.state_code, r.country_code) }}</template></div>
+              <div class="result__meta">
+                <template v-if="r.tour">{{ r.tour }} · </template>{{ r.songs ? `${r.songs} songs` : "No setlist yet" }}
+                <span class="result__more">{{ expanded[r.setlistfm_id] ? "Hide setlist" : "Show setlist" }}</span>
+              </div>
+            </div>
+            <SsIcon name="chevron" :size="18" class="result__chev" aria-hidden="true" />
+          </button>
           <div class="result__action">
             <template v-if="attendanceFor(r)">
               <SsButton
@@ -246,6 +270,27 @@ const matchedNote = computed(() =>
             </template>
             <SsButton v-else-if="queued[r.setlistfm_id]" size="sm" variant="outline" disabled>Queued</SsButton>
             <SsButton v-else size="sm" :loading="busy[r.setlistfm_id]" @click="iWasThere(r)">I was there</SsButton>
+          </div>
+
+          <div v-if="expanded[r.setlistfm_id]" :id="`setlist-${r.setlistfm_id}`" class="detail">
+            <p v-if="r.info" class="detail__info">{{ r.info }}</p>
+            <template v-if="r.sets?.length">
+              <section v-for="(set, si) in r.sets" :key="si" class="set">
+                <h3 class="set__name">{{ set.name }} <span class="set__n">{{ set.songs.length }}</span></h3>
+                <ol class="set__songs" :start="setStarts(r)[si]">
+                  <li v-for="(song, i) in set.songs" :key="i" :class="{ 'is-tape': song.tape }">
+                    <span class="song">{{ song.name }}</span>
+                    <span v-if="song.tape" class="song__note"> (played from tape)</span>
+                    <span v-if="song.cover" class="song__note"> ({{ song.cover }} cover)</span>
+                    <span v-if="song.info" class="song__note"> · {{ song.info }}</span>
+                  </li>
+                </ol>
+              </section>
+            </template>
+            <p v-else class="detail__empty">setlist.fm doesn't have the songs for this show yet. You can still log it.</p>
+            <a v-if="r.url" :href="r.url" target="_blank" rel="noopener" class="detail__link">
+              See it on setlist.fm <SsIcon name="external" :size="14" />
+            </a>
           </div>
         </li>
       </ul>
@@ -310,6 +355,58 @@ const matchedNote = computed(() =>
   border: 1px solid var(--ss-line);
   flex-wrap: wrap;
 }
+.result__toggle {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.result__toggle:focus-visible { outline: 2px solid var(--ss-accent); outline-offset: 4px; border-radius: 8px; }
+.result__chev { flex-shrink: 0; color: var(--ss-text-muted); transform: rotate(90deg); transition: transform var(--ss-dur-fast); }
+.result.is-open .result__chev { transform: rotate(-90deg); }
+.result__toggle:hover .result__artist { color: var(--ss-accent); }
+.result__more { color: var(--ss-accent); font-weight: 700; margin-left: 6px; }
+.result.is-open { border-color: var(--ss-line-strong); }
+.detail {
+  flex-basis: 100%;
+  border-top: 1px solid var(--ss-line-soft);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.detail__info { margin: 0; font-size: 14px; color: var(--ss-text-2); white-space: pre-line; }
+.detail__empty { margin: 0; font-size: 14px; color: var(--ss-text-muted); }
+.detail__link { align-self: flex-start; font-size: 14px; font-weight: 700; display: inline-flex; gap: 4px; align-items: center; }
+.set__name {
+  margin: 0 0 6px;
+  font-family: var(--ss-font-mono);
+  font-size: 11px;
+  letter-spacing: var(--ss-tracking-mono);
+  text-transform: uppercase;
+  color: var(--ss-accent);
+}
+.set__n { color: var(--ss-text-faint); margin-left: 4px; }
+.set__songs {
+  margin: 0;
+  padding-left: 28px;
+  columns: 2 220px;
+  column-gap: 24px;
+  font-size: 15px;
+}
+.set__songs li { break-inside: avoid; padding: 2px 0; color: var(--ss-text); }
+.set__songs li::marker { color: var(--ss-text-faint); font-size: 13px; }
+.set__songs li.is-tape { color: var(--ss-text-muted); }
+.song { font-weight: 600; }
+.song__note { font-size: 13px; color: var(--ss-text-muted); }
 .result__date { width: 56px; text-align: center; flex-shrink: 0; }
 .result__mon { font-family: var(--ss-font-mono); font-size: 11px; color: var(--ss-accent); }
 .result__day { font-weight: 900; font-size: 26px; line-height: 1; }

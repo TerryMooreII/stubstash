@@ -208,6 +208,9 @@ export interface SetlistResult {
   tour: string | null;
   songs: number;
   url: string | null;
+  /** setlist.fm's notes for the night (guests, debuts, weather...). */
+  info?: string | null;
+  sets?: { name: string; encore: boolean; songs: { name: string; cover: string | null; info: string | null; tape: boolean }[] }[];
   attendance_id: string | null;
 }
 

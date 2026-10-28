@@ -78,7 +78,13 @@ export function looksLikeFestival(s: SfmSetlist): boolean {
   return FEST.test(s.tour?.name ?? "") || FEST.test(s.venue?.name ?? "") || FEST.test(s.info ?? "");
 }
 
-/** Shape sent to the app for search results. */
+/** "Set 1", "Set 2", "Encore", "Encore 2" (setlist.fm's own set names win). */
+export function setName(set: SfmSet, setIndex: number): string {
+  if (set.encore) return set.encore > 1 ? `Encore ${set.encore}` : "Encore";
+  return set.name || (setIndex === 0 ? "Set" : `Set ${setIndex + 1}`);
+}
+
+/** Shape sent to the app for search results, including the setlist so people can check it's the right night. */
 export function summarize(s: SfmSetlist) {
   return {
     setlistfm_id: s.id,
@@ -92,6 +98,16 @@ export function summarize(s: SfmSetlist) {
     tour: s.tour?.name ?? null,
     songs: songCount(s),
     url: s.url ?? null,
+    info: s.info ?? null,
+    sets: (s.sets?.set ?? [])
+      .map((set, i) => ({
+        name: setName(set, i),
+        encore: !!set.encore,
+        songs: (set.song ?? [])
+          .filter((x) => x.name?.trim())
+          .map((x) => ({ name: x.name!.trim(), cover: x.cover?.name ?? null, info: x.info ?? null, tape: !!x.tape })),
+      }))
+      .filter((set) => set.songs.length),
   };
 }
 
@@ -162,12 +178,12 @@ export async function upsertSetlist(db: SupabaseClient, s: SfmSetlist): Promise<
     const rows: Record<string, unknown>[] = [];
     let pos = 0;
     (s.sets?.set ?? []).forEach((set, setIndex) => {
-      const setName = set.encore ? (set.encore > 1 ? `Encore ${set.encore}` : "Encore") : set.name || (setIndex === 0 ? "Set" : `Set ${setIndex + 1}`);
+      const name = setName(set, setIndex);
       for (const song of set.song ?? []) {
         if (!song.name?.trim()) continue;
         pos++;
         rows.push({
-          show_id: show.id, set_index: setIndex, set_name: setName, is_encore: !!set.encore,
+          show_id: show.id, set_index: setIndex, set_name: name, is_encore: !!set.encore,
           position: pos, name: song.name.trim().slice(0, 300), info: song.info ?? null,
           is_cover: !!song.cover, cover_artist: song.cover?.name ?? null, is_tape: !!song.tape,
         });
