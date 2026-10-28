@@ -13,6 +13,7 @@ export { default as SsEmpty } from "./components/SsEmpty.vue";
 export { default as SsField } from "./components/SsField.vue";
 export { default as SsIcon } from "./components/SsIcon.vue";
 export { default as SsInput } from "./components/SsInput.vue";
+export { default as SsSelect } from "./components/SsSelect.vue";
 export { default as SsLogo } from "./components/SsLogo.vue";
 export { default as SsPageHeader } from "./components/SsPageHeader.vue";
 export { default as SsProgress } from "./components/SsProgress.vue";

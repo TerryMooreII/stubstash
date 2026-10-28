@@ -4,7 +4,7 @@
 import { supabase } from "./supabase";
 import type {
   ArtistStats, AttendanceDetail, Badge, DashboardStats, Friend, LogEntry, MapVenue,
-  PersonCard, Profile, PublicProfile, SetDraft, SetlistSearchResponse, SetlistSong,
+  PersonCard, Profile, PublicProfile, SetDraft, SetlistSearchParams, SetlistSearchResponse, SetlistSong,
   ShowStats, VenueStats, YearInReview,
 } from "./types";
 
@@ -30,8 +30,10 @@ async function sfm<T>(body: Record<string, unknown>): Promise<T> {
 }
 
 export const setlistfm = {
-  search: (params: { q?: string; artist?: string; venue?: string; city?: string; date?: string; year?: string; page?: number }) =>
-    sfm<SetlistSearchResponse>({ action: "search", ...params }),
+  search: (params: SetlistSearchParams) => sfm<SetlistSearchResponse>({ action: "search", ...params }),
+  /** Artist suggestions (with MusicBrainz ids) for the advanced search. */
+  artists: (q: string) =>
+    sfm<{ artists: { mbid: string; name: string; disambiguation: string | null }[] }>({ action: "artists", q }),
   log: (setlistfmId: string) =>
     sfm<{ attendance_id: string; show_id: string; created: boolean }>({ action: "log", setlistfm_id: setlistfmId }),
   previewUser: (username: string) =>

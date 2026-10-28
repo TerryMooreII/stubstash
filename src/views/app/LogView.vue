@@ -1,13 +1,17 @@
 <script setup lang="ts">
 // "Who'd you see?" Search setlist.fm and log a show in one tap.
+// Two modes: quick search (one box, for last night's show) and "find an older
+// show" (artist + year/date + venue/city/state/country/tour filters).
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsChip, SsEmpty, SsIcon, SsInput, SsPageHeader, SsSkeleton } from "@/design-system";
+import AdvancedSetlistSearch from "@/components/forms/AdvancedSetlistSearch.vue";
+import { describe, fromQuery, hasWhere, toParams, toQuery } from "@/lib/advancedSearch";
 import { setlistfm } from "@/lib/api";
 import { errorMessage } from "@/lib/supabase";
 import { dateParts, num, place } from "@/lib/format";
 import { outboxAdd } from "@/lib/offline";
-import type { SetlistResult } from "@/lib/types";
+import type { SetlistResult, SetlistSearchParams } from "@/lib/types";
 import { useLog } from "@/stores/log";
 import { useUi } from "@/stores/ui";
 
@@ -16,7 +20,10 @@ const router = useRouter();
 const log = useLog();
 const ui = useUi();
 
+const mode = ref<"quick" | "find">(route.query.find === "1" ? "find" : "quick");
 const q = ref(typeof route.query.q === "string" ? route.query.q : "");
+const filters = ref(fromQuery(route.query));
+let lastParams: SetlistSearchParams = {};
 const results = ref<SetlistResult[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -41,27 +48,44 @@ const quick = computed(() => {
 let timer: ReturnType<typeof setTimeout> | undefined;
 let seq = 0;
 
-async function search(reset = true) {
+function clearResults() {
+  seq++;
+  results.value = [];
+  total.value = 0;
+  searched.value = "";
+  error.value = null;
+  loading.value = false;
+}
+
+/** Quick mode: one search box. */
+function search(reset = true) {
+  if (!reset) return run(lastParams, false, searched.value);
   const term = q.value.trim();
-  if (term.length < 2) {
-    results.value = [];
-    total.value = 0;
-    searched.value = "";
-    error.value = null;
-    return;
-  }
+  if (term.length < 2) return clearResults();
+  return run({ q: term }, true, term);
+}
+
+/** Find mode: the filter form. */
+function find() {
+  if (!hasWhere(filters.value)) return;
+  router.replace({ query: toQuery(filters.value) });
+  run(toParams(filters.value), true, describe(filters.value));
+}
+
+async function run(params: SetlistSearchParams, reset: boolean, label: string) {
   const mine = ++seq;
+  lastParams = params;
   if (reset) { loading.value = true; page.value = 1; } else loadingMore.value = true;
   error.value = null;
   try {
-    const res = await setlistfm.search({ q: term, page: reset ? 1 : page.value + 1 });
+    const res = await setlistfm.search({ ...params, page: reset ? 1 : page.value + 1 });
     if (mine !== seq) return;
     results.value = reset ? res.results : [...results.value, ...res.results];
     total.value = res.total;
     page.value = res.page;
     pages.value = res.pages;
     matchedBy.value = res.matched_by;
-    searched.value = term;
+    searched.value = label;
   } catch (e) {
     if (mine !== seq) return;
     error.value = errorMessage(e);
@@ -72,6 +96,7 @@ async function search(reset = true) {
 }
 
 watch(q, (v) => {
+  if (mode.value !== "quick") return;
   clearTimeout(timer);
   timer = setTimeout(() => {
     router.replace({ query: v.trim() ? { q: v.trim() } : {} });
@@ -81,8 +106,24 @@ watch(q, (v) => {
 
 onMounted(() => {
   log.load();
-  if (q.value.trim()) search(true);
+  if (mode.value === "find") {
+    if (hasWhere(filters.value)) find();
+  } else if (q.value.trim()) search(true);
 });
+
+function setMode(m: "quick" | "find") {
+  if (mode.value === m) return;
+  mode.value = m;
+  clearResults();
+  if (m === "find") {
+    // Carry what they typed over as the artist.
+    if (!hasWhere(filters.value) && q.value.trim()) filters.value.artist = q.value.trim();
+    router.replace({ query: { find: "1" } });
+  } else {
+    router.replace({ query: q.value.trim() ? { q: q.value.trim() } : {} });
+    if (q.value.trim()) search(true);
+  }
+}
 
 function attendanceFor(r: SetlistResult): string | null {
   return justLogged[r.setlistfm_id] ?? r.attendance_id ?? log.loggedSetlistIds.get(r.setlistfm_id) ?? null;
@@ -109,7 +150,13 @@ async function iWasThere(r: SetlistResult) {
   }
 }
 
-const manualLink = computed(() => ({ path: "/app/log/manual", query: q.value.trim() ? { artist: q.value.trim() } : {} }));
+const manualLink = computed(() => {
+  if (mode.value === "find") {
+    const { find: _f, artist_mbid: _m, year: _y, ...rest } = toQuery(filters.value);
+    return { path: "/app/log/manual", query: rest };
+  }
+  return { path: "/app/log/manual", query: q.value.trim() ? { artist: q.value.trim() } : {} };
+});
 const matchedNote = computed(() =>
   matchedBy.value === "venue" ? " · matching venue" : matchedBy.value === "city" ? " · matching city" : "",
 );
@@ -119,6 +166,18 @@ const matchedNote = computed(() =>
   <div class="ss-page">
     <SsPageHeader kicker="Log a show · searching setlist.fm" title="Who'd you see?" />
 
+    <div class="modes" role="tablist" aria-label="Search mode">
+      <button type="button" role="tab" class="mode" :class="{ on: mode === 'quick' }" :aria-selected="mode === 'quick'" @click="setMode('quick')">
+        Quick search
+      </button>
+      <button type="button" role="tab" class="mode" :class="{ on: mode === 'find' }" :aria-selected="mode === 'find'" @click="setMode('find')">
+        <SsIcon name="calendar" :size="16" />Find an older show
+      </button>
+    </div>
+
+    <AdvancedSetlistSearch v-if="mode === 'find'" v-model="filters" :loading="loading" @submit="find" />
+
+    <template v-else>
     <SsInput
       v-model="q"
       size="xl"
@@ -135,6 +194,7 @@ const matchedNote = computed(() =>
     <div class="quick">
       <SsChip v-for="c in quick" :key="c" variant="soft" size="sm" @click="q = c">{{ c }}</SsChip>
     </div>
+    </template>
 
     <SsEmpty
       v-if="!ui.online && !results.length"
@@ -151,7 +211,10 @@ const matchedNote = computed(() =>
     </div>
 
     <template v-else-if="results.length">
-      <div class="count">{{ num(total) }} setlists on setlist.fm{{ matchedNote }} · newest first</div>
+      <div class="count">
+        {{ num(total) }} setlists on setlist.fm{{ matchedNote }} · newest first
+        <template v-if="mode === 'find' && searched"> · {{ searched }}</template>
+      </div>
       <ul class="list">
         <li v-for="r in results" :key="r.setlistfm_id" class="result">
           <div class="result__date">
@@ -192,7 +255,9 @@ const matchedNote = computed(() =>
     <SsEmpty
       v-else-if="searched"
       :title="`Nothing on setlist.fm for “${searched}”`"
-      body="Tiny venue? House show? Secret set? Add it yourself. It lives in Stubstash only."
+:body="mode === 'find'
+        ? 'Try fewer filters: drop the tour or venue, or search the year without a date. Still nothing? Add it yourself.'
+        : 'Tiny venue? House show? Secret set? Add it yourself. It lives in Stubstash only.'"
     />
 
     <RouterLink :to="manualLink" class="manual">
@@ -207,6 +272,32 @@ const matchedNote = computed(() =>
 
 <style scoped>
 .quick { display: flex; gap: 8px; flex-wrap: wrap; }
+.modes {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--ss-radius-pill);
+  background: var(--ss-surface-1);
+  border: 1px solid var(--ss-line);
+  max-width: 100%;
+}
+.mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--ss-radius-pill);
+  background: transparent;
+  color: var(--ss-text-3);
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.mode:hover { color: var(--ss-text); }
+.mode.on { background: var(--ss-accent); color: var(--ss-on-accent); }
 .count { font-size: 14px; color: var(--ss-text-muted); }
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .result {

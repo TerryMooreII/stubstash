@@ -1,6 +1,7 @@
 // setlist.fm gateway for the app. Requires a signed-in user.
 //
-// POST { action: "search", q?, artist?, venue?, city?, date?, year?, page? }
+// POST { action: "search", q?, artist?, artist_mbid?, venue?, city?, state?, country?, tour?, date?, year?, page? }
+// POST { action: "artists", q }                             -> { artists: [{ mbid, name, disambiguation }] }
 // POST { action: "log", setlistfm_id }                      -> { attendance_id, show_id, created }
 // POST { action: "preview_user", username }                 -> { total, earliest }
 // POST { action: "import_user", username, page }            -> { page, pages, total, imported, skipped }
@@ -30,7 +31,15 @@ serve(async (req) => {
     case "search": {
       const page = Math.max(1, Math.min(50, Number(body.page) || 1));
       let artist = clean(body.artist), venue = clean(body.venue), city = clean(body.city);
-      const date = clean(body.date, 10);
+      const artistMbid = clean(body.artist_mbid, 36);
+      const tour = clean(body.tour);
+      const state = clean(body.state, 3)?.toUpperCase();
+      const country = clean(body.country, 2)?.toUpperCase();
+      if (artistMbid && !/^[0-9a-f-]{36}$/i.test(artistMbid)) throw new HttpError(400, "That artist id doesn't look right.");
+      if (country && !/^[A-Z]{2}$/.test(country)) throw new HttpError(400, "Use a two-letter country code.");
+      const rawDate = clean(body.date, 10);
+      if (rawDate && !/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) throw new HttpError(400, "Dates look like 2024-07-04.");
+      const date = rawDate;
       let year = clean(body.year, 4);
       let q = clean(body.q);
 
@@ -49,8 +58,12 @@ serve(async (req) => {
 
       let result: SfmPage | null = null;
       let matchedBy: string | null = null;
-      if (artist || venue || city) {
-        result = await sfmGet<SfmPage>(db, `/search/setlists?${params({ artistName: artist, venueName: venue, cityName: city })}`);
+      if (artist || artistMbid || venue || city || tour || state || country) {
+        // An exact artist id beats a fuzzy name.
+        result = await sfmGet<SfmPage>(db, `/search/setlists?${params({
+          artistMbid, artistName: artistMbid ? undefined : artist, venueName: venue, cityName: city,
+          stateCode: state, countryCode: country, tourName: tour,
+        })}`);
         matchedBy = "fields";
       } else if (q) {
         for (const field of ["artistName", "venueName", "cityName"] as const) {
@@ -58,7 +71,7 @@ serve(async (req) => {
           if (result?.setlist?.length) { matchedBy = field.replace("Name", ""); break; }
         }
       } else if (year || date) {
-        throw new HttpError(400, "Add an artist, venue or city to search.");
+        throw new HttpError(400, "Add an artist, venue, city or tour to search.");
       } else {
         return json({ results: [], total: 0, page: 1, pages: 0, matched_by: null });
       }
@@ -77,6 +90,18 @@ serve(async (req) => {
         page,
         pages: result ? Math.ceil(result.total / result.itemsPerPage) : 0,
         matched_by: matchedBy,
+      });
+    }
+
+    case "artists": {
+      // Artist suggestions for the advanced search, so "Phish" means the band, not a tribute act.
+      const q = clean(body.q, 80);
+      if (!q || q.length < 2) return json({ artists: [] });
+      const res = await sfmGet<{ artist?: { mbid: string; name: string; disambiguation?: string }[] }>(
+        db, `/search/artists?artistName=${enc(q)}&sort=relevance&p=1`, 60 * 24,
+      );
+      return json({
+        artists: (res?.artist ?? []).slice(0, 8).map((a) => ({ mbid: a.mbid, name: a.name, disambiguation: a.disambiguation || null })),
       });
     }
 

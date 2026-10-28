@@ -211,6 +211,21 @@ export interface SetlistResult {
   attendance_id: string | null;
 }
 
+/** setlist.fm search filters. Dates are YYYY-MM-DD; state and country are codes ("CO", "US"). */
+export interface SetlistSearchParams {
+  q?: string;
+  artist?: string;
+  artist_mbid?: string;
+  venue?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  tour?: string;
+  date?: string;
+  year?: string;
+  page?: number;
+}
+
 export interface SetlistSearchResponse {
   results: SetlistResult[];
   total: number;

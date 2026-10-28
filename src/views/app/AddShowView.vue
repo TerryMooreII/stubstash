@@ -40,16 +40,18 @@ const detail = ref<AttendanceDetail | null>(null);
 
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"];
 
+// Prefill from the link (e.g. "Can't find it?" on the search page).
+const qs = (k: string, max = 200) => (typeof route.query[k] === "string" ? (route.query[k] as string).slice(0, max) : "");
 const form = reactive({
-  artist_name: typeof route.query.artist === "string" ? route.query.artist.slice(0, 200) : "",
+  artist_name: qs("artist"),
   artist_id: null as string | null,
-  event_date: "",
-  city: "",
-  venue_name: "",
+  event_date: /^\d{4}-\d{2}-\d{2}$/.test(qs("date", 10)) ? qs("date", 10) : "",
+  city: qs("city"),
+  venue_name: qs("venue"),
   venue_id: null as string | null,
-  state_code: "",
-  country_code: "",
-  tour_name: "",
+  state_code: qs("state", 3).toUpperCase(),
+  country_code: qs("country", 2).toUpperCase(),
+  tour_name: qs("tour"),
   is_festival: false,
   sets: emptySets() as SetDraft[],
   rating: null as number | null,
