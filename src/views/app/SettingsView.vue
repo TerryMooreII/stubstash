@@ -2,16 +2,15 @@
 import { SITE_HOST } from "@/lib/url";
 // Account settings: profile, home base, privacy, notifications, setlist.fm,
 // install, password and sign out.
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   SsAvatar, SsBackLink, SsButton, SsCard, SsField, SsIcon, SsInput, SsPageHeader, SsSpinner, SsToggle,
 } from "@/design-system";
-import { sendTestPush } from "@/lib/api";
 import { searchPlaces, type PlaceResult } from "@/lib/geocode";
 import { removeFile, upload } from "@/lib/media";
 import { clearCache } from "@/lib/offline";
-import { currentPushSubscription, disablePush, enablePush, pushSupported } from "@/lib/pwa";
+import { disablePush } from "@/lib/pwa";
 import { errorMessage } from "@/lib/supabase";
 import { useAuth } from "@/stores/auth";
 import { useUi } from "@/stores/ui";
@@ -150,46 +149,6 @@ const isPublic = computed({
   },
 });
 
-// ---------------------------------------------------------------- notifications
-const canPush = pushSupported() && !!import.meta.env.VITE_VAPID_PUBLIC_KEY;
-const pushOn = ref(false);
-const pushBusy = ref(false);
-const pushDenied = ref(false);
-onMounted(async () => {
-  if (!canPush) return;
-  pushDenied.value = Notification.permission === "denied";
-  pushOn.value = !!(await currentPushSubscription().catch(() => null));
-});
-async function togglePush(v: boolean) {
-  pushBusy.value = true;
-  try {
-    if (v) {
-      const ok = await enablePush();
-      pushOn.value = ok;
-      pushDenied.value = Notification.permission === "denied";
-      if (ok) ui.flash("Nudges on");
-      else if (pushDenied.value) ui.error("Notifications are blocked. Turn them on in your browser settings.");
-    } else {
-      await disablePush();
-      pushOn.value = false;
-      ui.flash("Nudges off", "info");
-    }
-  } catch (err) {
-    ui.error(errorMessage(err, "Couldn't change notifications."));
-  } finally {
-    pushBusy.value = false;
-  }
-}
-const pushModel = computed({ get: () => pushOn.value, set: (v: boolean) => togglePush(v) });
-async function testPush() {
-  try {
-    const n = await sendTestPush();
-    ui.flash(n ? "Sent. Check your notifications." : "No devices registered yet", n ? "accent" : "info");
-  } catch (err) {
-    ui.error(errorMessage(err));
-  }
-}
-
 // ---------------------------------------------------------------- account
 const email = computed(() => auth.session?.user.email ?? "");
 const newPassword = ref("");
@@ -302,20 +261,10 @@ async function signOut() {
 
       <div class="ss-stack col">
         <!-- Notifications -->
-        <SsCard v-if="canPush" title="Notifications">
-          <div class="setting">
-            <div class="setting__text">
-              <div class="setting__title">Morning-after nudge</div>
-              <div class="setting__body">
-                A reminder at 10am the day after a show to rate it while it's fresh.
-                <template v-if="ui.isIos && !ui.isStandalone"> On iPhone, add Stubstash to your Home Screen first.</template>
-                <template v-if="pushDenied"> Notifications are blocked for this site in your browser settings.</template>
-              </div>
-            </div>
-            <SsToggle v-model="pushModel" plain :disabled="pushBusy || (ui.isIos && !ui.isStandalone)" :label="pushOn ? 'On' : 'Off'" />
-          </div>
-          <SsButton v-if="pushOn" size="sm" variant="outline" class="test-btn" @click="testPush">
-            <SsIcon name="bell" :size="16" />Send a test
+        <SsCard title="Notifications">
+          <p class="note">Friend requests, friends' shows, badges and the morning-after nudge: in the app and as push alerts.</p>
+          <SsButton to="/app/me#notifications" variant="outline" size="sm" class="test-btn">
+            <SsIcon name="bell" :size="16" />Manage notifications
           </SsButton>
         </SsCard>
 

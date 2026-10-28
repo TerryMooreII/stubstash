@@ -18,6 +18,8 @@ export interface Profile {
   setlistfm_username: string | null;
   onboarded_at: string | null;
   timezone: string;
+  /** Per-kind notification switches; missing = on. See lib/notifications.ts. */
+  notification_prefs: import("./notifications").NotificationPrefs;
   created_at: string;
 }
 

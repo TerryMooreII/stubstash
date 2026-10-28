@@ -3,12 +3,14 @@ import { watch } from "vue";
 import { SsToastHost } from "@/design-system";
 import { useAuth } from "@/stores/auth";
 import { useLog } from "@/stores/log";
+import { useNotifications } from "@/stores/notifications";
 import { useUi } from "@/stores/ui";
 import { setlistfm } from "@/lib/api";
 import { flushOutbox, setCacheScope } from "@/lib/offline";
 
 const auth = useAuth();
 const log = useLog();
+const notifications = useNotifications();
 const ui = useUi();
 
 // Per-user cache + fresh log whenever the signed-in user changes.
@@ -18,6 +20,8 @@ watch(
     setCacheScope(id);
     if (id !== prev) log.reset();
     if (id) syncOutbox();
+    if (id) notifications.start(id);
+    else notifications.stop();
   },
   { immediate: true },
 );

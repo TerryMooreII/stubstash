@@ -7,11 +7,14 @@ import { SsAvatar, SsButton, SsIcon, SsLogo, type IconName } from "@/design-syst
 import InstallSheet from "@/components/InstallSheet.vue";
 import { useAuth } from "@/stores/auth";
 import { useLog } from "@/stores/log";
+import { useNotifications } from "@/stores/notifications";
 import { useUi } from "@/stores/ui";
 import { plural } from "@/lib/format";
 
 const auth = useAuth();
 const log = useLog();
+const notifications = useNotifications();
+const unreadLabel = computed(() => (notifications.unread > 99 ? "99+" : String(notifications.unread)));
 const ui = useUi();
 const route = useRoute();
 
@@ -33,6 +36,10 @@ const items: { key: "home" | "shows" | "map" | "profile"; label: string; short: 
         <SsButton to="/app/log" class="side__log"><SsIcon name="plus" :stroke="2.6" :size="18" />Log a show</SsButton>
         <RouterLink v-for="i in items" :key="i.key" :to="i.to" class="side__item" :class="{ 'is-active': active === i.key }">
           <SsIcon :name="i.icon" />{{ i.label }}
+        </RouterLink>
+        <RouterLink to="/app/notifications" class="side__item" :class="{ 'is-active': active === 'notifications' }">
+          <SsIcon name="bell" />Notifications
+          <span v-if="notifications.unread" class="count" :aria-label="`${notifications.unread} unread`">{{ unreadLabel }}</span>
         </RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/app/admin" class="side__item" :class="{ 'is-active': active === 'admin' }">
           <SsIcon name="lock" />Admin
@@ -65,6 +72,15 @@ const items: { key: "home" | "shows" | "map" | "profile"; label: string; short: 
           <button v-if="ui.showInstallNudge" class="top__btn" aria-label="Install app" @click="ui.installSheetOpen = true">
             <SsIcon name="download" :size="16" :stroke="2.2" />
           </button>
+          <RouterLink
+            v-if="auth.signedIn"
+            to="/app/notifications"
+            class="top__btn top__bell"
+            :aria-label="notifications.unread ? `Notifications, ${notifications.unread} unread` : 'Notifications'"
+          >
+            <SsIcon name="bell" :size="18" :stroke="2.2" />
+            <span v-if="notifications.unread" class="count count--dot">{{ unreadLabel }}</span>
+          </RouterLink>
           <RouterLink v-if="auth.signedIn" to="/app/me" aria-label="Profile">
             <SsAvatar :name="auth.displayName" :path="auth.profile?.avatar_path" me :size="36" />
           </RouterLink>
@@ -135,6 +151,21 @@ const items: { key: "home" | "shows" | "map" | "profile"; label: string; short: 
 .side__item:hover { color: var(--ss-text); background: rgba(255, 255, 255, 0.03); text-decoration: none; }
 .side__item.is-active { background: var(--ss-accent-soft); color: var(--ss-accent); }
 .side__spacer { flex: 1; }
+.count {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--ss-radius-pill);
+  background: var(--ss-accent);
+  color: var(--ss-on-accent);
+  font-size: 12px;
+  font-weight: 900;
+  display: inline-grid;
+  place-items: center;
+}
+.top__bell { position: relative; color: var(--ss-text); }
+.count--dot { position: absolute; top: -4px; right: -6px; margin: 0; min-width: 18px; height: 18px; font-size: 11px; padding: 0 4px; }
 .side__install {
   padding: 14px;
   border-radius: var(--ss-radius-md);

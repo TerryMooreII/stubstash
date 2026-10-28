@@ -3,13 +3,14 @@ import { SITE_HOST } from "@/lib/url";
 // Profile: yours at /app/me, anyone's at /u/:handle.
 // Shows year in review, badges and friends (or, for someone else, their latest
 // shows and the shows you were both at). Private profiles show a friend prompt.
-import { computed, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { computed, nextTick, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import {
   SsAvatar, SsBadgeTile, SsButton, SsCard, SsEmpty, SsIcon, SsSkeleton, SsTicketRow, SsToggle,
 } from "@/design-system";
 import HeadToHead from "@/components/people/HeadToHead.vue";
 import YearInReviewCard from "@/components/people/YearInReviewCard.vue";
+import NotificationSettings from "@/components/notifications/NotificationSettings.vue";
 import { badges as loadBadges, publicProfile, social, userLog } from "@/lib/api";
 import { mediumDate, place, plural } from "@/lib/format";
 import { errorMessage } from "@/lib/supabase";
@@ -24,6 +25,7 @@ const auth = useAuth();
 const log = useLog();
 const ui = useUi();
 const router = useRouter();
+const route = useRoute();
 
 const isSelf = computed(
   () => !props.handle || (!!auth.profile && props.handle.replace(/^@/, "").toLowerCase() === auth.profile.handle.toLowerCase()),
@@ -94,6 +96,17 @@ async function load() {
   }
 }
 watch(() => [props.handle, auth.userId, auth.profile?.handle], load, { immediate: true });
+
+// "/app/me#notifications": the section renders after loading, so scroll once it's there.
+watch(
+  () => [route.hash, canView.value] as const,
+  async ([hash]) => {
+    if (hash !== "#notifications") return;
+    await nextTick();
+    document.getElementById("notifications")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  },
+  { immediate: true },
+);
 
 // ---- public toggle (self)
 const isPublic = computed({
@@ -228,6 +241,14 @@ const latest = computed(() => otherLog.value.slice(0, 6));
               :target="b.target"
             />
           </div>
+        </SsCard>
+
+        <!-- Self: notifications -->
+        <SsCard v-if="isSelf" id="notifications" title="Notifications">
+          <template #aside>
+            <RouterLink to="/app/notifications" class="link">See all →</RouterLink>
+          </template>
+          <NotificationSettings />
         </SsCard>
 
         <!-- Self: friends head-to-head -->

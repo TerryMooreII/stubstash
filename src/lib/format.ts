@@ -111,3 +111,16 @@ export function todayIso(): string {
 export function monthsLabel(n: number): string {
   return `${n} mo`;
 }
+
+/** "just now", "5m", "3h", "2d", then a short date ("Mar 4" or "Mar 4, 2025"). */
+export function timeAgo(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return "";
+  const t = new Date(iso);
+  const s = Math.max(0, Math.round((now.getTime() - t.getTime()) / 1000));
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)}d`;
+  const sameYear = t.getFullYear() === now.getFullYear();
+  return t.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
+}

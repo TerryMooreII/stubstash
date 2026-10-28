@@ -60,3 +60,17 @@ describe("color", () => {
     expect(placeholderArt("Phish")).toBe(placeholderArt("Phish"));
   });
 });
+
+describe("timeAgo", () => {
+  const now = new Date("2026-10-28T12:00:00Z");
+  it("buckets", async () => {
+    const { timeAgo } = await import("./format");
+    expect(timeAgo("2026-10-28T11:59:30Z", now)).toBe("just now");
+    expect(timeAgo("2026-10-28T11:55:00Z", now)).toBe("5m");
+    expect(timeAgo("2026-10-28T09:00:00Z", now)).toBe("3h");
+    expect(timeAgo("2026-10-26T12:00:00Z", now)).toBe("2d");
+    expect(timeAgo("2026-03-04T12:00:00Z", now)).toBe("Mar 4");
+    expect(timeAgo("2025-03-04T12:00:00Z", now)).toBe("Mar 4, 2025");
+    expect(timeAgo(null, now)).toBe("");
+  });
+});

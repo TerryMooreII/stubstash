@@ -12,7 +12,7 @@ declare module "vue-router" {
     /** Allowed before onboarding is finished. */
     preOnboarding?: boolean;
     /** Which bottom/side nav item to highlight. */
-    nav?: "home" | "shows" | "log" | "map" | "profile" | "admin";
+    nav?: "home" | "shows" | "log" | "map" | "profile" | "admin" | "notifications";
     title?: string;
   }
 }
@@ -49,6 +49,7 @@ const routes: RouteRecordRaw[] = [
       { path: "map", name: "map", component: () => import("@/views/app/MapView.vue"), meta: { nav: "map", title: "Map" } },
       { path: "me", name: "me", component: () => import("@/views/app/ProfileView.vue"), meta: { nav: "profile", title: "Profile" } },
       { path: "friends", name: "friends", component: () => import("@/views/app/FriendsView.vue"), meta: { nav: "profile", title: "Friends" } },
+      { path: "notifications", name: "notifications", component: () => import("@/views/app/NotificationsView.vue"), meta: { nav: "notifications", title: "Notifications" } },
       { path: "admin", name: "admin", component: () => import("@/views/app/AdminView.vue"), meta: { nav: "admin", admin: true, title: "Admin" } },
       { path: "settings", name: "settings", component: () => import("@/views/app/SettingsView.vue"), meta: { nav: "profile", title: "Settings" } },
     ],

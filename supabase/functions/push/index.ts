@@ -1,5 +1,5 @@
 // Web push.
-//   { action: "nudges" }  (pg_cron, hourly) -> morning-after "rate the show" reminders
+//   { action: "deliver", id } (pg_net, from public._notify) -> pushes one notification to the user's devices
 //   { action: "test" }    (signed-in user)  -> sends a test notification to your devices
 
 import webpush from "npm:web-push@3.6.7";
@@ -43,21 +43,22 @@ serve(async (req) => {
   const db = adminClient();
   configure();
 
-  if (body.action === "nudges") {
+  if (body.action === "deliver") {
+    // Queued by public._notify() through pg_net when a notification is created.
     if (!(await isCron(req, db))) throw new HttpError(401, "Not allowed.");
-    const { data: due, error } = await db.rpc("due_rating_nudges");
-    if (error) throw error;
-    let sent = 0;
-    for (const n of due ?? []) {
-      sent += await sendToUser(db, n.user_id, {
-        title: `How was ${n.artist}?`,
-        body: `Rate last night at ${n.venue} while it's fresh.`,
-        url: `/app/shows/${n.attendance_id}?rate=1`,
-        tag: `rate-${n.attendance_id}`,
-      });
-      await db.from("attendances").update({ rating_nudged_at: new Date().toISOString() }).eq("id", n.attendance_id);
-    }
-    return json({ due: due?.length ?? 0, sent });
+    const id = String(body.id ?? "");
+    const { data: n } = await db.from("notifications")
+      .select("id, user_id, title, body, url, group_key, pushed_at").eq("id", id).maybeSingle();
+    if (!n || n.pushed_at) return json({ sent: 0 });
+    const sent = await sendToUser(db, n.user_id, {
+      title: n.title,
+      body: n.body ?? "",
+      url: n.url ?? "/app/notifications",
+      // Same tag replaces the earlier banner on the device (e.g. grouped friend shows).
+      tag: n.group_key ?? n.id,
+    });
+    await db.from("notifications").update({ pushed_at: new Date().toISOString() }).eq("id", n.id);
+    return json({ sent });
   }
 
   if (body.action === "test") {

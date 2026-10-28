@@ -7,7 +7,7 @@ Everything needed to recreate the backend lives in this folder.
 | `migrations/` | Database schema, security rules, stats functions, storage buckets, cron jobs. Applied in filename order. |
 | `functions/setlistfm` | setlist.fm gateway: search, log a show, import a user's history, refresh a setlist. Needs a signed-in user. |
 | `functions/enrich` | Background job (every 2 min): artist images and genres, venue coordinates, photos and capacity. |
-| `functions/push` | Web push: morning-after "rate the show" nudges (hourly) and a test send. |
+| `functions/push` | Web push: delivers a notification to the user's devices (`deliver`, queued by `_notify()` through pg_net) and a test send. |
 | `functions/admin` | Admin-only user actions that need the Auth admin API: suspend, unsuspend, delete (with their uploaded files). |
 | `functions/_shared` | Code shared by the functions (HTTP helpers, Supabase clients, setlist.fm client). |
 | `config.toml` | Supabase CLI config (local auth settings, per-function JWT settings). |
@@ -73,12 +73,27 @@ Hosted project: **Stub Stash**, ref `mkwexvexzxdbgjkqfoac` (us-east-1).
 
 Suspending, unsuspending and deleting users go through the `admin` edge function. Admins can't suspend or delete themselves or other admins. A suspended user can't sign in or refresh; an access token they already hold works until it expires (up to an hour).
 
+## Notifications
+
+`public.notifications` holds in-app notifications (Realtime-enabled, owner-only). Triggers create them; `_notify()` checks the recipient's `profiles.notification_prefs` (`{ kind: { inapp, push } }`, missing = on), groups bursts (e.g. "Maya logged 3 shows"), never notifies you about your own action, and queues a push through the `push` function when push is on and the user has a device registered.
+
+| Kind | Created by |
+| --- | --- |
+| `friend_request`, `friend_accepted` | trigger on `friendships` |
+| `friend_show` (shows from the last 14 days), `same_show` | trigger on `attendances` insert, for each accepted friend |
+| `tagged` | trigger on `attendance_companions` (a friend added you as someone they went with) |
+| `invite_claimed` | trigger on `show_invites` |
+| `badge_earned` | `badge-check` cron |
+| `rate_show` | `rating-nudges` cron |
+
 ## Background jobs (pg_cron)
 
 | Job | Schedule | Does |
 | --- | --- | --- |
 | `enrich-catalog` | every 2 min | Calls `enrich` for up to 8 artists and 6 venues |
-| `rating-nudges` | hourly at :15 | Calls `push` to nudge users at 10am local time the day after a show |
+| `rating-nudges` | hourly at :15 | `queue_rating_nudges()`: "rate last night" at 10am local time the day after a show |
+| `badge-check` | every 5 min | `check_new_badges()`: announces newly earned badges (each once, tracked in `badge_awards`) |
+| `prune-notifications` | daily 04:45 UTC | Deletes notifications read more than 90 days ago |
 | `prune-api-cache` | daily 04:30 UTC | Deletes setlist.fm cache rows older than 2 days |
 
 Check recent job calls with `select * from net._http_response order by created desc limit 10;`.
