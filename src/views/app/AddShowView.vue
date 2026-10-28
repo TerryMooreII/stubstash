@@ -6,7 +6,7 @@ import { appUrl } from "@/lib/url";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
-  SsBackLink, SsButton, SsCard, SsEmpty, SsField, SsInput, SsPageHeader, SsSheet, SsSkeleton, SsStars, SsTextarea, SsToggle,
+  SsBackLink, SsButton, SsCard, SsEmpty, SsField, SsInput, SsPageHeader, SsSelect, SsSheet, SsSkeleton, SsStars, SsTextarea, SsToggle,
 } from "@/design-system";
 import AutocompleteInput, { type AutocompleteOption } from "@/components/forms/AutocompleteInput.vue";
 import SetlistEditor from "@/components/forms/SetlistEditor.vue";
@@ -20,6 +20,7 @@ import { addShowPhoto, deleteShowPhoto, removeFile, signedUrl, signedUrls, uploa
 import { errorMessage } from "@/lib/supabase";
 import { longDate, parseMoney, place, todayIso } from "@/lib/format";
 import { cleanSets, emptySets, fromSetlist } from "@/lib/setlist";
+import { countryOptions } from "@/lib/countries";
 import type { AttendanceDetail, SetDraft } from "@/lib/types";
 import { useAuth } from "@/stores/auth";
 import { useLog } from "@/stores/log";
@@ -71,7 +72,11 @@ const savedStubUrl = ref<string | null>(null);
 const stubRemoved = ref(false);
 
 // Snapshot of loaded values, to send only what changed when editing.
-let original: { companions: string; sets: string; artist: string; venue: string; city: string; date: string; tour: string; fest: boolean } | null = null;
+let original: {
+  companions: string; sets: string; artist: string; venue: string; city: string; state: string; country: string;
+  date: string; tour: string; fest: boolean;
+} | null = null;
+const countries = countryOptions();
 
 /** Edit mode: can the show itself (artist/venue/date/setlist) be changed? */
 const canEditShow = computed(() => {
@@ -137,6 +142,8 @@ onMounted(async () => {
     form.artist_name = s.artist.name;
     form.venue_name = s.venue.name;
     form.city = s.venue.city ?? "";
+    form.state_code = s.venue.state_code ?? "";
+    form.country_code = s.venue.country_code ?? "";
     form.event_date = s.event_date;
     form.tour_name = s.tour_name ?? "";
     form.is_festival = d.is_festival ?? s.is_festival;
@@ -157,7 +164,8 @@ onMounted(async () => {
     original = {
       companions: JSON.stringify(form.companions),
       sets: JSON.stringify(cleanSets(form.sets)),
-      artist: form.artist_name, venue: form.venue_name, city: form.city, date: form.event_date, tour: form.tour_name,
+      artist: form.artist_name, venue: form.venue_name, city: form.city, state: form.state_code, country: form.country_code,
+      date: form.event_date, tour: form.tour_name,
       fest: s.is_festival,
     };
   } catch (e) {
@@ -261,6 +269,8 @@ async function save() {
       if (form.artist_name.trim() && form.artist_name !== original.artist) patch.artist_name = form.artist_name.trim();
       if (form.venue_name.trim() && form.venue_name !== original.venue) patch.venue_name = form.venue_name.trim();
       if (form.city !== original.city) patch.city = form.city.trim();
+      if (form.state_code !== original.state) patch.state_code = form.state_code.trim();
+      if (form.country_code !== original.country) patch.country_code = form.country_code;
       if (form.event_date && form.event_date !== original.date) patch.event_date = form.event_date;
       if (form.tour_name !== original.tour) patch.tour_name = form.tour_name.trim();
       if (form.is_festival !== original.fest) patch.is_festival = form.is_festival;
@@ -386,7 +396,21 @@ const inviteTitle = computed(() =>
                   <SsInput v-model="form.event_date" type="date" :invalid="futureDate" />
                 </SsField>
                 <SsField label="City">
-                  <SsInput v-model="form.city" placeholder="Brooklyn, NY" :maxlength="120" />
+                  <SsInput v-model="form.city" placeholder="Brooklyn" :maxlength="120" />
+                </SsField>
+              </div>
+              <div class="pair">
+                <SsField label="State / province" hint="Code, like NY or ON">
+                  <SsInput
+                    :model-value="form.state_code"
+                    placeholder="NY"
+                    :maxlength="3"
+                    autocomplete="off"
+                    @update:model-value="(v: string) => (form.state_code = v.toUpperCase())"
+                  />
+                </SsField>
+                <SsField label="Country">
+                  <SsSelect v-model="form.country_code" :options="countries" placeholder="Pick a country" />
                 </SsField>
               </div>
               <SsField label="Venue" required>
