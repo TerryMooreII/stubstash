@@ -44,6 +44,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
+          VITE_CARTO_API_KEY: ${{ vars.VITE_CARTO_API_KEY }}
 
       # GitHub Pages has no SPA rewrites: serve the app for unknown paths.
       - name: SPA fallback

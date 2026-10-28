@@ -28,7 +28,12 @@ const emit = defineEmits<{ "open-venue": [venueId: string]; "pick-location": [la
 
 const ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>';
-const tileUrl = (style: string) => `https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`;
+// CARTO basemaps need a free key (carto.com/basemaps/apikey). Without one the
+// tiles come back watermarked "API KEY REQUIRED".
+const CARTO_KEY = import.meta.env.VITE_CARTO_API_KEY;
+if (!CARTO_KEY) console.warn("VITE_CARTO_API_KEY is not set; map tiles will show 'API KEY REQUIRED'.");
+const tileUrl = (style: string) =>
+  `https://basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png${CARTO_KEY ? `?key=${encodeURIComponent(CARTO_KEY)}` : ""}`;
 const GLOW = ["#f4b811", "#76a9b9", "#ffa800", "#9db161", "#ff5f6c"];
 
 const el = ref<HTMLDivElement>();
@@ -234,7 +239,6 @@ onMounted(() => {
   L.control.zoom({ position: "bottomright" }).addTo(m);
   tiles = L.tileLayer(tileUrl(streets.value ? "dark_all" : "dark_nolabels"), {
     attribution: ATTRIBUTION,
-    subdomains: "abcd",
     maxZoom: 19,
     detectRetina: false,
   }).addTo(m);

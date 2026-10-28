@@ -65,7 +65,7 @@ One-time setup:
 
 1. **DNS** (terrymooreii.dev): `CNAME` record `stubstash` → `terrymooreii.github.io`.
 2. **GitHub → Settings → Pages:** Source = GitHub Actions; Custom domain = `stubstash.terrymooreii.dev`; tick Enforce HTTPS once the certificate is issued.
-3. **GitHub → Settings → Secrets and variables → Actions → Variables:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY` (same values as `.env.local`; all public).
+3. **GitHub → Settings → Secrets and variables → Actions → Variables:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY`, `VITE_CARTO_API_KEY` (same values as `.env.local`; all public). The CARTO key is free from https://carto.com/basemaps/apikey.
 4. **Supabase → Authentication → URL Configuration:** Site URL `https://stubstash.terrymooreii.dev`; Redirect URLs `https://stubstash.terrymooreii.dev/app/auth/callback`, `https://stubstash.terrymooreii.dev/app/reset-password` (plus the localhost ones for dev).
 
 Pages has no SPA rewrites, so the workflow copies `index.html` to `404.html`: deep links work, with a 404 status. The app also supports a sub-path build (`BASE_PATH=/something/`) if ever needed.
