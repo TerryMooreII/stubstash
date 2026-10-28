@@ -5,11 +5,18 @@ import { hash } from "./color";
 /** Number of bundled photos in public/concert (01.jpg ... 16.jpg). */
 export const GENERIC_PHOTO_COUNT = 16;
 
-/** Stable generic concert photo for a key (e.g. the show id). */
-export function genericConcertPhoto(seed: string): string {
-  const n = (hash(seed) % GENERIC_PHOTO_COUNT) + 1;
+/** URL of bundled concert photo n (1-based). */
+export function concertPhoto(n: number): string {
   return `${import.meta.env.BASE_URL}concert/${String(n).padStart(2, "0")}.jpg`;
 }
+
+/** Stable generic concert photo for a key (e.g. the show id). */
+export function genericConcertPhoto(seed: string): string {
+  return concertPhoto((hash(seed) % GENERIC_PHOTO_COUNT) + 1);
+}
+
+/** Profile header background: "At the back of a concert venue". */
+export const PROFILE_BANNER = concertPhoto(1);
 
 export interface HeroImage {
   kind: "photo" | "artist" | "venue" | "generic";
