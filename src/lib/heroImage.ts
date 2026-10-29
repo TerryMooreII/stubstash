@@ -29,7 +29,7 @@ export function profileBanner(seed: string, choice?: number | null): string {
 /** Short names for the header photo picker, in file order (see public/concert/CREDITS.md). */
 export const CONCERT_PHOTO_NAMES = [
   "Back of the venue", "Audience", "Guitar", "Crowd", "Smoke", "Enjoying the show", "Front row", "Blue light",
-  "Red light", "Spotlight", "White smoke", "Floodlights", "Light beams", "Sold out", "Red stage", "Before the show",
+  "Drummer in light beams", "Spotlight", "White smoke", "Floodlights", "Light beams", "Sold out", "Red stage", "Before the show",
 ];
 
 export interface HeroImage {

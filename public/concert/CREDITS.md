@@ -10,7 +10,7 @@ Fallback header images for shows with no photo, artist image or venue image. All
 - `06.jpg`: [Enjoying the concert (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Enjoying_the_concert_(Unsplash).jpg) · CC0 · Melissa Askew teamaskew
 - `07.jpg`: [Front row audience (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Front_row_audience_(Unsplash).jpg) · CC0 · Melanie van Leeuwen strompictures
 - `08.jpg`: [Frontman in blue light (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Frontman_in_blue_light_(Unsplash).jpg) · CC0 · Jorge Gordo jorgegordo
-- `09.jpg`: [Guitarist bathed in red light (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Guitarist_bathed_in_red_light_(Unsplash).jpg) · CC0 · Sergio Alejandro Ortiz aljandro
+- `09.jpg`: [Rock concert in intense light (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Rock_concert_in_intense_light_(Unsplash).jpg) · CC0 · Michael Mongin michaelmongin
 - `10.jpg`: [Guitarist in the spotlight (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Guitarist_in_the_spotlight_(Unsplash).jpg) · CC0 · Linda Xu rhindaxu
 - `11.jpg`: [Musician in white and red smoke (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Musician_in_white_and_red_smoke_(Unsplash).jpg) · CC0 · Austin Neill arstyy
 - `12.jpg`: [Rock gig under floodlights (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Rock_gig_under_floodlights_(Unsplash).jpg) · CC0 · Paweł Bukowski bukowski
