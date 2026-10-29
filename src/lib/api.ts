@@ -1,7 +1,10 @@
 // Every call the app makes to Supabase goes through here, so screens stay
 // simple and the data shapes live in one place (see ./types.ts).
+// Reads go through cached() (lib/offline.ts): fresh when online, the last saved
+// copy when offline. Writes always go straight to the server.
 
 import { supabase } from "./supabase";
+import { cached } from "./offline";
 import type {
   ArtistStats, AttendanceDetail, Badge, DashboardStats, Friend, LogEntry, MapVenue,
   PersonCard, Profile, PublicProfile, SetDraft, SetlistSearchParams, SetlistSearchResponse, SetlistSong,
@@ -54,9 +57,12 @@ export async function sendTestPush(): Promise<number> {
 // ---------------------------------------------------------------- profile
 
 export async function getMyProfile(): Promise<Profile | null> {
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) return null;
-  return check(await supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle()) as Profile | null;
+  // getSession reads the stored session (works offline); RLS still guards the row.
+  const { data } = await supabase.auth.getSession();
+  const id = data.session?.user.id;
+  if (!id) return null;
+  return cached(`profile:${id}`, async () =>
+    check(await supabase.from("profiles").select("*").eq("id", id).maybeSingle()) as Profile | null, false);
 }
 
 export async function updateMyProfile(patch: Partial<Omit<Profile, "id" | "created_at">>): Promise<Profile> {
@@ -66,15 +72,22 @@ export async function updateMyProfile(patch: Partial<Omit<Profile, "id" | "creat
 }
 
 export async function publicProfile(handle: string): Promise<PublicProfile | null> {
-  const rows = check(await supabase.rpc("public_profile", { p_handle: handle.replace(/^@/, "") })) as PublicProfile[];
-  return rows?.[0] ?? null;
+  const h = handle.replace(/^@/, "").toLowerCase();
+  return cached(`public_profile:${h}`, async () => {
+    const rows = check(await supabase.rpc("public_profile", { p_handle: h })) as PublicProfile[];
+    return rows?.[0] ?? null;
+  });
 }
 
 // ---------------------------------------------------------------- log + stats
 
 export async function userLog(userId?: string): Promise<LogEntry[]> {
-  const rows = check(await supabase.rpc("user_log", userId ? { p_user: userId } : {})) as LogEntry[];
-  return (rows ?? []).sort((a, b) => b.show_number - a.show_number);
+  // Your own log is saved by the log store; other people's here.
+  const get = async () => {
+    const rows = check(await supabase.rpc("user_log", userId ? { p_user: userId } : {})) as LogEntry[];
+    return (rows ?? []).sort((a, b) => b.show_number - a.show_number);
+  };
+  return userId ? cached(`user_log:${userId}`, get) : get();
 }
 
 export async function dashboardStats(userId?: string): Promise<DashboardStats | null> {
@@ -82,50 +95,59 @@ export async function dashboardStats(userId?: string): Promise<DashboardStats | 
 }
 
 export async function showSetlist(attendanceId: string): Promise<SetlistSong[]> {
-  return (check(await supabase.rpc("show_setlist", { p_attendance: attendanceId })) as SetlistSong[]) ?? [];
+  return cached(`show_setlist:${attendanceId}`, async () =>
+    (check(await supabase.rpc("show_setlist", { p_attendance: attendanceId })) as SetlistSong[]) ?? []);
 }
 
 export async function showStats(attendanceId: string): Promise<ShowStats | null> {
-  return check(await supabase.rpc("show_stats", { p_attendance: attendanceId })) as ShowStats | null;
+  return cached(`show_stats:${attendanceId}`, async () =>
+    check(await supabase.rpc("show_stats", { p_attendance: attendanceId })) as ShowStats | null);
 }
 
 export async function artistStats(artistId: string, userId?: string): Promise<ArtistStats> {
-  return check(await supabase.rpc("artist_stats", { p_artist: artistId, ...(userId ? { p_user: userId } : {}) })) as ArtistStats;
+  return cached(`artist_stats:${artistId}:${userId ?? "me"}`, async () =>
+    check(await supabase.rpc("artist_stats", { p_artist: artistId, ...(userId ? { p_user: userId } : {}) })) as ArtistStats);
 }
 
 export async function venueStats(venueId: string, userId?: string): Promise<VenueStats> {
-  return check(await supabase.rpc("venue_stats", { p_venue: venueId, ...(userId ? { p_user: userId } : {}) })) as VenueStats;
+  return cached(`venue_stats:${venueId}:${userId ?? "me"}`, async () =>
+    check(await supabase.rpc("venue_stats", { p_venue: venueId, ...(userId ? { p_user: userId } : {}) })) as VenueStats);
 }
 
 export async function mapVenues(userId?: string): Promise<MapVenue[]> {
-  return (check(await supabase.rpc("map_venues", userId ? { p_user: userId } : {})) as MapVenue[]) ?? [];
+  return cached(`map_venues:${userId ?? "me"}`, async () =>
+    (check(await supabase.rpc("map_venues", userId ? { p_user: userId } : {})) as MapVenue[]) ?? []);
 }
 
 export async function mapHome(userId?: string): Promise<{ city: string | null; lat: number | null; lng: number | null } | null> {
-  const rows = check(await supabase.rpc("map_home", userId ? { p_user: userId } : {})) as { city: string; lat: number; lng: number }[];
-  return rows?.[0] ?? null;
+  return cached(`map_home:${userId ?? "me"}`, async () => {
+    const rows = check(await supabase.rpc("map_home", userId ? { p_user: userId } : {})) as { city: string; lat: number; lng: number }[];
+    return rows?.[0] ?? null;
+  });
 }
 
 export async function yearInReview(year: number, userId?: string): Promise<YearInReview> {
-  return check(await supabase.rpc("year_in_review", { p_year: year, ...(userId ? { p_user: userId } : {}) })) as YearInReview;
+  return cached(`year_in_review:${year}:${userId ?? "me"}`, async () =>
+    check(await supabase.rpc("year_in_review", { p_year: year, ...(userId ? { p_user: userId } : {}) })) as YearInReview);
 }
 
 export async function badges(userId?: string): Promise<Badge[]> {
-  return (check(await supabase.rpc("user_badges", userId ? { p_user: userId } : {})) as Badge[]) ?? [];
+  return cached(`badges:${userId ?? "me"}`, async () =>
+    (check(await supabase.rpc("user_badges", userId ? { p_user: userId } : {})) as Badge[]) ?? []);
 }
 
 // ---------------------------------------------------------------- catalog
 
 export async function getArtist(id: string) {
-  return check(await supabase.from("artists")
+  return cached(`artist:${id}`, async () => check(await supabase.from("artists")
     .select("id, name, mbid, genre, image_url, image_source, image_credit, setlistfm_url, source, created_by")
-    .eq("id", id).maybeSingle());
+    .eq("id", id).maybeSingle()));
 }
 
 export async function getVenue(id: string) {
-  return check(await supabase.from("venues")
+  return cached(`venue:${id}`, async () => check(await supabase.from("venues")
     .select("id, name, city, state, state_code, country_code, country_name, lat, lng, city_lat, city_lng, geo_source, capacity, image_url, image_source, image_credit, source, created_by")
-    .eq("id", id).maybeSingle());
+    .eq("id", id).maybeSingle()));
 }
 
 export async function searchCatalogArtists(q: string) {
@@ -151,7 +173,8 @@ const ATTENDANCE_SELECT = `
 `;
 
 export async function getAttendance(id: string): Promise<AttendanceDetail | null> {
-  return check(await supabase.from("attendances").select(ATTENDANCE_SELECT).eq("id", id).maybeSingle()) as unknown as AttendanceDetail | null;
+  return cached(`attendance:${id}`, async () =>
+    check(await supabase.from("attendances").select(ATTENDANCE_SELECT).eq("id", id).maybeSingle()) as unknown as AttendanceDetail | null);
 }
 
 export interface AttendancePatch {
@@ -217,7 +240,7 @@ export const social = {
   search: async (q: string) => (check(await supabase.rpc("search_people", { q })) as PersonCard[]) ?? [],
   suggested: async () =>
     (check(await supabase.rpc("suggested_people")) as (PersonCard & { shared_count: number; example: string | null })[]) ?? [],
-  friends: async () => (check(await supabase.rpc("my_friends")) as Friend[]) ?? [],
+  friends: async () => cached("my_friends", async () => (check(await supabase.rpc("my_friends")) as Friend[]) ?? []),
   incoming: async () =>
     (check(await supabase.rpc("incoming_friend_requests")) as
       { requester_id: string; handle: string; display_name: string; avatar_path: string | null; created_at: string; shared_example: string | null }[]) ?? [],

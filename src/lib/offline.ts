@@ -1,5 +1,6 @@
 // Offline support:
-//  - a small IndexedDB cache so the dashboard and show list open without signal
+//  - an IndexedDB cache of every screen's data, so pages you've opened (or
+//    saved with "Save for offline") work without signal; see cached()
 //  - an outbox of "log this setlist.fm show" actions taken offline, flushed when
 //    the connection returns (see flushOutbox, called from App.vue)
 
@@ -28,19 +29,63 @@ export function setCacheScope(userId: string | null) {
   scope = userId ?? "anon";
 }
 
-export async function cacheGet<T>(key: string): Promise<T | null> {
+/** Keys are prefixed with the signed-in user unless `scoped` is false (the key then carries its own owner). */
+export async function cacheGet<T>(key: string, scoped = true): Promise<T | null> {
   try {
-    return ((await (await db()).get("cache", `${scope}:${key}`)) as T) ?? null;
+    return ((await (await db()).get("cache", scoped ? `${scope}:${key}` : key)) as T) ?? null;
   } catch {
     return null;
   }
 }
 
-export async function cacheSet(key: string, value: unknown) {
+export async function cacheSet(key: string, value: unknown, scoped = true) {
   try {
-    await (await db()).put("cache", JSON.parse(JSON.stringify(value)), `${scope}:${key}`);
+    await (await db()).put("cache", JSON.parse(JSON.stringify(value)), scoped ? `${scope}:${key}` : key);
   } catch {
     /* storage full or blocked: caching is best-effort */
+  }
+}
+
+export async function cacheHas(key: string): Promise<boolean> {
+  try {
+    return (await (await db()).getKey("cache", `${scope}:${key}`)) !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+/** How long to wait on a flaky connection before showing the saved copy instead. */
+const SLOW_MS = 8000;
+const isOffline = () => typeof navigator !== "undefined" && navigator.onLine === false;
+
+/**
+ * Network first, saved copy as the fallback: fetches fresh data and saves it;
+ * when offline, on an error, or when the network stalls, returns the last saved
+ * copy instead (and throws only if there isn't one).
+ */
+export async function cached<T>(key: string, fetcher: () => Promise<T>, scoped = true): Promise<T> {
+  const saved = () => cacheGet<{ v: T }>(key, scoped);
+  if (isOffline()) {
+    const c = await saved();
+    if (c) return c.v;
+  }
+  const fresh = fetcher().then(async (v) => {
+    await cacheSet(key, { v, at: Date.now() }, scoped);
+    return v;
+  });
+  fresh.catch(() => {}); // handled below; avoids an "unhandled rejection" while we read the saved copy
+  try {
+    const c = await saved();
+    if (!c) return await fresh;
+    // There's a saved copy: don't keep people waiting on a stalled connection.
+    const slow = new Promise<"slow">((r) => setTimeout(() => r("slow"), SLOW_MS));
+    const first = await Promise.race([fresh, slow]);
+    if (first === "slow") return c.v;
+    return first as T;
+  } catch (e) {
+    const c = await saved();
+    if (c) return c.v;
+    throw e;
   }
 }
 
@@ -48,6 +93,12 @@ export async function clearCache() {
   try {
     await (await db()).clear("cache");
     await (await db()).clear("outbox");
+  } catch {
+    /* ignore */
+  }
+  // The service worker's copy of API responses (see sw.ts).
+  try {
+    await caches.delete("api");
   } catch {
     /* ignore */
   }

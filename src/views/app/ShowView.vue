@@ -2,9 +2,11 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
-  SsArt, SsAvatar, SsBackLink, SsButton, SsCard, SsEmpty, SsIcon, SsSheet, SsSkeleton, SsStars, SsTag,
+  SsArt, SsAvatar, SsBackLink, SsButton, SsCard, SsEmpty, SsIcon, SsSheet, SsSkeleton, SsStars, SsStub, SsTag,
 } from "@/design-system";
 import ShareCardSheet from "@/components/share/ShareCardSheet.vue";
+import GigPoster from "@/components/poster/GigPoster.vue";
+import PosterSheet from "@/components/poster/PosterSheet.vue";
 import type { ShareCard } from "@/components/share/shareCard";
 import { getAttendance, setlistfm, showSetlist, showStats, updateAttendance } from "@/lib/api";
 import { dateParts, longDate, money, ordinal, place } from "@/lib/format";
@@ -47,7 +49,8 @@ async function load() {
         signedUrls("photos", a.photos.map((p) => p.storage_path))
           .then((u) => (photoUrls.value = u))
           .finally(() => (photosReady.value = true));
-      stubUrl.value = a.stub_path ? await signedUrl("stubs", a.stub_path) : null;
+      // Signed URLs need the network; offline the generated ticket shows instead.
+      stubUrl.value = a.stub_path ? await signedUrl("stubs", a.stub_path).catch(() => null) : null;
       if (route.query.rate === "1" && mine.value && a.rating == null) rateOpen.value = true;
     }
   } catch (e) {
@@ -63,7 +66,7 @@ const mine = computed(() => !!att.value && att.value.user_id === auth.userId);
 const show = computed(() => att.value?.show);
 const d = computed(() => (show.value ? dateParts(show.value.event_date) : null));
 const venuePlace = computed(() => (show.value ? place(show.value.venue.city, show.value.venue.state_code, show.value.venue.country_code) : ""));
-// Header image: your first photo, then artist, venue, then a generic concert shot.
+// Header image: your first photo, then artist, venue, then a generated gig poster.
 // heroSkip moves down the list when an image fails to load.
 const heroSkip = ref(0);
 watch(() => props.id, () => (heroSkip.value = 0));
@@ -72,7 +75,6 @@ const heroList = computed(() => {
   if (!a) return [];
   const first = a.photos[0];
   return heroCandidates({
-    seed: a.show.id,
     photo: first ? photoUrls.value[first.storage_path] : null,
     artist: a.show.artist,
     venue: a.show.venue,
@@ -154,6 +156,7 @@ async function saveRating() {
 const lightbox = ref<string | null>(null);
 const lightboxOpen = computed({ get: () => !!lightbox.value, set: (v) => !v && (lightbox.value = null) });
 const shareOpen = ref(false);
+const posterOpen = ref(false);
 const shareCard = computed<ShareCard>(() => {
   const s = show.value!;
   const dp = d.value!;
@@ -181,6 +184,7 @@ const shareCard = computed<ShareCard>(() => {
       <SsSkeleton height="320px" radius="var(--ss-radius-lg)" />
     </template>
 
+    <SsEmpty v-else-if="(notFound || !att || !show) && !ui.online" title="Not saved on this device" body="Open it once with signal, or save everything in Settings › App." />
     <SsEmpty v-else-if="notFound || !att || !show" title="We can’t find that show" body="It may have been removed, or it belongs to a private profile.">
       <SsButton to="/app/shows" variant="outline">Back to my shows</SsButton>
     </SsEmpty>
@@ -196,7 +200,12 @@ const shareCard = computed<ShareCard>(() => {
         eager
         @error="heroSkip++"
       >
-        <div v-if="hero?.kind === 'generic'" class="hero__tint" aria-hidden="true" />
+        <GigPoster
+          v-if="hero?.kind === 'poster'"
+          variant="art"
+          :seed="show.id"
+          :artist="show.artist.name"
+        />
         <div class="hero__body">
           <div class="hero__pills">
             <span v-if="stats?.show_number" class="pill pill--accent">Show {{ stats.show_number }}</span>
@@ -291,13 +300,18 @@ const shareCard = computed<ShareCard>(() => {
               <button v-if="stubUrl" type="button" class="stub-img" @click="lightbox = stubUrl">
                 <img :src="stubUrl" alt="Ticket stub" loading="lazy" />
               </button>
-              <div v-else class="stub">
-                <div class="ss-truncate">
-                  <div class="stub__k">TICKET STUB</div>
-                  <div class="stub__a ss-truncate">{{ show.artist.name }}</div>
-                </div>
-                <div class="stub__d">{{ d?.mon }} {{ d?.day }}<br />{{ att.seat || d?.yr }}</div>
-              </div>
+              <SsStub
+                v-else
+                class="stub"
+                :seed="att.id"
+                :artist="show.artist.name"
+                :venue="show.venue.name"
+                :place="venuePlace"
+                :date="show.event_date"
+                :number="stats?.show_number"
+                :seat="att.seat"
+                :paid="money(att.price_cents, att.currency)"
+              />
               <button
                 v-for="p in att.photos"
                 :key="p.id"
@@ -313,13 +327,24 @@ const shareCard = computed<ShareCard>(() => {
           </SsCard>
 
           <div class="actions">
-            <SsButton class="actions__share" @click="shareOpen = true"><SsIcon name="share" :size="18" />Make a share card</SsButton>
+            <SsButton class="actions__share" @click="shareOpen = true"><SsIcon name="share" :size="18" />Share card</SsButton>
+            <SsButton variant="outline" @click="posterOpen = true">Poster</SsButton>
             <SsButton v-if="mine" :to="`/app/shows/${att.id}/edit`" variant="outline"><SsIcon name="edit" :size="16" />Edit</SsButton>
           </div>
         </div>
       </div>
 
       <ShareCardSheet v-model="shareOpen" :card="shareCard" />
+      <PosterSheet
+        v-model="posterOpen"
+        :seed="show.id"
+        :artist="show.artist.name"
+        :venue="show.venue.name"
+        :place="venuePlace"
+        :date="show.event_date"
+        :number="stats?.show_number"
+        :tour="show.tour_name"
+      />
 
       <SsSheet v-model="rateOpen" label="Rate this show">
         <div class="ss-kicker">THE MORNING AFTER</div>
@@ -346,15 +371,6 @@ const shareCard = computed<ShareCard>(() => {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-}
-/* Generic stock photos: dimmed, mono and tinted with the accent so they read as mood, not as the band. */
-.hero--generic :deep(img) { filter: grayscale(1) contrast(1.15) brightness(0.55); }
-.hero__tint {
-  position: absolute;
-  inset: 0;
-  background: var(--ss-accent);
-  mix-blend-mode: multiply;
-  opacity: 0.85;
 }
 .hero__body {
   position: relative;
@@ -432,22 +448,7 @@ const shareCard = computed<ShareCard>(() => {
 .hint { font-size: 14px; }
 
 .photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.stub {
-  grid-column: span 3;
-  height: 88px;
-  border-radius: 10px;
-  background: repeating-linear-gradient(90deg, var(--ss-cream) 0 1px, transparent 1px 7px), var(--ss-butter);
-  color: var(--ss-on-accent);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 16px;
-  border-left: 8px dotted var(--ss-surface-1);
-}
-.stub__k { font-family: var(--ss-font-mono); font-size: 10px; letter-spacing: 0.12em; }
-.stub__a { font-weight: 900; font-size: 18px; }
-.stub__d { font-weight: 900; font-size: 14px; text-align: right; flex-shrink: 0; }
+.stub { grid-column: span 3; }
 .stub-img, .photo {
   border: 0;
   padding: 0;

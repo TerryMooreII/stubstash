@@ -22,6 +22,7 @@ export { default as SsSkeleton } from "./components/SsSkeleton.vue";
 export { default as SsSpinner } from "./components/SsSpinner.vue";
 export { default as SsStars } from "./components/SsStars.vue";
 export { default as SsStatCard } from "./components/SsStatCard.vue";
+export { default as SsStub } from "./components/SsStub.vue";
 export { default as SsTag } from "./components/SsTag.vue";
 export { default as SsTextarea } from "./components/SsTextarea.vue";
 export { default as SsTicketRow } from "./components/SsTicketRow.vue";

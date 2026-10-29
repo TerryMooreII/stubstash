@@ -3,14 +3,16 @@
 import { computed, ref, watch } from "vue";
 import { SsArt, SsBackLink, SsCard, SsChip, SsEmpty, SsIcon, SsSkeleton, SsStars } from "@/design-system";
 import { artistStats, getArtist } from "@/lib/api";
-import { genericConcertPhoto } from "@/lib/heroImage";
+import GigPoster from "@/components/poster/GigPoster.vue";
 import { errorMessage } from "@/lib/supabase";
 import { dateParts, monthYear, num, parseDate, place, plural } from "@/lib/format";
 import type { ArtistStats } from "@/lib/types";
 import { useLog } from "@/stores/log";
+import { useUi } from "@/stores/ui";
 
 const props = defineProps<{ id: string }>();
 const log = useLog();
+const ui = useUi();
 
 type Artist = NonNullable<Awaited<ReturnType<typeof getArtist>>>;
 const artist = ref<Artist | null>(null);
@@ -34,13 +36,10 @@ async function load() {
 watch(() => props.id, load, { immediate: true });
 
 // Banner: the artist photo blurred behind a sharp portrait. With no artist
-// photo (or one that fails to load), a tinted generic concert shot instead.
+// photo (or one that fails to load), generated poster art instead.
 const imgFailed = ref(false);
 watch(() => props.id, () => (imgFailed.value = false));
 const hasPhoto = computed(() => !!artist.value?.image_url && !imgFailed.value);
-const bannerSrc = computed(() =>
-  hasPhoto.value ? artist.value!.image_url! : genericConcertPhoto(props.id),
-);
 
 const shows = computed(() => log.entries.filter((e) => e.artist_id === props.id));
 const kicker = computed(() => {
@@ -62,13 +61,14 @@ const kicker = computed(() => {
       </div>
     </template>
 
+    <SsEmpty v-else-if="(error || !artist) && !ui.online" title="Not saved on this device" body="Open it once with signal, or save everything in Settings › App." />
     <SsEmpty v-else-if="error || !artist" title="Artist not found" :body="error ?? 'This artist may have been removed.'" />
 
     <template v-else>
       <header class="hero" :class="{ 'hero--generic': !hasPhoto }">
         <div class="hero__bg" aria-hidden="true">
-          <img :src="bannerSrc" alt="" referrerpolicy="no-referrer" decoding="async" />
-          <div v-if="!hasPhoto" class="hero__tint" />
+          <img v-if="hasPhoto" :src="artist.image_url!" alt="" referrerpolicy="no-referrer" decoding="async" />
+          <GigPoster v-else variant="art" :seed="artist.id" />
         </div>
         <SsArt
           v-if="hasPhoto"
@@ -164,9 +164,6 @@ const kicker = computed(() => {
   inset: 0;
   background: linear-gradient(180deg, transparent 30%, rgba(10, 9, 12, 0.85));
 }
-/* Generic stock photo: sharp but mono and tinted, same treatment as the show page. */
-.hero--generic .hero__bg img { filter: grayscale(1) contrast(1.15) brightness(0.55); transform: none; }
-.hero__tint { position: absolute; inset: 0; background: var(--ss-accent); mix-blend-mode: multiply; opacity: 0.85; }
 .hero__img { width: 200px; height: 200px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
 @media (max-width: 520px) { .hero__img { width: 140px; height: 140px; } }
 .hero__text { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }

@@ -111,6 +111,7 @@ async function savePin() {
 
     <SsSkeleton v-if="loading" height="280px" radius="var(--ss-radius-xl)" />
 
+    <SsEmpty v-else-if="(error || !venue) && !ui.online" title="Not saved on this device" body="Open it once with signal, or save everything in Settings › App." />
     <SsEmpty v-else-if="error || !venue" title="Venue not found" :body="error ?? 'This venue may have been removed.'" />
 
     <template v-else>

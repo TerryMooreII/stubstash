@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// The show "ticket stub" card: colored date stub on the left with a dashed
-// perforation, details on the right. Used for latest shows and the show list.
+// The show "ticket stub" card: colored date stub on the left, details in the
+// middle and an "admit one" tear-off on the right. Both perforations are
+// notched (CSS mask) like a real ticket. Used for latest shows and the show list.
 import { computed } from "vue";
 import type { RouteLocationRaw } from "vue-router";
 import { placeholderArt } from "@/lib/color";
@@ -58,16 +59,35 @@ const songText = computed(() => (props.songs ? `${props.songs} songs` : "No setl
         </div>
       </template>
     </div>
+    <div class="ss-ticket__tail" aria-hidden="true">
+      <span>ADMIT ONE</span><span v-if="number" class="ss-ticket__serial">№{{ String(number).padStart(3, "0") }}</span>
+    </div>
   </RouterLink>
 </template>
 
 <style scoped>
 .ss-ticket {
+  /* --l / --r: where the two perforations sit; --n: notch radius. */
+  --l: 83px;
+  --r: 29px;
+  --n: 7px;
+  --hole: transparent calc(var(--n) - 0.5px), #000 var(--n);
   display: flex;
   text-align: left;
   border-radius: var(--ss-radius-md);
   overflow: hidden;
-  background: var(--ss-surface-1);
+  background: var(--ss-grain), var(--ss-surface-1);
+  /* Four quarters, each punching one notch: left/right perforation, top/bottom edge. */
+  -webkit-mask:
+    radial-gradient(circle at var(--l) 0, var(--hole)) left top / 51% 51% no-repeat,
+    radial-gradient(circle at var(--l) 100%, var(--hole)) left bottom / 51% 51% no-repeat,
+    radial-gradient(circle at calc(100% - var(--r)) 0, var(--hole)) right top / 51% 51% no-repeat,
+    radial-gradient(circle at calc(100% - var(--r)) 100%, var(--hole)) right bottom / 51% 51% no-repeat;
+  mask:
+    radial-gradient(circle at var(--l) 0, var(--hole)) left top / 51% 51% no-repeat,
+    radial-gradient(circle at var(--l) 100%, var(--hole)) left bottom / 51% 51% no-repeat,
+    radial-gradient(circle at calc(100% - var(--r)) 0, var(--hole)) right top / 51% 51% no-repeat,
+    radial-gradient(circle at calc(100% - var(--r)) 100%, var(--hole)) right bottom / 51% 51% no-repeat;
   color: var(--ss-text);
   text-decoration: none;
   min-height: 104px;
@@ -76,7 +96,7 @@ const songText = computed(() => (props.songs ? `${props.songs} songs` : "No setl
 .ss-ticket:hover {
   text-decoration: none;
   color: var(--ss-text);
-  background: #18191a;
+  background: var(--ss-grain), #18191a;
   transform: translateY(-1px);
 }
 .ss-ticket--row { min-height: 92px; }
@@ -124,4 +144,23 @@ const songText = computed(() => (props.songs ? `${props.songs} songs` : "No setl
 .ss-ticket__venue { font-size: 14px; color: var(--ss-text-3); }
 .ss-ticket__foot { display: flex; justify-content: space-between; font-size: 13px; margin-top: 2px; }
 .ss-ticket__stars { color: var(--ss-accent); letter-spacing: 0.08em; }
+.ss-ticket__tail {
+  width: 30px;
+  flex-shrink: 0;
+  /* Rotated 180deg, so this right border shows on the left. */
+  border-right: 2px dashed var(--ss-line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--ss-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--ss-text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ss-ticket__serial { color: var(--ss-text-muted); }
 </style>

@@ -4,12 +4,12 @@ import { SITE_HOST } from "@/lib/url";
 // card palette; "Share" renders a PNG and uses the native share sheet when it
 // can, otherwise downloads the image.
 import { computed, ref } from "vue";
-import { toPng } from "html-to-image";
 import { SsButton, SsIcon, SsSheet } from "@/design-system";
 import { CARD_COLORS } from "@/lib/color";
 import { useAuth } from "@/stores/auth";
 import { useUi } from "@/stores/ui";
 import type { ShareCard } from "./shareCard";
+import { shareElementAsPng, slugFile } from "@/lib/shareImage";
 
 const open = defineModel<boolean>({ default: false });
 const props = defineProps<{ card: ShareCard }>();
@@ -28,32 +28,13 @@ function shuffle() {
   colorIx.value++;
 }
 
-function fileName() {
-  const slug = props.card.big.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "card";
-  return `stubstash-${slug}.png`;
-}
-
 async function share() {
   if (!cardEl.value) return;
   busy.value = true;
   try {
-    const dataUrl = await toPng(cardEl.value, { pixelRatio: 3, cacheBust: true });
-    const blob = await (await fetch(dataUrl)).blob();
-    const file = new File([blob], fileName(), { type: "image/png" });
-    if (navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: "Stubstash" });
-      } catch (e) {
-        if ((e as Error).name === "AbortError") return;
-        throw e;
-      }
-    } else {
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = file.name;
-      a.click();
-      ui.flash("Card saved. Ready for Stories.");
-    }
+    const res = await shareElementAsPng(cardEl.value, slugFile("stubstash", props.card.big));
+    if (res === "cancelled") return;
+    if (res === "saved") ui.flash("Card saved. Ready for Stories.");
     open.value = false;
   } catch {
     ui.error("Couldn't make the image. Try again.");

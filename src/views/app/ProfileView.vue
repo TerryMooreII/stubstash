@@ -13,6 +13,7 @@ import YearInReviewCard from "@/components/people/YearInReviewCard.vue";
 import { useNotifications } from "@/stores/notifications";
 import { badges as loadBadges, publicProfile, social, userLog } from "@/lib/api";
 import { mediumDate, place, plural } from "@/lib/format";
+import { profileBanner } from "@/lib/heroImage";
 import { errorMessage } from "@/lib/supabase";
 import type { Badge, Friend, LogEntry, PublicProfile } from "@/lib/types";
 import { useAuth } from "@/stores/auth";
@@ -50,6 +51,12 @@ const name = computed(() =>
 const handle = computed(() => (isSelf.value ? auth.profile?.handle : other.value?.handle) ?? "");
 const homeCity = computed(() => (isSelf.value ? auth.profile?.home_city : other.value?.home_city) ?? null);
 const avatarPath = computed(() => (isSelf.value ? auth.profile?.avatar_path : other.value?.avatar_path) ?? null);
+// Each person gets their own header photo: their pick, else one chosen from their id.
+const headerPhoto = computed(() =>
+  isSelf.value
+    ? profileBanner(auth.userId ?? handle.value, auth.profile?.header_photo)
+    : profileBanner(other.value?.id ?? handle.value, other.value?.header_photo),
+);
 const showCount = computed(() => (isSelf.value ? log.total : other.value?.show_count ?? otherLog.value.length));
 
 const years = computed(() =>
@@ -215,6 +222,7 @@ const latest = computed(() => otherLog.value.slice(0, 6));
           :user-id="isSelf ? undefined : targetId"
           :handle="handle"
           :can-share="isSelf"
+          :photo="headerPhoto"
         />
         <SsEmpty
           v-else-if="!loading"

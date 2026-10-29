@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { PROFILE_BANNER } from "@/lib/heroImage";
 import { SITE_HOST } from "@/lib/url";
-// Big "YEAR IN REVIEW" card over a concert venue photo with year chips, six stat cells and a share button.
+// Big "YEAR IN REVIEW" card over the user's concert photo with year chips, six stat cells and a share button.
 import { computed, ref, watch } from "vue";
 import { SsSkeleton } from "@/design-system";
 import ShareCardSheet from "@/components/share/ShareCardSheet.vue";
@@ -10,7 +9,14 @@ import { yearInReview } from "@/lib/api";
 import { compact, num, plural } from "@/lib/format";
 import type { YearInReview } from "@/lib/types";
 
-const props = defineProps<{ years: number[]; userId?: string; handle: string; canShare?: boolean }>();
+const props = defineProps<{
+  years: number[];
+  userId?: string;
+  handle: string;
+  canShare?: boolean;
+  /** Background photo URL (see profileBanner in lib/heroImage). */
+  photo: string;
+}>();
 
 const year = ref<number>(pickDefault());
 const data = ref<YearInReview | null>(null);
@@ -83,7 +89,7 @@ const card = computed<ShareCard>(() => {
 </script>
 
 <template>
-  <section class="yir" aria-label="Year in review" :style="{ '--yir-photo': `url(${PROFILE_BANNER})` }">
+  <section class="yir" aria-label="Year in review" :style="{ '--yir-photo': `url(${photo})` }">
     <div class="yir__main">
       <div class="yir__kicker">YEAR IN REVIEW</div>
       <div class="yir__year ss-num">{{ year }}</div>

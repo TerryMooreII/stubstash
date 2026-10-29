@@ -20,6 +20,8 @@ export interface Profile {
   timezone: string;
   /** Per-kind notification switches; missing = on. See lib/notifications.ts. */
   notification_prefs: import("./notifications").NotificationPrefs;
+  /** Bundled concert photo (1..16) for the profile header; null = automatic. */
+  header_photo: number | null;
   created_at: string;
 }
 
@@ -195,6 +197,7 @@ export interface PublicProfile extends PersonCard {
   is_public: boolean;
   can_view: boolean;
   is_self: boolean;
+  header_photo: number | null;
 }
 
 /** A setlist.fm search result (from the setlistfm edge function). */

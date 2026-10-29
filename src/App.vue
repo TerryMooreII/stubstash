@@ -7,6 +7,7 @@ import { useNotifications } from "@/stores/notifications";
 import { useUi } from "@/stores/ui";
 import { setlistfm } from "@/lib/api";
 import { flushOutbox, setCacheScope } from "@/lib/offline";
+import { offlineAutoEnabled, saveForOffline } from "@/lib/offlineSave";
 
 const auth = useAuth();
 const log = useLog();
@@ -28,6 +29,20 @@ watch(
 
 // Shows logged while offline go out when the connection comes back.
 watch(() => ui.online, (on) => on && syncOutbox());
+
+// Quietly save shows that aren't on this device yet, once per session, a few
+// seconds after the log loads (Settings > App has the switch and a full save).
+let autoSavedFor: string | null = null;
+watch(
+  () => [log.loaded, ui.online, auth.userId] as const,
+  ([loaded, online, id]) => {
+    if (!loaded || !online || !id || autoSavedFor === id || !offlineAutoEnabled()) return;
+    autoSavedFor = id;
+    setTimeout(() => {
+      if (auth.userId === id && navigator.onLine) saveForOffline(log.entries, { full: false }).catch(() => {});
+    }, 5000);
+  },
+);
 
 async function syncOutbox() {
   if (!auth.userId || !navigator.onLine) return;

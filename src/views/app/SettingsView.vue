@@ -11,6 +11,10 @@ import {
 import { searchPlaces, type PlaceResult } from "@/lib/geocode";
 import { removeFile, upload } from "@/lib/media";
 import { clearCache } from "@/lib/offline";
+import { lastOfflineSave, offlineAutoEnabled, saveForOffline, setOfflineAuto, type SaveProgress } from "@/lib/offlineSave";
+import { CONCERT_PHOTO_NAMES, GENERIC_PHOTO_COUNT, concertPhoto, profilePhotoNumber } from "@/lib/heroImage";
+import { timeAgo } from "@/lib/format";
+import { useLog } from "@/stores/log";
 import { disablePush } from "@/lib/pwa";
 import { errorMessage } from "@/lib/supabase";
 import { useAuth } from "@/stores/auth";
@@ -18,6 +22,7 @@ import { useUi } from "@/stores/ui";
 
 const auth = useAuth();
 const ui = useUi();
+const log = useLog();
 const router = useRouter();
 const route = useRoute();
 
@@ -80,6 +85,42 @@ async function saveProfile() {
     else ui.error(errorMessage(err));
   } finally {
     savingProfile.value = false;
+  }
+}
+
+// ---------------------------------------------------------------- header photo
+const photoNumbers = Array.from({ length: GENERIC_PHOTO_COUNT }, (_, i) => i + 1);
+const autoPhoto = computed(() => profilePhotoNumber(auth.userId ?? ""));
+const savingPhoto = ref(false);
+async function pickHeaderPhoto(n: number | null) {
+  if ((auth.profile?.header_photo ?? null) === n) return;
+  savingPhoto.value = true;
+  try {
+    await auth.saveProfile({ header_photo: n });
+    ui.flash(n ? "Header photo updated" : "Header photo set to automatic");
+  } catch (err) {
+    ui.error(errorMessage(err));
+  } finally {
+    savingPhoto.value = false;
+  }
+}
+
+// ---------------------------------------------------------------- offline
+const offlineAuto = ref(offlineAutoEnabled());
+watch(offlineAuto, (v) => setOfflineAuto(v));
+const offlineSavedAt = ref(lastOfflineSave());
+const saving = ref<SaveProgress | null>(null);
+async function saveAllOffline() {
+  if (!ui.online) return ui.error("You're offline. Try again with signal.");
+  saving.value = { done: 0, total: 1 };
+  try {
+    await log.load();
+    const failed = await saveForOffline(log.entries, { full: true, onProgress: (p) => (saving.value = p) });
+    offlineSavedAt.value = lastOfflineSave();
+    if (failed) ui.error(`Saved most of it, but ${failed} item${failed > 1 ? "s" : ""} didn't download. Try again later.`);
+    else ui.flash(`All ${log.entries.length} shows saved to this device`);
+  } finally {
+    saving.value = null;
   }
 }
 
@@ -260,6 +301,37 @@ async function signOut() {
           </form>
         </SsCard>
 
+        <SsCard title="Header photo">
+          <template #aside>{{ auth.profile?.header_photo ? CONCERT_PHOTO_NAMES[auth.profile.header_photo - 1] : "Automatic" }}</template>
+          <p class="note">The photo behind your year in review. Friends see it on your profile too.</p>
+          <div class="photo-grid" role="radiogroup" aria-label="Header photo" :aria-busy="savingPhoto">
+            <button
+              type="button"
+              role="radio"
+              class="photo-pick"
+              :class="{ on: !auth.profile?.header_photo }"
+              :aria-checked="!auth.profile?.header_photo"
+              @click="pickHeaderPhoto(null)"
+            >
+              <img :src="concertPhoto(autoPhoto)" alt="" loading="lazy" />
+              <span class="photo-pick__label">Auto</span>
+            </button>
+            <button
+              v-for="n in photoNumbers"
+              :key="n"
+              type="button"
+              role="radio"
+              class="photo-pick"
+              :class="{ on: auth.profile?.header_photo === n }"
+              :aria-checked="auth.profile?.header_photo === n"
+              :aria-label="CONCERT_PHOTO_NAMES[n - 1]"
+              @click="pickHeaderPhoto(n)"
+            >
+              <img :src="concertPhoto(n)" alt="" loading="lazy" />
+            </button>
+          </div>
+        </SsCard>
+
         <SsCard title="Home base">
           <template #aside>{{ auth.profile?.home_city ?? "Not set" }}</template>
           <p class="note">We only store the city. It's used for miles traveled and the lines on your map.</p>
@@ -318,7 +390,8 @@ async function signOut() {
         </SsCard>
 
         <!-- App -->
-        <SsCard v-else-if="section === 'app'" title="The app">
+        <template v-else-if="section === 'app'">
+        <SsCard title="The app">
           <template v-if="!ui.isStandalone">
             <p class="note">Install Stubstash to your home screen or dock. It opens like an app, works offline at the venue, and on iPhone it's needed for push alerts.</p>
             <SsButton size="sm" variant="accent-outline" @click="ui.installSheetOpen = true">
@@ -327,6 +400,27 @@ async function signOut() {
           </template>
           <p v-else class="note">You're using the installed app. Nice.</p>
         </SsCard>
+        <SsCard title="Offline">
+          <template #aside>{{ offlineSavedAt ? `Saved ${timeAgo(new Date(offlineSavedAt).toISOString())}` : "" }}</template>
+          <p class="note">
+            Every page you open is kept on this device, so it still works with no signal. Save everything now to take your whole
+            log with you: every show, setlist, artist and venue.
+          </p>
+          <div class="setting">
+            <div class="setting__text">
+              <div class="setting__title">Keep new shows saved</div>
+              <div class="setting__body">Quietly saves shows that aren't on this device yet when the app opens.</div>
+            </div>
+            <SsToggle v-model="offlineAuto" plain :label="offlineAuto ? 'On' : 'Off'" />
+          </div>
+          <div class="offline-save">
+            <SsButton size="sm" variant="outline" :loading="!!saving" :disabled="!ui.online" @click="saveAllOffline">
+              <SsIcon name="download" :size="16" />Save everything for offline
+            </SsButton>
+            <span v-if="saving" class="ss-muted offline-save__n">{{ saving.done }} of {{ saving.total }}</span>
+          </div>
+        </SsCard>
+        </template>
 
         <!-- Admin (admins only) -->
         <SsCard v-else-if="section === 'admin'" title="Admin">
@@ -507,4 +601,36 @@ async function signOut() {
   line-height: 1.5;
   max-width: 640px;
 }
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.photo-pick {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ss-surface-2);
+  cursor: pointer;
+}
+.photo-pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-pick.on { border-color: var(--ss-accent); }
+.photo-pick:focus-visible { outline: 2px solid var(--ss-accent); outline-offset: 2px; }
+.photo-pick__label {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 2px 0;
+  background: rgba(10, 9, 12, 0.72);
+  font-family: var(--ss-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ss-text);
+  text-transform: uppercase;
+}
+.offline-save { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+.offline-save__n { font-size: 13px; font-variant-numeric: tabular-nums; }
 </style>
