@@ -172,7 +172,16 @@ const earned = computed(() => badgeList.value.filter((b) => b.earned).length);
       <SsCard v-if="badgeList.length" title="Badges">
         <template #aside><RouterLink to="/app/me" class="more">{{ earned }} of {{ badgeList.length }} →</RouterLink></template>
         <div class="badges">
-          <SsBadgeTile v-for="b in badgeList" :key="b.key" :name="b.name" :color="b.color" :earned="b.earned" />
+          <SsBadgeTile
+            v-for="(b, i) in badgeList"
+            :key="b.key"
+            :badge-key="b.key"
+            :index="i"
+            :name="b.name"
+            :color="b.color"
+            :earned="b.earned"
+            :target="b.target"
+          />
         </div>
       </SsCard>
     </template>
@@ -221,7 +230,7 @@ const earned = computed(() => badgeList.value.filter((b) => b.earned).length);
 }
 
 .more { font-weight: 700; font-size: 15px; }
-.badges { position: relative; display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.badges { position: relative; display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 6px; }
 
 .hero-empty {
   padding: 32px 24px;

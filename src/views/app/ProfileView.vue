@@ -238,13 +238,15 @@ const latest = computed(() => otherLog.value.slice(0, 6));
             Badges <span class="sec-sub">{{ earned }} of {{ badgeList.length }} earned</span>
           </h2>
           <div v-if="loading && !badgeList.length" class="badges">
-            <SsSkeleton v-for="i in 4" :key="i" height="140px" radius="14px" />
+            <SsSkeleton v-for="i in 4" :key="i" height="230px" radius="18px" />
           </div>
           <div v-else class="badges">
             <SsBadgeTile
-              v-for="b in badgeList"
+              v-for="(b, i) in badgeList"
               :key="b.key"
               layout="card"
+              :badge-key="b.key"
+              :index="i"
               :name="b.name"
               :description="b.description"
               :color="b.color"
@@ -377,8 +379,8 @@ const latest = computed(() => otherLog.value.slice(0, 6));
 }
 .badges {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: 14px;
 }
 .link {
   font-weight: 700;
