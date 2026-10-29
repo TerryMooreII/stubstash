@@ -9,7 +9,7 @@ import StreakCard from "@/components/dashboard/StreakCard.vue";
 import TopArtists from "@/components/dashboard/TopArtists.vue";
 import TopSongs from "@/components/dashboard/TopSongs.vue";
 import { badges as fetchBadges } from "@/lib/api";
-import { compact, num, place, plural, sinceText } from "@/lib/format";
+import { compact, num, place, plural } from "@/lib/format";
 import { nextMilestone } from "@/lib/milestones";
 import type { Badge } from "@/lib/types";
 import { useAuth } from "@/stores/auth";
@@ -39,7 +39,9 @@ const kicker = computed(() => {
   const who = name === "YOUR" ? "YOUR" : `${name}’S`;
   return firstYear.value ? `${who} STAGE PASS · ${firstYear.value}—NOW` : `${who} STAGE PASS`;
 });
-const headline = computed(() => `${num(shows.value)} show${shows.value === 1 ? "" : "s"} deep. ${milestone.value.remaining} to the ${milestone.value.name}.`);
+// Milestones count shows (a venue on a date). Badge names are left out on purpose:
+// badges like Century Club count every act, so the numbers would disagree.
+const headline = computed(() => `${num(shows.value)} show${shows.value === 1 ? "" : "s"} deep. ${milestone.value.remaining} more to ${num(milestone.value.target)}.`);
 const progress = computed(() => Math.round((shows.value / milestone.value.target) * 100));
 
 const homeCity = computed(() => auth.profile?.home_city ?? s.value?.home.city ?? null);
@@ -47,7 +49,14 @@ const statCards = computed(() => {
   const x = t.value;
   if (!x) return [];
   return [
-    { label: "Shows", value: num(x.shows), caption: x.first_show ? `since ${sinceText(x.first_show)}` : "", tone: "accent" as const },
+    // Shows = a venue on a date (headliner + openers); festivals still count as shows.
+    {
+      label: "Shows",
+      value: num(x.shows),
+      caption: [x.festivals ? plural(x.festivals, "festival") : "", x.first_show ? `since ${x.first_show.slice(0, 4)}` : ""]
+        .filter(Boolean).join(" · "),
+      tone: "accent" as const,
+    },
     { label: "Artists", value: num(x.artists), caption: `${num(x.artists_multi)} seen more than once` },
     { label: "Venues", value: num(x.venues), caption: s.value?.top_venues[0] ? `${s.value.top_venues[0].name} is home turf` : "" },
     { label: "Songs heard", value: num(x.songs), caption: `${num(x.unique_songs)} different songs` },
@@ -74,7 +83,7 @@ const peak = computed(() => {
   return best ? `Peak: ${best.year} · ${plural(best.n, "show")}` : "";
 });
 
-const recent = computed(() => log.entries.slice(0, 3));
+const recent = computed(() => log.shows.slice(0, 3));
 const earned = computed(() => badgeList.value.filter((b) => b.earned).length);
 const badgeNo = computed(() => badgeNumbers(badgeList.value));
 </script>
@@ -157,17 +166,19 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
       </div>
       <div class="ss-grid" style="--ss-grid-min: 300px">
         <SsTicketRow
-          v-for="e in recent"
-          :key="e.attendance_id"
-          :to="`/app/shows/${e.attendance_id}`"
-          :date="e.event_date"
-          :artist="e.artist_name"
-          :venue="e.venue_name"
-          :place="place(e.city, e.state_code, e.country_code)"
-          :number="e.show_number"
-          :source="e.source"
-          :songs="e.song_count"
-          :rating="e.rating"
+          v-for="g in recent"
+          :key="g.key"
+          :to="`/app/shows/${g.acts[0]!.attendance_id}`"
+          :date="g.event_date"
+          :artist="g.acts[0]!.artist_name"
+          :openers="g.acts.slice(1).map((a) => ({ name: a.artist_name, to: `/app/shows/${a.attendance_id}` }))"
+          :venue="g.venue_name"
+          :place="place(g.city, g.state_code, g.country_code)"
+          :number="g.show_number"
+          :source="g.source"
+          :festival="g.is_festival ? g.festival_name ?? true : null"
+          :songs="g.song_count"
+          :rating="g.rating"
         />
       </div>
 

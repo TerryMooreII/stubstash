@@ -2,8 +2,10 @@
 // The show "ticket stub" card: colored date stub on the left, details in the
 // middle and an "admit one" tear-off on the right. Both perforations are
 // notched (CSS mask) like a real ticket. Used for latest shows and the show list.
+// A show with openers passes `openers`: the whole ticket still opens the
+// headliner (`to`), and each opener's name links to its own page.
 import { computed } from "vue";
-import type { RouteLocationRaw } from "vue-router";
+import { RouterLink, type RouteLocationRaw } from "vue-router";
 import { placeholderArt } from "@/lib/color";
 import { dateParts, stars } from "@/lib/format";
 
@@ -20,15 +22,24 @@ const props = withDefaults(
     rating?: number | null;
     layout?: "card" | "row";
     image?: string | null;
+    /** Other acts on the bill, after the headliner. */
+    openers?: { name: string; to: RouteLocationRaw }[];
+    /** Festival name (or true for an unnamed festival). */
+    festival?: string | boolean | null;
   }>(),
   { layout: "card" },
 );
 const d = computed(() => dateParts(props.date));
 const songText = computed(() => (props.songs ? `${props.songs} songs` : "No setlist yet"));
+const multi = computed(() => !!props.openers?.length);
+const srcLabel = computed(() =>
+  props.festival ? (typeof props.festival === "string" ? props.festival.toUpperCase() : "FESTIVAL")
+  : props.source === "manual" ? "ADDED BY YOU" : "SETLIST.FM",
+);
 </script>
 
 <template>
-  <RouterLink :to="to" class="ss-ticket" :class="`ss-ticket--${layout}`">
+  <component :is="multi ? 'div' : RouterLink" :to="multi ? undefined : to" class="ss-ticket" :class="[`ss-ticket--${layout}`, { 'ss-ticket--multi': multi }]">
     <div class="ss-ticket__stub" :style="{ background: placeholderArt(artist) }">
       <div class="ss-ticket__mon">{{ d.mon }}</div>
       <div class="ss-ticket__day">{{ d.day }}</div>
@@ -37,10 +48,19 @@ const songText = computed(() => (props.songs ? `${props.songs} songs` : "No setl
     <div class="ss-ticket__body">
       <template v-if="layout === 'card'">
         <div class="ss-ticket__meta">
-          <span class="ss-ticket__src" :class="{ 'is-manual': source === 'manual' }">{{ source === "manual" ? "ADDED BY YOU" : "SETLIST.FM" }}</span>
+          <span class="ss-ticket__src" :class="{ 'is-manual': source === 'manual' && !festival, 'is-fest': !!festival }">{{ srcLabel }}</span>
           <span v-if="number" class="ss-ticket__num">#{{ number }}</span>
         </div>
-        <div class="ss-ticket__artist">{{ artist }}</div>
+        <div class="ss-ticket__artist">
+          <RouterLink v-if="multi" :to="to" class="ss-ticket__head">{{ artist }}</RouterLink>
+          <template v-else>{{ artist }}</template>
+        </div>
+        <div v-if="multi" class="ss-ticket__with">
+          with
+          <template v-for="(o, i) in openers" :key="i">
+            <RouterLink :to="o.to" class="ss-ticket__opener">{{ o.name }}</RouterLink><template v-if="i < openers!.length - 1">, </template>
+          </template>
+        </div>
         <div class="ss-ticket__venue ss-truncate">{{ venue }}<template v-if="place"> · {{ place }}</template></div>
         <div class="ss-ticket__foot">
           <span class="ss-muted">{{ songText }}</span>
@@ -49,11 +69,20 @@ const songText = computed(() => (props.songs ? `${props.songs} songs` : "No setl
       </template>
       <template v-else>
         <div class="ss-ticket__main">
-          <div class="ss-ticket__artist">{{ artist }}</div>
+          <div class="ss-ticket__artist">
+            <RouterLink v-if="multi" :to="to" class="ss-ticket__head">{{ artist }}</RouterLink>
+            <template v-else>{{ artist }}</template>
+          </div>
+          <div v-if="multi" class="ss-ticket__with">
+            with
+            <template v-for="(o, i) in openers" :key="i">
+              <RouterLink :to="o.to" class="ss-ticket__opener">{{ o.name }}</RouterLink><template v-if="i < openers!.length - 1">, </template>
+            </template>
+          </div>
           <div class="ss-ticket__venue ss-truncate">{{ venue }}<template v-if="place"> · {{ place }}</template></div>
         </div>
         <div class="ss-ticket__side">
-          <span class="ss-ticket__src" :class="{ 'is-manual': source === 'manual' }">{{ source === "manual" ? "ADDED BY YOU" : "SETLIST.FM" }}</span>
+          <span class="ss-ticket__src" :class="{ 'is-manual': source === 'manual' && !festival, 'is-fest': !!festival }">{{ srcLabel }}</span>
           <span class="ss-muted">{{ songText }}</span>
           <span class="ss-ticket__stars">{{ stars(rating) }}</span>
         </div>
@@ -62,7 +91,7 @@ const songText = computed(() => (props.songs ? `${props.songs} songs` : "No setl
     <div class="ss-ticket__tail" aria-hidden="true">
       <span>ADMIT ONE</span><span v-if="number" class="ss-ticket__serial">№{{ String(number).padStart(3, "0") }}</span>
     </div>
-  </RouterLink>
+  </component>
 </template>
 
 <style scoped>
@@ -139,6 +168,22 @@ const songText = computed(() => (props.songs ? `${props.songs} songs` : "No setl
   color: var(--ss-teal-light);
 }
 .ss-ticket__src.is-manual { color: var(--ss-cream); }
+.ss-ticket__src.is-fest { color: var(--ss-accent); }
+/* Multi-act shows: the headliner link covers the whole ticket; opener links sit above it. */
+.ss-ticket--multi { position: relative; cursor: pointer; }
+.ss-ticket__head { color: inherit; text-decoration: none; }
+.ss-ticket__head::after { content: ""; position: absolute; inset: 0; z-index: 0; }
+.ss-ticket__head:focus-visible { outline: none; }
+.ss-ticket--multi:has(.ss-ticket__head:focus-visible) { outline: 2px solid var(--ss-accent); outline-offset: 2px; }
+.ss-ticket__with { font-size: 14px; color: var(--ss-text-muted); line-height: 1.3; }
+.ss-ticket__opener {
+  position: relative;
+  z-index: 1;
+  color: var(--ss-text-2);
+  font-weight: 700;
+  text-decoration: none;
+}
+.ss-ticket__opener:hover { color: var(--ss-accent); text-decoration: underline; }
 .ss-ticket__num { font-family: var(--ss-font-mono); font-size: 10px; color: var(--ss-text-faint); }
 .ss-ticket__artist { font-weight: 900; font-size: 20px; line-height: 1.1; }
 .ss-ticket__venue { font-size: 14px; color: var(--ss-text-3); }

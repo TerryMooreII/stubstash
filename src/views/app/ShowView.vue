@@ -8,7 +8,7 @@ import ShareCardSheet from "@/components/share/ShareCardSheet.vue";
 import GigPoster from "@/components/poster/GigPoster.vue";
 import PosterSheet from "@/components/poster/PosterSheet.vue";
 import type { ShareCard } from "@/components/share/shareCard";
-import { getAttendance, setlistfm, showSetlist, showStats, updateAttendance } from "@/lib/api";
+import { getAttendance, setHeadliner, setlistfm, showSetlist, showStats, updateAttendance } from "@/lib/api";
 import { dateParts, longDate, money, ordinal, place } from "@/lib/format";
 import { heroCandidates } from "@/lib/heroImage";
 import { signedUrl, signedUrls } from "@/lib/media";
@@ -38,6 +38,8 @@ async function load() {
   loading.value = true;
   notFound.value = false;
   try {
+    // The log (for "On the bill") loads alongside; it's cached after the first time.
+    if (auth.signedIn) log.load();
     const [a, s, st] = await Promise.all([getAttendance(props.id), showSetlist(props.id), showStats(props.id)]);
     att.value = a;
     songs.value = s;
@@ -87,6 +89,24 @@ const hero = computed(() => {
   return list[Math.min(heroSkip.value, list.length - 1)] ?? null;
 });
 const isManual = computed(() => show.value?.source === "manual");
+
+// ---- the rest of the bill (your own shows only): other acts at this venue that date
+const bill = computed(() => (mine.value ? log.shows.find((g) => g.acts.some((a) => a.attendance_id === props.id)) : null));
+const billActs = computed(() => (bill.value && bill.value.acts.length > 1 ? bill.value.acts : []));
+const isHeadliner = computed(() => billActs.value[0]?.attendance_id === props.id);
+const settingHead = ref(false);
+async function makeHeadliner() {
+  settingHead.value = true;
+  try {
+    await setHeadliner(props.id);
+    await log.refresh();
+    ui.flash(`${show.value?.artist.name ?? "This act"} is now the headliner`);
+  } catch (e) {
+    ui.error(errorMessage(e));
+  } finally {
+    settingHead.value = false;
+  }
+}
 
 // ---- setlist grouped by set
 const sets = computed(() => {
@@ -210,7 +230,7 @@ const shareCard = computed<ShareCard>(() => {
           <div class="hero__pills">
             <span v-if="stats?.show_number" class="pill pill--accent">Show {{ stats.show_number }}</span>
             <SsTag :tone="'dark'" :class="isManual ? 'src-manual' : 'src-sfm'">{{ isManual ? "ADDED BY YOU" : "VIA SETLIST.FM" }}</SsTag>
-            <SsTag v-if="att.is_festival ?? show.is_festival" tone="dark">FESTIVAL</SsTag>
+            <SsTag v-if="att.is_festival ?? show.is_festival" tone="dark">{{ att.festival_name ? att.festival_name.toUpperCase() : "FESTIVAL" }}</SsTag>
           </div>
           <RouterLink :to="`/app/artists/${show.artist.id}`" class="hero__artist ss-hero">{{ show.artist.name }}</RouterLink>
           <div class="hero__line">
@@ -221,6 +241,19 @@ const shareCard = computed<ShareCard>(() => {
           <div v-if="show.tour_name" class="hero__tour">{{ show.tour_name }}</div>
         </div>
       </SsArt>
+
+      <!-- On the bill: the other acts that night -->
+      <div v-if="billActs.length" class="bill">
+        <span class="bill__k">ON THE BILL</span>
+        <span class="bill__acts">
+          <template v-for="(a, i) in billActs" :key="a.attendance_id">
+            <RouterLink v-if="a.attendance_id !== att.id" :to="`/app/shows/${a.attendance_id}`" class="bill__act">{{ a.artist_name }}</RouterLink>
+            <b v-else class="bill__act is-here">{{ a.artist_name }}</b>
+            <span v-if="i === 0" class="bill__role">headliner</span><template v-if="i < billActs.length - 1"> · </template>
+          </template>
+        </span>
+        <SsButton v-if="!isHeadliner" size="sm" variant="outline" :loading="settingHead" @click="makeHeadliner">Make headliner</SsButton>
+      </div>
 
       <!-- Numbers -->
       <div class="tiles">
@@ -392,6 +425,22 @@ const shareCard = computed<ShareCard>(() => {
 .hero__venue { font-weight: 700; }
 .hero__tour { font-size: 14px; color: var(--ss-text-3); }
 
+.bill {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 12px 16px;
+  border-radius: var(--ss-radius-md);
+  background: var(--ss-surface-1);
+  border: 1px solid var(--ss-line);
+}
+.bill__k { font-family: var(--ss-font-mono); font-size: 11px; letter-spacing: 0.14em; color: var(--ss-accent); }
+.bill__acts { flex: 1 1 220px; line-height: 1.5; }
+.bill__act { font-weight: 700; color: var(--ss-text); text-decoration: none; }
+a.bill__act:hover { color: var(--ss-accent); text-decoration: underline; }
+.bill__act.is-here { color: var(--ss-accent); }
+.bill__role { font-family: var(--ss-font-mono); font-size: 10px; letter-spacing: 0.1em; color: var(--ss-text-faint); margin-left: 6px; text-transform: uppercase; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
 @media (max-width: 400px) { .tiles { grid-template-columns: 1fr 1fr; } }
 .tile { padding: 14px; border-radius: var(--ss-radius-md); background: var(--ss-surface-1); border: 1px solid var(--ss-line); }

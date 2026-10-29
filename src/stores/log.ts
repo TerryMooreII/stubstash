@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import { dashboardStats, setlistfm, userLog } from "@/lib/api";
 import type { DashboardStats, LogEntry } from "@/lib/types";
 import { cacheGet, cacheSet } from "@/lib/offline";
+import { groupShows } from "@/lib/shows";
 
 export const useLog = defineStore("log", () => {
   const entries = ref<LogEntry[]>([]);
@@ -13,7 +14,10 @@ export const useLog = defineStore("log", () => {
   const loaded = ref(false);
   const error = ref<string | null>(null);
 
-  const total = computed(() => entries.value.length);
+  /** Shows (one venue, one date) and the acts within them; see lib/shows.ts. */
+  const shows = computed(() => groupShows(entries.value));
+  const total = computed(() => shows.value.length);
+  const sets = computed(() => entries.value.length);
   /** setlist.fm ids already in the log, for "In your log" buttons. */
   const loggedSetlistIds = computed(() => new Map(entries.value.filter((e) => e.setlistfm_id).map((e) => [e.setlistfm_id!, e.attendance_id])));
 
@@ -56,5 +60,5 @@ export const useLog = defineStore("log", () => {
     loaded.value = false;
   }
 
-  return { entries, stats, loading, loaded, error, total, loggedSetlistIds, load, refresh, logSetlist, reset };
+  return { entries, shows, stats, loading, loaded, error, total, sets, loggedSetlistIds, load, refresh, logSetlist, reset };
 });

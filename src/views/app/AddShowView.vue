@@ -13,7 +13,7 @@ import SetlistEditor from "@/components/forms/SetlistEditor.vue";
 import CompanionPicker, { type Companion } from "@/components/forms/CompanionPicker.vue";
 import PhotoPicker, { type SavedPhoto } from "@/components/forms/PhotoPicker.vue";
 import {
-  createManualShow, deleteAttendance, getAttendance, searchCatalogArtists, searchCatalogVenues, setCompanions,
+  createManualShow, deleteAttendance, festivalNames, getAttendance, searchCatalogArtists, searchCatalogVenues, setCompanions,
   showSetlist, social, updateAttendance, updateManualShow, type ManualShowInput,
 } from "@/lib/api";
 import { addShowPhoto, deleteShowPhoto, removeFile, signedUrl, signedUrls, upload } from "@/lib/media";
@@ -54,6 +54,7 @@ const form = reactive({
   country_code: qs("country", 2).toUpperCase(),
   tour_name: qs("tour"),
   is_festival: false,
+  festival_name: "",
   sets: emptySets() as SetDraft[],
   rating: null as number | null,
   companions: [] as Companion[],
@@ -63,6 +64,12 @@ const form = reactive({
   merch: "",
   notes: "",
 });
+
+// Festival names: suggestions from everyone's names so spellings match.
+async function findFestivals(q: string): Promise<AutocompleteOption[]> {
+  return (await festivalNames(q)).map((f) => ({ id: f.name, label: f.name, sub: f.uses > 1 ? `${f.uses} shows on Stubstash` : null }));
+}
+const festivalNameValue = () => form.festival_name.trim().replace(/\s+/g, " ").slice(0, 100) || null;
 
 // Media
 const newPhotos = ref<File[]>([]);
@@ -147,6 +154,7 @@ onMounted(async () => {
     form.event_date = s.event_date;
     form.tour_name = s.tour_name ?? "";
     form.is_festival = d.is_festival ?? s.is_festival;
+    form.festival_name = d.festival_name ?? "";
     form.rating = d.rating;
     form.seat = d.seat ?? "";
     form.price = d.price_cents != null ? (d.price_cents / 100).toFixed(2) : "";
@@ -253,6 +261,7 @@ async function save() {
         notes: form.notes.trim() || null,
       };
       const attendanceId = await createManualShow(input);
+      if (form.is_festival && form.festival_name.trim()) await updateAttendance(attendanceId, { festival_name: festivalNameValue() });
       if (form.companions.length) await saveCompanions(attendanceId, []);
       await uploadMedia(attendanceId);
       await log.refresh();
@@ -286,7 +295,10 @@ async function save() {
       merch: form.merch.trim() || null,
       notes: form.notes.trim() || null,
       // For setlist.fm shows the festival switch is your own override.
-      ...(canEditShow.value ? {} : { is_festival: form.is_festival === d.show.is_festival ? null : form.is_festival }),
+      // For your own shows it lives on the show, so clear any per-log override (e.g. from bulk "Mark as festival").
+      is_festival: canEditShow.value ? (form.is_festival === original?.fest ? null : form.is_festival)
+        : form.is_festival === d.show.is_festival ? null : form.is_festival,
+      festival_name: form.is_festival ? festivalNameValue() : null,
     });
     if (original && JSON.stringify(form.companions) !== original.companions) {
       await saveCompanions(d.id, d.companions.map((c) => c.name));
@@ -438,6 +450,14 @@ const inviteTitle = computed(() =>
             </template>
 
             <SsToggle v-model="form.is_festival" plain label="It was a festival" />
+            <SsField v-if="form.is_festival" label="Festival name" hint="Pick a suggestion so festival days group together">
+              <AutocompleteInput
+                v-model="form.festival_name"
+                :search="findFestivals"
+                :min-chars="1"
+                placeholder="e.g. Lockn' Festival"
+              />
+            </SsField>
           </div>
         </SsCard>
 

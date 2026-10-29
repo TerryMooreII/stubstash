@@ -50,6 +50,10 @@ export interface LogEntry {
   has_stub: boolean;
   photo_count: number;
   created_at: string;
+  /** Your name for the festival (only when it's marked as one). */
+  festival_name: string | null;
+  /** You picked this act as the headliner of that show (see lib/shows.ts). */
+  headliner: boolean | null;
 }
 
 export interface SongRef {
@@ -61,7 +65,10 @@ export interface SongRef {
 
 export interface DashboardStats {
   totals: {
+    /** Shows = one venue on one date (headliner + openers). */
     shows: number;
+    /** Every act you've logged (what badges count). */
+    sets: number;
     artists: number;
     artists_multi: number;
     venues: number;
@@ -253,6 +260,8 @@ export interface AttendanceDetail {
   merch: string | null;
   notes: string | null;
   is_festival: boolean | null;
+  festival_name: string | null;
+  headliner: boolean | null;
   stub_path: string | null;
   created_at: string;
   show: {

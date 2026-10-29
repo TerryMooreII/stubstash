@@ -162,7 +162,7 @@ export async function searchCatalogVenues(q: string) {
 // ---------------------------------------------------------------- attendances
 
 const ATTENDANCE_SELECT = `
-  id, user_id, rating, seat, price_cents, currency, merch, notes, is_festival, stub_path, created_at,
+  id, user_id, rating, seat, price_cents, currency, merch, notes, is_festival, festival_name, headliner, stub_path, created_at,
   show:shows!inner (
     id, event_date, tour_name, info, is_festival, source, created_by, setlistfm_url, setlistfm_id,
     artist:artists!inner ( id, name, image_url, image_credit, image_source, genre, source ),
@@ -196,6 +196,21 @@ export async function exportAttendances(): Promise<import("./exportCsv").ExportA
   }
 }
 
+/** Festival name suggestions from everyone's names (most used first). */
+export async function festivalNames(q: string): Promise<{ name: string; uses: number }[]> {
+  return (check(await supabase.rpc("festival_names", { q })) as { name: string; uses: number }[]) ?? [];
+}
+
+/** Marks (or unmarks) several of your shows as a festival. Returns how many changed. */
+export async function setFestival(attendanceIds: string[], on: boolean, name?: string | null): Promise<number> {
+  return check(await supabase.rpc("set_festival", { p_ids: attendanceIds, p_on: on, p_name: name ?? null })) as number;
+}
+
+/** Makes this act the headliner of its show (same venue and date). */
+export async function setHeadliner(attendanceId: string) {
+  check(await supabase.rpc("set_headliner", { p_attendance: attendanceId }));
+}
+
 export interface AttendancePatch {
   rating?: number | null;
   seat?: string | null;
@@ -204,6 +219,7 @@ export interface AttendancePatch {
   merch?: string | null;
   notes?: string | null;
   is_festival?: boolean | null;
+  festival_name?: string | null;
   stub_path?: string | null;
 }
 
