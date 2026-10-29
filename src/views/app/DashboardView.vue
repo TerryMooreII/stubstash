@@ -39,9 +39,8 @@ const kicker = computed(() => {
   const who = name === "YOUR" ? "YOUR" : `${name}’S`;
   return firstYear.value ? `${who} STAGE PASS · ${firstYear.value}—NOW` : `${who} STAGE PASS`;
 });
-// Milestones count shows (a venue on a date). Badge names are left out on purpose:
-// badges like Century Club count every act, so the numbers would disagree.
-const headline = computed(() => `${num(shows.value)} show${shows.value === 1 ? "" : "s"} deep. ${milestone.value.remaining} more to ${num(milestone.value.target)}.`);
+// Milestones count shows (a venue on a date), the same way the badges do.
+const headline = computed(() => `${num(shows.value)} show${shows.value === 1 ? "" : "s"} deep. ${milestone.value.remaining} to the ${milestone.value.name}.`);
 const progress = computed(() => Math.round((shows.value / milestone.value.target) * 100));
 
 const homeCity = computed(() => auth.profile?.home_city ?? s.value?.home.city ?? null);
