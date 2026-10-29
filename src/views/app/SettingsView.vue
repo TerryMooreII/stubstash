@@ -13,8 +13,10 @@ import { removeFile, upload } from "@/lib/media";
 import { clearCache } from "@/lib/offline";
 import { lastOfflineSave, offlineAutoEnabled, saveForOffline, setOfflineAuto, type SaveProgress } from "@/lib/offlineSave";
 import { CONCERT_PHOTO_NAMES, GENERIC_PHOTO_COUNT, concertPhoto, profilePhotoNumber } from "@/lib/heroImage";
-import { timeAgo } from "@/lib/format";
+import { plural, timeAgo } from "@/lib/format";
 import { useLog } from "@/stores/log";
+import { exportAttendances } from "@/lib/api";
+import { downloadCsv, exportFileName, exportRows, toCsv } from "@/lib/exportCsv";
 import { disablePush } from "@/lib/pwa";
 import { errorMessage } from "@/lib/supabase";
 import { useAuth } from "@/stores/auth";
@@ -28,7 +30,7 @@ const route = useRoute();
 
 // ---------------------------------------------------------------- sections
 // One settings hub: a menu (side on desktop, chips on phones) and one section at a time.
-type Section = "profile" | "notifications" | "privacy" | "setlistfm" | "app" | "admin" | "account";
+type Section = "profile" | "notifications" | "privacy" | "setlistfm" | "app" | "account";
 const sections = computed(() =>
   ([
     { key: "profile", label: "Profile", icon: "user" },
@@ -36,7 +38,6 @@ const sections = computed(() =>
     { key: "privacy", label: "Privacy", icon: "lock" },
     { key: "setlistfm", label: "setlist.fm", icon: "refresh" },
     { key: "app", label: "App", icon: "download" },
-    ...(auth.isAdmin ? [{ key: "admin", label: "Admin", icon: "settings" }] : []),
     { key: "account", label: "Account", icon: "logout" },
   ] as { key: Section; label: string; icon: IconName }[]),
 );
@@ -121,6 +122,26 @@ async function saveAllOffline() {
     else ui.flash(`All ${log.entries.length} shows saved to this device`);
   } finally {
     saving.value = null;
+  }
+}
+
+// ---------------------------------------------------------------- export
+// Every show as CSV, minus photos, stubs and setlists (see lib/exportCsv.ts).
+const exporting = ref(false);
+async function exportCsv() {
+  if (!ui.online) return ui.error("You're offline. Export needs signal.");
+  exporting.value = true;
+  try {
+    const list = await exportAttendances();
+    if (!list.length) return ui.flash("No shows to export yet", "info");
+    await log.load();
+    const numbers = new Map(log.entries.map((e) => [e.attendance_id, e.show_number]));
+    downloadCsv(toCsv(exportRows(list, numbers)), exportFileName(auth.profile?.handle ?? ""));
+    ui.flash(`Exported ${plural(list.length, "show")}`);
+  } catch (err) {
+    ui.error(errorMessage(err, "Couldn't export. Try again."));
+  } finally {
+    exporting.value = false;
   }
 }
 
@@ -423,13 +444,9 @@ async function signOut() {
         </template>
 
         <!-- Admin (admins only) -->
-        <SsCard v-else-if="section === 'admin'" title="Admin">
-          <p class="note">Users, catalog cleanup and system health.</p>
-          <SsButton to="/app/admin" variant="outline" size="sm"><SsIcon name="lock" :size="16" />Open admin</SsButton>
-        </SsCard>
-
         <!-- Account -->
-        <SsCard v-else title="Account">
+        <template v-else>
+        <SsCard title="Account">
           <div class="email">
             <span class="ss-muted">Signed in as</span> <b class="email__addr">{{ email }}</b>
           </div>
@@ -448,6 +465,16 @@ async function signOut() {
             <SsIcon name="logout" :size="16" />Sign out
           </SsButton>
         </SsCard>
+        <SsCard title="Your data">
+          <p class="note">
+            Download your whole log as a spreadsheet (CSV): one row per show with the date, artist, venue, tour, rating,
+            seat, price, merch, notes and who you went with. Photos and setlists aren't included.
+          </p>
+          <SsButton size="sm" variant="outline" :loading="exporting" @click="exportCsv">
+            <SsIcon name="download" :size="16" />Export CSV
+          </SsButton>
+        </SsCard>
+        </template>
       </div>
     </div>
 

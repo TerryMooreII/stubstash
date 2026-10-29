@@ -72,6 +72,10 @@ const items: { key: "home" | "shows" | "map" | "profile"; label: string; short: 
           <button v-if="ui.showInstallNudge" class="top__btn" aria-label="Install app" @click="ui.installSheetOpen = true">
             <SsIcon name="download" :size="16" :stroke="2.2" />
           </button>
+          <!-- Phones have no side nav, so admins get their Admin link here. -->
+          <RouterLink v-if="auth.isAdmin" to="/app/admin" class="top__btn" aria-label="Admin">
+            <SsIcon name="lock" :size="16" :stroke="2.2" />
+          </RouterLink>
           <RouterLink
             v-if="auth.signedIn"
             to="/app/notifications"
