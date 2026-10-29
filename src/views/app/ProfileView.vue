@@ -14,6 +14,7 @@ import { useNotifications } from "@/stores/notifications";
 import { badges as loadBadges, publicProfile, social, userLog } from "@/lib/api";
 import { mediumDate, place, plural } from "@/lib/format";
 import { profileBanner } from "@/lib/heroImage";
+import { badgeNumbers, groupBadges } from "@/lib/badgeArt";
 import { errorMessage } from "@/lib/supabase";
 import type { Badge, Friend, LogEntry, PublicProfile } from "@/lib/types";
 import { useAuth } from "@/stores/auth";
@@ -63,6 +64,9 @@ const years = computed(() =>
   [...new Set(entries.value.map((e) => Number(e.event_date.slice(0, 4))))].sort((a, b) => b - a),
 );
 const earned = computed(() => badgeList.value.filter((b) => b.earned).length);
+// Badges by group (Milestones, Travel & places, ...); earned first within each group.
+const badgeGroups = computed(() => groupBadges(badgeList.value));
+const badgeNo = computed(() => badgeNumbers(badgeList.value));
 const maxShows = computed(() => Math.max(1, log.total, ...friends.value.map((f) => f.show_count)));
 
 async function load() {
@@ -240,13 +244,18 @@ const latest = computed(() => otherLog.value.slice(0, 6));
           <div v-if="loading && !badgeList.length" class="badges">
             <SsSkeleton v-for="i in 4" :key="i" height="230px" radius="18px" />
           </div>
-          <div v-else class="badges">
+          <section v-for="g in badgeGroups" v-else :key="g.key" class="badge-group" :aria-label="g.label">
+            <h3 class="badge-group__title">
+              {{ g.label }}
+              <span class="badge-group__n">{{ g.badges.filter((b) => b.earned).length }}/{{ g.badges.length }}</span>
+            </h3>
+            <div class="badges">
             <SsBadgeTile
-              v-for="(b, i) in badgeList"
+              v-for="b in g.badges"
               :key="b.key"
               layout="card"
               :badge-key="b.key"
-              :index="i"
+              :index="badgeNo.get(b.key) ?? 0"
               :name="b.name"
               :description="b.description"
               :color="b.color"
@@ -254,7 +263,8 @@ const latest = computed(() => otherLog.value.slice(0, 6));
               :progress="b.progress"
               :target="b.target"
             />
-          </div>
+            </div>
+          </section>
         </SsCard>
 
         <!-- Self: friends head-to-head -->
@@ -372,6 +382,20 @@ const latest = computed(() => otherLog.value.slice(0, 6));
 .sec-title {
   margin-bottom: 14px;
 }
+.badge-group + .badge-group { margin-top: 26px; }
+.badge-group__title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-family: var(--ss-font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: var(--ss-tracking-mono, 0.14em);
+  text-transform: uppercase;
+  color: var(--ss-accent);
+}
+.badge-group__n { color: var(--ss-text-faint); }
 .sec-sub {
   color: var(--ss-text-muted);
   font-weight: 600;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { badgeNumbers } from "@/lib/badgeArt";
 import { computed, onMounted, ref } from "vue";
 import {
   SsBadgeTile, SsBarChart, SsButton, SsCard, SsIcon, SsProgress, SsSkeleton, SsStatCard, SsTicketRow,
@@ -75,6 +76,7 @@ const peak = computed(() => {
 
 const recent = computed(() => log.entries.slice(0, 3));
 const earned = computed(() => badgeList.value.filter((b) => b.earned).length);
+const badgeNo = computed(() => badgeNumbers(badgeList.value));
 </script>
 
 <template>
@@ -173,10 +175,10 @@ const earned = computed(() => badgeList.value.filter((b) => b.earned).length);
         <template #aside><RouterLink to="/app/me" class="more">{{ earned }} of {{ badgeList.length }} →</RouterLink></template>
         <div class="badges">
           <SsBadgeTile
-            v-for="(b, i) in badgeList"
+            v-for="b in badgeList"
             :key="b.key"
             :badge-key="b.key"
-            :index="i"
+            :index="badgeNo.get(b.key) ?? 0"
             :name="b.name"
             :color="b.color"
             :earned="b.earned"

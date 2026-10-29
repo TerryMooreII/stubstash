@@ -44,6 +44,41 @@ const ART: Record<string, BadgeArt> = {
   stub_keeper: { code: "SK", stat: "10", unit: "STUBS" },
 };
 
+/** Badge groups, in display order. */
+export const BADGE_GROUPS = [
+  { key: "milestones", label: "Milestones" },
+  { key: "songs", label: "Songs" },
+  { key: "travel", label: "Travel & places" },
+  { key: "habits", label: "Habits & timing" },
+  { key: "variety", label: "Variety" },
+  { key: "social", label: "Social & logging" },
+  { key: "other", label: "More" },
+] as const;
+export type BadgeGroup = (typeof BADGE_GROUPS)[number]["key"];
+
+const GROUP_OF: Record<string, BadgeGroup> = {
+  first_show: "milestones", quarter_century: "milestones", half_century: "milestones", century_club: "milestones",
+  lifer: "milestones", old_school: "milestones",
+  thousand_club: "songs", first_timer: "songs",
+  venue_regular: "travel", passport: "travel", coast_to_coast: "travel", road_warrior: "travel", state_hopper: "travel",
+  fifty_nifty: "travel", hometown_hero: "travel", venue_hopper: "travel", road_trip: "travel",
+  double_header: "habits", festival_rat: "habits", hat_trick: "habits", full_run: "habits", nye: "habits",
+  every_month: "habits", weeknight_warrior: "habits",
+  superfan: "variety", explorer: "variety", loyalist: "variety", discovery: "variety",
+  plus_one: "social", same_crowd: "social", critic: "social", stub_keeper: "social",
+};
+
+/** Splits badges into their groups (display order), keeping each group's incoming order. Empty groups are left out. */
+export function groupBadges<T extends { key: string }>(badges: T[]): { key: BadgeGroup; label: string; badges: T[] }[] {
+  return BADGE_GROUPS.map((g) => ({ ...g, badges: badges.filter((b) => (GROUP_OF[b.key] ?? "other") === g.key) }))
+    .filter((g) => g.badges.length);
+}
+
+/** Fixed "№" per badge (its place in the catalogue's sort order, 0-based), so it doesn't shift as badges are earned. */
+export function badgeNumbers(badges: { key: string; sort_order: number }[]): Map<string, number> {
+  return new Map([...badges].sort((a, b) => a.sort_order - b.sort_order).map((b, i) => [b.key, i]));
+}
+
 /** Art for a badge; unknown (newly added) badges fall back to initials and their target. */
 export function badgeArt(key: string, name: string, target: number): BadgeArt {
   return (
