@@ -11,7 +11,8 @@ import {
 import HeadToHead from "@/components/people/HeadToHead.vue";
 import YearInReviewCard from "@/components/people/YearInReviewCard.vue";
 import { useNotifications } from "@/stores/notifications";
-import { badges as loadBadges, publicProfile, social, userLog } from "@/lib/api";
+import { badges as loadBadges, exportAttendances, publicProfile, social, userLog } from "@/lib/api";
+import { downloadCsv, exportFileName, exportRows, toCsv } from "@/lib/exportCsv";
 import { mediumDate, place, plural } from "@/lib/format";
 import { profileBanner } from "@/lib/heroImage";
 import { errorMessage } from "@/lib/supabase";
@@ -118,6 +119,24 @@ const isPublic = computed({
   },
 });
 
+// ---- CSV export (self): every show, minus photos, stubs and setlists
+const exporting = ref(false);
+async function exportCsv() {
+  if (!ui.online) return ui.error("You're offline. Export needs signal.");
+  exporting.value = true;
+  try {
+    const list = await exportAttendances();
+    if (!list.length) return ui.flash("No shows to export yet", "info");
+    const numbers = new Map(log.entries.map((e) => [e.attendance_id, e.show_number]));
+    downloadCsv(toCsv(exportRows(list, numbers)), exportFileName(handle.value));
+    ui.flash(`Exported ${plural(list.length, "show")}`);
+  } catch (err) {
+    ui.error(errorMessage(err, "Couldn't export. Try again."));
+  } finally {
+    exporting.value = false;
+  }
+}
+
 // ---- friend button (others)
 const friendLabel = computed(() => {
   switch (other.value?.friendship) {
@@ -190,6 +209,9 @@ const latest = computed(() => otherLog.value.slice(0, 6));
             <span v-if="notifications.unread" class="bell__n">{{ notifications.unread > 99 ? "99+" : notifications.unread }}</span>
           </SsButton>
           <SsButton variant="outline" size="sm" to="/app/settings"><SsIcon name="settings" :size="16" />Settings</SsButton>
+          <SsButton variant="outline" size="sm" :loading="exporting" @click="exportCsv">
+            <SsIcon name="download" :size="16" />Export CSV
+          </SsButton>
         </div>
         <SsButton
           v-else-if="other"

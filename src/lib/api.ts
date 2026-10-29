@@ -177,6 +177,25 @@ export async function getAttendance(id: string): Promise<AttendanceDetail | null
     check(await supabase.from("attendances").select(ATTENDANCE_SELECT).eq("id", id).maybeSingle()) as unknown as AttendanceDetail | null);
 }
 
+/** Everything in your log for the CSV export (no photos, stubs or setlists). Paged past the 1000-row API limit. */
+export async function exportAttendances(): Promise<import("./exportCsv").ExportAttendance[]> {
+  const { data } = await supabase.auth.getSession();
+  const me = data.session?.user.id;
+  if (!me) throw new Error("Please sign in.");
+  const out: import("./exportCsv").ExportAttendance[] = [];
+  for (let from = 0; ; from += 1000) {
+    const page = check(await supabase.from("attendances").select(`
+      id, rating, seat, price_cents, currency, merch, notes, is_festival, created_at,
+      show:shows!inner ( event_date, tour_name, info, is_festival, source, setlistfm_url,
+        artist:artists!inner ( name ),
+        venue:venues!inner ( name, city, state_code, country_code ) ),
+      companions:attendance_companions ( name )
+    `).eq("user_id", me).order("id").range(from, from + 999)) as unknown as import("./exportCsv").ExportAttendance[];
+    out.push(...page);
+    if (page.length < 1000) return out;
+  }
+}
+
 export interface AttendancePatch {
   rating?: number | null;
   seat?: string | null;
