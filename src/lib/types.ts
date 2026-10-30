@@ -14,6 +14,8 @@ export interface Profile {
   home_lat: number | null;
   home_lng: number | null;
   home_country_code: string | null;
+  /** When they moved to the current home (YYYY-MM-DD); null = always, unless past homes say otherwise. */
+  home_since: string | null;
   is_public: boolean;
   setlistfm_username: string | null;
   onboarded_at: string | null;
@@ -83,7 +85,7 @@ export interface DashboardStats {
     rated: number;
     avg_rating: number | null;
   };
-  home: { city: string | null; has_coords: boolean };
+  home: { city: string | null; has_coords: boolean; past_homes?: number };
   per_year: { year: number; n: number }[];
   top_artists: { id: string; name: string; image_url: string | null; n: number; first: string; last: string }[];
   top_venues: { id: string; name: string; city: string | null; n: number }[];
@@ -135,7 +137,21 @@ export interface VenueStats {
   last: string | null;
   rank: number | null;
   artists: number;
+  /** Distance from where they live now. */
   miles_from_home: number | null;
+  /** Round trips here, each from wherever they lived at the time. */
+  miles_traveled: number | null;
+}
+
+/** An earlier home. Shows on or after moved_in (until the next home) are measured from here. */
+export interface PastHome {
+  id: string;
+  city: string;
+  lat: number;
+  lng: number;
+  country_code: string | null;
+  /** YYYY-MM-DD; null = the oldest home, covering everything before the next one. */
+  moved_in: string | null;
 }
 
 export interface MapVenue {

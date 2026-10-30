@@ -59,7 +59,7 @@ const statCards = computed(() => {
     { label: "Artists", value: num(x.artists), caption: `${num(x.artists_multi)} seen more than once` },
     { label: "Venues", value: num(x.venues), caption: s.value?.top_venues[0] ? `${s.value.top_venues[0].name} is home turf` : "" },
     { label: "Songs heard", value: num(x.songs), caption: `${num(x.unique_songs)} different songs` },
-    { label: "Miles traveled", value: compact(x.miles), caption: homeCity.value ? `from ${homeCity.value}` : "", noHome: !s.value?.home.has_coords },
+    { label: "Miles traveled", value: compact(x.miles), caption: s.value?.home.past_homes ? `from ${s.value.home.past_homes + 1} homes` : homeCity.value ? `from ${homeCity.value}` : "", noHome: !s.value?.home.has_coords },
     { label: "Cities", value: num(x.cities), caption: `in ${plural(x.countries, "country", "countries")}` },
   ];
 });

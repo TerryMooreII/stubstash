@@ -9,6 +9,7 @@ import type {
   ArtistStats, AttendanceDetail, Badge, DashboardStats, Friend, LogEntry, MapVenue,
   PersonCard, Profile, PublicProfile, SetDraft, SetlistSearchParams, SetlistSearchResponse, SetlistSong,
   ShowStats, VenueStats, YearInReview,
+  PastHome,
 } from "./types";
 
 function check<T>(res: { data: T; error: unknown }): T {
@@ -69,6 +70,26 @@ export async function updateMyProfile(patch: Partial<Omit<Profile, "id" | "creat
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error("Please sign in.");
   return check(await supabase.from("profiles").update(patch).eq("id", u.user.id).select("*").single()) as Profile;
+}
+
+// ---------------------------------------------------------------- past homes
+// Private to the owner (RLS). Stats read them server-side.
+
+export async function listPastHomes(): Promise<PastHome[]> {
+  return (check(await supabase.from("past_homes").select("id, city, lat, lng, country_code, moved_in")
+    .order("moved_in", { ascending: false, nullsFirst: false })) as PastHome[]) ?? [];
+}
+
+export async function addPastHome(h: Omit<PastHome, "id">): Promise<PastHome> {
+  return check(await supabase.from("past_homes").insert(h).select("id, city, lat, lng, country_code, moved_in").single()) as PastHome;
+}
+
+export async function setPastHomeMovedIn(id: string, movedIn: string | null): Promise<void> {
+  check(await supabase.from("past_homes").update({ moved_in: movedIn }).eq("id", id));
+}
+
+export async function deletePastHome(id: string): Promise<void> {
+  check(await supabase.from("past_homes").delete().eq("id", id));
 }
 
 export async function publicProfile(handle: string): Promise<PublicProfile | null> {

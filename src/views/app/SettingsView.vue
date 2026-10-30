@@ -6,9 +6,11 @@ import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import NotificationSettings from "@/components/notifications/NotificationSettings.vue";
 import {
-  SsAvatar, SsBackLink, SsButton, SsCard, SsField, SsIcon, SsInput, SsPageHeader, SsSpinner, SsToggle, type IconName,
+  SsAvatar, SsBackLink, SsButton, SsCard, SsField, SsIcon, SsInput, SsPageHeader, SsToggle, type IconName,
 } from "@/design-system";
-import { searchPlaces, type PlaceResult } from "@/lib/geocode";
+import HomeHistory from "@/components/forms/HomeHistory.vue";
+import PlaceSearch from "@/components/forms/PlaceSearch.vue";
+import type { PlaceResult } from "@/lib/geocode";
 import { removeFile, upload } from "@/lib/media";
 import { clearCache } from "@/lib/offline";
 import { lastOfflineSave, offlineAutoEnabled, saveForOffline, setOfflineAuto, type SaveProgress } from "@/lib/offlineSave";
@@ -178,31 +180,7 @@ async function removeAvatar() {
 }
 
 // ---------------------------------------------------------------- home base
-const cityQ = ref("");
-const places = ref<PlaceResult[]>([]);
-const searchingCity = ref(false);
 const savingHome = ref(false);
-let cityTimer: ReturnType<typeof setTimeout> | undefined;
-let citySeq = 0;
-watch(cityQ, (v) => {
-  clearTimeout(cityTimer);
-  if (v.trim().length < 2) {
-    places.value = [];
-    return;
-  }
-  cityTimer = setTimeout(async () => {
-    const my = ++citySeq;
-    searchingCity.value = true;
-    try {
-      const r = await searchPlaces(v.trim());
-      if (my === citySeq) places.value = r;
-    } catch {
-      if (my === citySeq) places.value = [];
-    } finally {
-      if (my === citySeq) searchingCity.value = false;
-    }
-  }, 500);
-});
 async function pickPlace(p: PlaceResult) {
   savingHome.value = true;
   try {
@@ -212,8 +190,6 @@ async function pickPlace(p: PlaceResult) {
       home_lng: p.lng,
       home_country_code: p.country_code ? p.country_code.toUpperCase() : null,
     });
-    cityQ.value = "";
-    places.value = [];
     ui.flash(`Home base set to ${p.label}`);
   } catch (err) {
     ui.error(errorMessage(err));
@@ -356,23 +332,8 @@ async function signOut() {
         <SsCard title="Home base">
           <template #aside>{{ auth.profile?.home_city ?? "Not set" }}</template>
           <p class="note">We only store the city. It's used for miles traveled and the lines on your map.</p>
-          <SsInput
-            v-model="cityQ"
-            icon="search"
-            placeholder="Search for your city"
-            clearable
-            autocomplete="off"
-            class="city-input"
-          >
-            <template #end><SsSpinner v-if="searchingCity || savingHome" :size="16" /></template>
-          </SsInput>
-          <ul v-if="places.length" class="places">
-            <li v-for="p in places" :key="`${p.lat},${p.lng}`">
-              <button type="button" class="place" @click="pickPlace(p)">
-                <SsIcon name="pin" :size="16" />{{ p.label }}
-              </button>
-            </li>
-          </ul>
+          <PlaceSearch placeholder="Search for your city" :busy="savingHome" @pick="pickPlace" />
+          <HomeHistory />
         </SsCard>
         </template>
 
@@ -570,29 +531,6 @@ async function signOut() {
 .note b {
   color: var(--ss-text);
   overflow-wrap: anywhere;
-}
-.places {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-.place {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 6px;
-  border: 0;
-  border-top: 1px solid var(--ss-line-soft);
-  background: transparent;
-  color: var(--ss-text);
-  font-weight: 600;
-  text-align: left;
-}
-.place:hover {
-  color: var(--ss-accent);
 }
 .setting {
   display: flex;

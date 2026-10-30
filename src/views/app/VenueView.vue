@@ -139,6 +139,12 @@ async function savePin() {
           label="Miles from home"
           :value="stats?.miles_from_home != null ? num(stats.miles_from_home) : '—'"
         />
+        <SsStatCard
+          v-if="stats?.miles_traveled"
+          size="sm"
+          label="Miles traveled here"
+          :value="num(stats.miles_traveled)"
+        />
       </div>
 
       <div class="ss-grid">
