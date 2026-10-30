@@ -2,18 +2,23 @@
 // Leaflet venue map from the design ("Stubstash Map.html").
 //   pins  - yellow glowing pins sized by visits, number inside
 //   glow  - soft colored blobs
-//   arcs  - road-trip arcs from home, with a year scrubber
+//   arcs  - road-trip arcs from the home you had at the time, with a year scrubber
 // Optional region chips, top-venues panel and a "pick location" mode used to
 // fix a venue's pin.
 import L from "leaflet";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
-import type { MapVenue } from "@/lib/types";
+import type { MapHome, MapTrip, MapVenue } from "@/lib/types";
 import { num, place } from "@/lib/format";
 
 const props = withDefaults(
   defineProps<{
     venues: MapVenue[];
+    /** Single home (used when `homes` isn't given). */
     home?: { lat: number; lng: number; city?: string | null } | null;
+    /** Every home over time, oldest first. Takes over from `home`. */
+    homes?: MapHome[] | null;
+    /** Venue + home pairs for the arcs. Without them, arcs come from `home`. */
+    trips?: MapTrip[] | null;
     mode?: "pins" | "glow" | "arcs";
     regions?: boolean;
     panel?: boolean;
@@ -22,7 +27,7 @@ const props = withDefaults(
     /** When true, clicking the map emits pick-location instead of opening popups. */
     editPin?: boolean;
   }>(),
-  { home: null, mode: "pins", regions: false, panel: false, scrollZoom: true, height: "100%", editPin: false },
+  { home: null, homes: null, trips: null, mode: "pins", regions: false, panel: false, scrollZoom: true, height: "100%", editPin: false },
 );
 const emit = defineEmits<{ "open-venue": [venueId: string]; "pick-location": [lat: number, lng: number] }>();
 
@@ -57,17 +62,59 @@ const placed = computed<Placed[]>(() =>
 // ---------- summary numbers (panel + scrubber)
 const cityCount = computed(() => new Set(props.venues.map((v) => `${(v.city ?? "").toLowerCase()}|${v.country_code}`)).size);
 const countryCount = computed(() => new Set(props.venues.map((v) => v.country_code).filter(Boolean)).size);
-const farthest = computed(() => Math.max(0, ...props.venues.map((v) => v.miles_from_home ?? 0)));
+const farthest = computed(() =>
+  props.trips?.length
+    ? Math.max(0, ...props.trips.map((t) => t.miles ?? 0))
+    : Math.max(0, ...props.venues.map((v) => v.miles_from_home ?? 0)),
+);
 const topVenues = computed(() => placed.value.slice(0, 6));
+
+// ---------- homes over time
+interface HomePin { city: string | null; lat: number; lng: number; from: number | null; to: number | null; current: boolean }
+const yearOf = (d: string | null) => (d ? Number(d.slice(0, 4)) : null);
+const homePins = computed<HomePin[]>(() => {
+  if (props.homes?.length) {
+    return props.homes.map((h) => ({ city: h.city, lat: h.lat, lng: h.lng, from: yearOf(h.moved_in), to: yearOf(h.moved_out), current: h.is_current }));
+  }
+  return props.home ? [{ city: props.home.city ?? null, lat: props.home.lat, lng: props.home.lng, from: null, to: null, current: true }] : [];
+});
+const currentHome = computed(() => homePins.value.find((h) => h.current) ?? homePins.value[homePins.value.length - 1] ?? null);
+/** Lived there at some point during year y (a moving year has two). */
+const livedIn = (h: HomePin, y: number) => (h.from == null || h.from <= y) && (h.to == null || h.to >= y);
+const shortCity = (c: string | null) => (c ?? "Home").split(",")[0]!.trim();
+function yearsLabel(h: HomePin): string {
+  if (h.from == null && h.to == null) return "";
+  return `${h.from ?? "before"}–${h.to ?? "now"}`.replace(/^before–/, "until ");
+}
+
+// Arcs: one per venue + home. Without trips, every venue goes to the single home.
+interface Trip { venue_id: string; lat: number; lng: number; years: number[]; miles: number | null }
+const trips = computed<Trip[]>(() => {
+  if (props.trips?.length) {
+    return props.trips.map((t) => ({ venue_id: t.venue_id, lat: t.home_lat, lng: t.home_lng, years: t.years, miles: t.miles }));
+  }
+  const h = currentHome.value;
+  if (!h) return [];
+  return placed.value.map((v) => ({ venue_id: v.venue_id, lat: h.lat, lng: h.lng, years: [v.first_year], miles: v.miles_from_home }));
+});
 
 // ---------- arcs scrubber
 const minYear = computed(() => Math.min(...placed.value.map((v) => v.first_year)));
-const maxYear = computed(() => Math.max(...placed.value.map((v) => v.first_year)));
+const maxYear = computed(() => Math.max(...placed.value.map((v) => v.last_year)));
 const year = ref(new Date().getFullYear());
 const venuesByYear = computed(() => placed.value.filter((v) => v.first_year <= year.value));
-const farthestByYear = computed(() => Math.max(0, ...venuesByYear.value.map((v) => v.miles_from_home ?? 0)));
+const tripsByYear = computed(() => trips.value.filter((t) => t.years[0]! <= year.value));
+const farthestByYear = computed(() => Math.max(0, ...tripsByYear.value.map((t) => t.miles ?? 0)));
+/** Venues you went to in the scrubbed year. */
+const thisYear = computed(() => new Set(trips.value.filter((t) => t.years.includes(year.value)).map((t) => t.venue_id)));
+const homesThisYear = computed(() => (homePins.value.length > 1 ? homePins.value.filter((h) => livedIn(h, year.value)) : []));
 
 // ---------- regions
+function milesBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const r = (d: number) => (d * Math.PI) / 180;
+  const a = Math.sin(r(lat2 - lat1) / 2) ** 2 + Math.cos(r(lat1)) * Math.cos(r(lat2)) * Math.sin(r(lng2 - lng1) / 2) ** 2;
+  return 3958.8 * 2 * Math.asin(Math.sqrt(a));
+}
 interface Region { key: string; label: string; bounds: L.LatLngBounds }
 function boundsOf(points: [number, number][]): L.LatLngBounds {
   return L.latLngBounds(points.map(([a, b]) => L.latLng(a, b)));
@@ -76,14 +123,14 @@ const regionList = computed<Region[]>(() => {
   const vs = placed.value;
   const out: Region[] = [];
   if (!vs.length) return out;
-  if (props.home) {
-    const near = vs.filter((v) => (v.miles_from_home ?? Infinity) <= 150);
-    const pts: [number, number][] = [[props.home.lat, props.home.lng], ...near.map((v): [number, number] => [v.lat, v.lng])];
-    const b = near.length
-      ? boundsOf(pts)
-      : boundsOf([[props.home.lat - 0.3, props.home.lng - 0.4], [props.home.lat + 0.3, props.home.lng + 0.4]]);
-    out.push({ key: "home", label: "Home area", bounds: b });
-  }
+  // One "area" chip per home, newest first.
+  const homes = [...homePins.value].reverse();
+  homes.forEach((h, i) => {
+    const near = vs.filter((v) => milesBetween(h.lat, h.lng, v.lat, v.lng) <= 150);
+    const pts: [number, number][] = [[h.lat, h.lng], ...near.map((v): [number, number] => [v.lat, v.lng])];
+    const b = near.length ? boundsOf(pts) : boundsOf([[h.lat - 0.3, h.lng - 0.4], [h.lat + 0.3, h.lng + 0.4]]);
+    out.push({ key: `home${i}`, label: homes.length > 1 ? `${shortCity(h.city)} area` : "Home area", bounds: b });
+  });
   const americas = vs.filter((v) => v.lng < -30);
   if (americas.length && americas.length < vs.length) {
     out.push({ key: "americas", label: "Americas", bounds: boundsOf(americas.map((v) => [v.lat, v.lng])) });
@@ -170,18 +217,23 @@ function render() {
       markers.set(v.venue_id, mk);
     });
   } else {
-    const home = props.home ? ([props.home.lat, props.home.lng] as [number, number]) : null;
+    const byId = new Map(placed.value.map((v) => [v.venue_id, v]));
+    // Older trips first so this year's arcs draw on top.
+    const ts = [...tripsByYear.value].sort((a, b) => Number(a.years.includes(year.value)) - Number(b.years.includes(year.value)));
+    for (const t of ts) {
+      const v = byId.get(t.venue_id);
+      if (!v) continue;
+      const recent = t.years.includes(year.value);
+      L.polyline(arc([t.lat, t.lng], [v.lat, v.lng]), {
+        color: recent ? "#f4b811" : "#76a9b9",
+        weight: recent ? 3 : 1.6,
+        opacity: recent ? 1 : 0.7,
+        dashArray: recent ? undefined : "4 6",
+        interactive: false,
+      }).addTo(layer);
+    }
     for (const v of venuesByYear.value) {
-      const recent = v.first_year === year.value;
-      if (home) {
-        L.polyline(arc(home, [v.lat, v.lng]), {
-          color: recent ? "#f4b811" : "#76a9b9",
-          weight: recent ? 3 : 1.6,
-          opacity: recent ? 1 : 0.7,
-          dashArray: recent ? undefined : "4 6",
-          interactive: false,
-        }).addTo(layer);
-      }
+      const recent = thisYear.value.has(v.venue_id);
       const mk = L.circleMarker([v.lat, v.lng], {
         radius: Math.min(14, (10 + v.visits * 2) / 2),
         color: "#0a090c",
@@ -194,11 +246,20 @@ function render() {
     }
   }
 
-  if (props.home) {
-    const icon = L.divIcon({ className: "", html: '<div class="ssm-home"></div>', iconSize: [14, 14], iconAnchor: [7, 7] });
-    L.marker([props.home.lat, props.home.lng], { icon, interactive: true, keyboard: false })
+  for (const h of homePins.value) {
+    // Through time: only homes you'd moved into by then; bright if you lived there that year.
+    if (props.mode === "arcs" && h.from != null && h.from > year.value) continue;
+    const active = props.mode === "arcs" ? livedIn(h, year.value) : h.current;
+    const icon = L.divIcon({
+      className: "",
+      html: `<div class="ssm-home${active ? "" : " ssm-home--past"}"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+    const when = yearsLabel(h);
+    L.marker([h.lat, h.lng], { icon, interactive: true, keyboard: false, zIndexOffset: active ? 1000 : 0 })
       .addTo(layer)
-      .bindTooltip(`Home base${props.home.city ? " · " + esc(props.home.city) : ""}`);
+      .bindTooltip(`${h.current ? "Home base" : "Lived here"}${h.city ? " · " + esc(h.city) : ""}${when ? " · " + when : ""}`);
   }
 }
 
@@ -207,7 +268,7 @@ function maybeFit() {
   if (!m || fitted || !el.value?.clientWidth || !el.value.clientHeight) return;
   const vs = placed.value;
   if (!vs.length) {
-    if (props.home) m.setView([props.home.lat, props.home.lng], 9);
+    if (currentHome.value) m.setView([currentHome.value.lat, currentHome.value.lng], 9);
     return;
   }
   m.invalidateSize();
@@ -271,7 +332,7 @@ onBeforeUnmount(() => {
   map.value = null;
 });
 
-watch(() => [props.venues, props.mode, props.home, props.editPin, year.value], render);
+watch(() => [props.venues, props.mode, props.home, props.homes, props.trips, props.editPin, year.value], render);
 watch(
   () => placed.value.length,
   (n, o) => {
@@ -330,6 +391,9 @@ watch(
         <span>
           {{ num(venuesByYear.length) }} venue{{ venuesByYear.length === 1 ? "" : "s" }}<template v-if="farthestByYear"> · farthest {{ num(farthestByYear) }} mi from home</template>
         </span>
+      </div>
+      <div v-if="homesThisYear.length" class="vm-mono vm-scrub__home">
+        {{ homesThisYear.length > 1 ? "Moved" : "Living in" }} {{ homesThisYear.map((h) => shortCity(h.city)).join(" → ") }}
       </div>
       <input
         v-model.number="year"
@@ -469,6 +533,7 @@ watch(
 .vm-scrub__yr { font-weight: 900; font-size: 28px; color: var(--ss-accent); line-height: 1; }
 .venue-map__scrub input { width: 100%; accent-color: var(--ss-accent); }
 .vm-scrub__ends { display: flex; justify-content: space-between; }
+.vm-scrub__home { color: var(--ss-text-2); margin: -2px 0 6px; }
 
 .venue-map__hint {
   position: absolute;
@@ -526,6 +591,11 @@ watch(
   background: #76a9b9;
   border: 3px solid #0a090c;
   box-shadow: 0 0 0 3px #76a9b9;
+}
+.ssm-home--past {
+  background: #4b5a5f;
+  box-shadow: 0 0 0 3px #4b5a5f;
+  opacity: 0.85;
 }
 .ssm-popup .leaflet-popup-content-wrapper,
 .ssm-popup .leaflet-popup-tip {

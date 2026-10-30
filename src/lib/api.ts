@@ -9,7 +9,7 @@ import type {
   ArtistStats, AttendanceDetail, Badge, DashboardStats, Friend, LogEntry, MapVenue,
   PersonCard, Profile, PublicProfile, SetDraft, SetlistSearchParams, SetlistSearchResponse, SetlistSong,
   ShowStats, VenueStats, YearInReview,
-  PastHome,
+  MapHome, MapTrip, PastHome,
 } from "./types";
 
 function check<T>(res: { data: T; error: unknown }): T {
@@ -140,11 +140,14 @@ export async function mapVenues(userId?: string): Promise<MapVenue[]> {
     (check(await supabase.rpc("map_venues", userId ? { p_user: userId } : {})) as MapVenue[]) ?? []);
 }
 
-export async function mapHome(userId?: string): Promise<{ city: string | null; lat: number | null; lng: number | null } | null> {
-  return cached(`map_home:${userId ?? "me"}`, async () => {
-    const rows = check(await supabase.rpc("map_home", userId ? { p_user: userId } : {})) as { city: string; lat: number; lng: number }[];
-    return rows?.[0] ?? null;
-  });
+export async function mapHomes(userId?: string): Promise<MapHome[]> {
+  return cached(`map_homes:${userId ?? "me"}`, async () =>
+    (check(await supabase.rpc("map_homes", userId ? { p_user: userId } : {})) as MapHome[]) ?? []);
+}
+
+export async function mapTrips(userId?: string): Promise<MapTrip[]> {
+  return cached(`map_trips:${userId ?? "me"}`, async () =>
+    (check(await supabase.rpc("map_trips", userId ? { p_user: userId } : {})) as MapTrip[]) ?? []);
 }
 
 export async function yearInReview(year: number, userId?: string): Promise<YearInReview> {

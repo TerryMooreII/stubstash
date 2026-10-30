@@ -2,7 +2,7 @@
 // badges and year in review) into the offline cache, so the whole log opens
 // without signal. Images are warmed through the service worker's image cache.
 import {
-  artistStats, badges, getArtist, getAttendance, getVenue, mapHome, mapVenues, showSetlist, showStats,
+  artistStats, badges, getArtist, getAttendance, getVenue, mapHomes, mapTrips, mapVenues, showSetlist, showStats,
   venueStats, yearInReview,
 } from "./api";
 import { cacheHas } from "./offline";
@@ -74,7 +74,7 @@ export async function saveForOffline(
   for (const y of new Set(entries.map((e) => Number(e.event_date.slice(0, 4))))) {
     jobs.push([`year_in_review:${y}:me`, () => yearInReview(y)]);
   }
-  jobs.push(["badges:me", () => Promise.all([mapVenues(), mapHome(), badges()])]);
+  jobs.push(["badges:me", () => Promise.all([mapVenues(), mapHomes(), mapTrips(), badges()])]);
 
   const todo = opts.full
     ? jobs

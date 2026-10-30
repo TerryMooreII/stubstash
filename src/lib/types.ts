@@ -154,6 +154,28 @@ export interface PastHome {
   moved_in: string | null;
 }
 
+/** A home on the map. Other viewers only get the current one, without dates. */
+export interface MapHome {
+  city: string | null;
+  lat: number;
+  lng: number;
+  moved_in: string | null;
+  /** When the next home started; null = still there. */
+  moved_out: string | null;
+  is_current: boolean;
+}
+
+/** Shows at one venue traveled to from one home. */
+export interface MapTrip {
+  venue_id: string;
+  home_city: string | null;
+  home_lat: number;
+  home_lng: number;
+  years: number[];
+  visits: number;
+  miles: number | null;
+}
+
 export interface MapVenue {
   venue_id: string;
   name: string;

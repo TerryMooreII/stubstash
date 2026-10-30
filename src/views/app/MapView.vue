@@ -4,10 +4,10 @@ import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { SsButton, SsChip, SsEmpty, SsSpinner } from "@/design-system";
 import VenueMap from "@/components/map/VenueMap.vue";
-import { mapHome, mapVenues, publicProfile } from "@/lib/api";
+import { mapHomes, mapTrips, mapVenues, publicProfile } from "@/lib/api";
 import { errorMessage } from "@/lib/supabase";
 import { num } from "@/lib/format";
-import type { MapVenue } from "@/lib/types";
+import type { MapHome, MapTrip, MapVenue } from "@/lib/types";
 import { useAuth } from "@/stores/auth";
 
 const props = defineProps<{ handle?: string }>();
@@ -15,7 +15,8 @@ const router = useRouter();
 const auth = useAuth();
 
 const venues = ref<MapVenue[]>([]);
-const home = ref<{ lat: number; lng: number; city: string | null } | null>(null);
+const homes = ref<MapHome[]>([]);
+const trips = ref<MapTrip[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const blocked = ref<"private" | "missing" | null>(null);
@@ -45,9 +46,10 @@ async function load() {
       ownerName.value = p.display_name || p.handle;
       if (!p.is_self) uid = p.id;
     }
-    const [v, h] = await Promise.all([mapVenues(uid), mapHome(uid)]);
+    const [v, h, t] = await Promise.all([mapVenues(uid), mapHomes(uid), mapTrips(uid)]);
     venues.value = v;
-    home.value = h && h.lat != null && h.lng != null ? { lat: h.lat, lng: h.lng, city: h.city } : null;
+    homes.value = h.filter((x) => x.lat != null && x.lng != null);
+    trips.value = t;
   } catch (e) {
     error.value = errorMessage(e);
   } finally {
@@ -84,7 +86,8 @@ watch(() => props.handle, load, { immediate: true });
       <div class="map-view__canvas">
         <VenueMap
           :venues="venues"
-          :home="home"
+          :homes="homes"
+          :trips="trips"
           :mode="mode"
           regions
           panel
