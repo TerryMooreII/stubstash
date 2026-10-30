@@ -230,6 +230,7 @@ function render() {
         opacity: recent ? 1 : 0.7,
         dashArray: recent ? undefined : "4 6",
         interactive: false,
+        pane: "ssm-arcs",
       }).addTo(layer);
     }
     for (const v of venuesByYear.value) {
@@ -257,7 +258,7 @@ function render() {
       iconAnchor: [7, 7],
     });
     const when = yearsLabel(h);
-    L.marker([h.lat, h.lng], { icon, interactive: true, keyboard: false, zIndexOffset: active ? 1000 : 0 })
+    L.marker([h.lat, h.lng], { icon, interactive: true, keyboard: false, pane: "ssm-homes", zIndexOffset: active ? 10 : 0 })
       .addTo(layer)
       .bindTooltip(`${h.current ? "Home base" : "Lived here"}${h.city ? " · " + esc(h.city) : ""}${when ? " · " + when : ""}`);
   }
@@ -306,6 +307,9 @@ onMounted(() => {
     detectRetina: false,
   }).addTo(m);
   layer = L.layerGroup().addTo(m);
+  // Stacking, bottom to top: tiles, arcs, home pins, venue markers (overlay 400, markers 600).
+  m.createPane("ssm-arcs").style.zIndex = "380";
+  m.createPane("ssm-homes").style.zIndex = "390";
 
   m.on("popupopen", (e: L.PopupEvent) => {
     const btn = e.popup.getElement()?.querySelector<HTMLButtonElement>("[data-venue]");
