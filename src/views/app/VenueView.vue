@@ -37,6 +37,8 @@ async function load() {
 watch(() => props.id, load, { immediate: true });
 
 const shows = computed(() => log.entries.filter((e) => e.venue_id === props.id));
+/** Nights here: headliner + openers (or a festival day) are one show. */
+const nights = computed(() => log.shows.filter((g) => g.acts.some((a) => a.venue_id === props.id)));
 const placeText = computed(() => (venue.value ? place(venue.value.city, venue.value.state_code, venue.value.country_code) : ""));
 const kicker = computed(() => {
   const parts = [placeText.value];
@@ -65,7 +67,7 @@ const mapVenues = computed<MapVenue[]>(() => {
   const years = shows.value.map((s) => parseDate(s.event_date).getFullYear());
   return [{
     venue_id: v.id, name: v.name, city: v.city, state_code: v.state_code, country_code: v.country_code,
-    lat: coords.value.lat, lng: coords.value.lng, visits: Math.max(1, shows.value.length),
+    lat: coords.value.lat, lng: coords.value.lng, visits: Math.max(1, nights.value.length),
     first_year: years.length ? Math.min(...years) : new Date().getFullYear(),
     last_year: years.length ? Math.max(...years) : new Date().getFullYear(),
     recent_artists: [...new Set(shows.value.map((s) => s.artist_name))].slice(0, 3),
@@ -150,17 +152,20 @@ async function savePin() {
       <div class="ss-grid">
         <SsCard title="Shows here">
           <template #aside><RouterLink to="/app/map">See on map →</RouterLink></template>
-          <RouterLink v-for="s in shows" :key="s.attendance_id" :to="`/app/shows/${s.attendance_id}`" class="show">
-            <SsArt class="show__art" shape="circle" :src="s.artist_image" :seed="s.artist_name" />
+          <RouterLink v-for="g in nights" :key="g.key" :to="`/app/shows/${g.acts[0]!.attendance_id}`" class="show">
+            <SsArt class="show__art" shape="circle" :src="g.acts[0]!.artist_image" :seed="g.acts[0]!.artist_name" />
             <div class="show__body">
-              <div class="show__artist">{{ s.artist_name }}</div>
+              <div class="show__artist">{{ g.acts[0]!.artist_name }}</div>
+              <div v-if="g.acts.length > 1" class="show__with">
+                with {{ g.acts.slice(1).map((a) => a.artist_name).join(", ") }}
+              </div>
               <div class="show__sub">
-                {{ dateParts(s.event_date).mon }} {{ dateParts(s.event_date).day }}, {{ dateParts(s.event_date).yr }}<template v-if="s.song_count"> · {{ s.song_count }} songs</template>
+                {{ dateParts(g.event_date).mon }} {{ dateParts(g.event_date).day }}, {{ dateParts(g.event_date).yr }}<template v-if="g.festival_name"> · {{ g.festival_name }}</template><template v-else-if="g.song_count"> · {{ g.song_count }} songs</template>
               </div>
             </div>
-            <SsStars :value="s.rating" />
+            <SsStars :value="g.rating" />
           </RouterLink>
-          <p v-if="!shows.length" class="ss-muted">You haven't logged a show here yet.</p>
+          <p v-if="!nights.length" class="ss-muted">You haven't logged a show here yet.</p>
         </SsCard>
 
         <SsCard title="Where it is">
@@ -221,6 +226,7 @@ async function savePin() {
 .show__art { width: 44px; height: 44px; }
 .show__body { flex: 1; min-width: 0; }
 .show__artist { font-weight: 700; }
+.show__with { font-size: 13px; color: var(--ss-text-2); overflow-wrap: anywhere; }
 .show__sub { font-size: 13px; color: var(--ss-text-muted); }
 .map { border-radius: var(--ss-radius-md); overflow: hidden; border: 1px solid var(--ss-line); }
 .linkish { border: 0; background: transparent; color: var(--ss-accent); font-weight: 700; padding: 0; }
