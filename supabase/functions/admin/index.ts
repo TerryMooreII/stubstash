@@ -21,16 +21,20 @@ async function requireAdmin(req: Request, db: ReturnType<typeof adminClient>): P
 async function removeFiles(db: ReturnType<typeof adminClient>, userId: string) {
   let removed = 0;
   for (const bucket of BUCKETS) {
-    // Files live under "<user id>/..."; walk one level of folders too.
+    // Files live under "<user id>/..."; walk every subfolder, a page at a time.
+    const PAGE = 1000;
     const stack = [userId];
     const paths: string[] = [];
     while (stack.length) {
       const dir = stack.pop()!;
-      const { data } = await db.storage.from(bucket).list(dir, { limit: 1000 });
-      for (const f of data ?? []) {
-        const p = `${dir}/${f.name}`;
-        if (f.id === null) stack.push(p); // folder
-        else paths.push(p);
+      for (let offset = 0; ; offset += PAGE) {
+        const { data } = await db.storage.from(bucket).list(dir, { limit: PAGE, offset });
+        for (const f of data ?? []) {
+          const p = `${dir}/${f.name}`;
+          if (f.id === null) stack.push(p); // folder
+          else paths.push(p);
+        }
+        if (!data || data.length < PAGE) break;
       }
     }
     for (let i = 0; i < paths.length; i += 100) {
