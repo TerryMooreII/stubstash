@@ -7,6 +7,7 @@ import {
 import ShareCardSheet from "@/components/share/ShareCardSheet.vue";
 import GigPoster from "@/components/poster/GigPoster.vue";
 import PosterSheet from "@/components/poster/PosterSheet.vue";
+import QuickUpload from "@/components/shows/QuickUpload.vue";
 import type { ShareCard } from "@/components/share/shareCard";
 import { getAttendance, setHeadliner, setlistfm, showSetlist, showStats, updateAttendance } from "@/lib/api";
 import { dateParts, firstName, longDate, money, ordinal, placeOf, plural } from "@/lib/format";
@@ -66,6 +67,19 @@ async function load() {
 watch(() => props.id, load, { immediate: true });
 
 const mine = computed(() => !!att.value && att.value.user_id === auth.userId);
+
+// ----- quick upload from the Photos & stub card (saves straight away)
+async function photoAdded(p: AttendanceDetail["photos"][number]) {
+  if (!att.value) return;
+  att.value = { ...att.value, photos: [...att.value.photos, p] };
+  const url = await signedUrl("photos", p.storage_path);
+  if (url) photoUrls.value = { ...photoUrls.value, [p.storage_path]: url };
+}
+async function stubSet(path: string) {
+  if (!att.value) return;
+  att.value = { ...att.value, stub_path: path };
+  stubUrl.value = await signedUrl("stubs", path);
+}
 const show = computed(() => att.value?.show);
 const d = computed(() => (show.value ? dateParts(show.value.event_date) : null));
 const venuePlace = computed(() => placeOf(show.value?.venue));
@@ -332,8 +346,15 @@ const shareCard = computed<ShareCard>(() => {
               >
                 <img v-if="photoUrls[p.storage_path]" :src="photoUrls[p.storage_path]" alt="Photo from the show" loading="lazy" />
               </button>
+              <QuickUpload
+                v-if="mine"
+                :attendance-id="att.id"
+                :has-stub="!!att.stub_path"
+                @photo-added="photoAdded"
+                @stub-set="stubSet"
+                @done="log.refresh()"
+              />
             </div>
-            <p v-if="mine && !att.photos.length && !att.stub_path" class="ss-muted hint">Add your stub and photos from Edit.</p>
           </SsCard>
 
           <div class="actions">
