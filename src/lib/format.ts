@@ -124,3 +124,15 @@ export function timeAgo(iso: string | null | undefined, now: Date = new Date()):
   const sameYear = t.getFullYear() === now.getFullYear();
   return t.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
 }
+
+/** place() for anything with city / state_code / country_code fields. */
+export function placeOf(
+  o: { city?: string | null; state_code?: string | null; country_code?: string | null } | null | undefined,
+): string {
+  return o ? place(o.city, o.state_code, o.country_code) : "";
+}
+
+/** "Maya Chen" -> "Maya"; falls back to the handle when there's no name. */
+export function firstName(name: string | null | undefined, handle?: string | null): string {
+  return ((name || handle || "").trim().split(/\s+/)[0]) ?? "";
+}

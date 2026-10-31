@@ -28,3 +28,25 @@ export function errorMessage(err: unknown, fallback = "Something went wrong. Try
   if (/jwt|not signed in|sign in/i.test(msg)) return "Please sign in again.";
   return msg;
 }
+
+/** Unwraps a Supabase response: returns data or throws the error. */
+export function check<T>(res: { data: T; error: unknown }): T {
+  if (res.error) throw res.error;
+  return res.data;
+}
+
+/**
+ * Calls an edge function. Non-2xx responses carry our `{ error }` message in
+ * the body; supabase-js hides it in `error.context`, so pull it out here.
+ */
+export async function invokeFn<T>(name: string, body: Record<string, unknown>, fallback?: string): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(name, { body });
+  if (error) {
+    const ctx = (error as { context?: Response }).context;
+    const payload = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
+    if (payload?.error) throw new Error(payload.error);
+    if (fallback) throw new Error(fallback);
+    throw error;
+  }
+  return data as T;
+}
