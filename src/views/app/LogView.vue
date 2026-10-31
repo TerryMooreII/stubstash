@@ -9,7 +9,9 @@ import AdvancedSetlistSearch from "@/components/forms/AdvancedSetlistSearch.vue"
 import { describe, fromQuery, hasWhere, toParams, toQuery } from "@/lib/advancedSearch";
 import { setlistfm } from "@/lib/api";
 import { errorMessage } from "@/lib/supabase";
-import { dateParts, num, place } from "@/lib/format";
+import { num, placeOf } from "@/lib/format";
+import DateBlock from "@/components/shows/DateBlock.vue";
+import { useKeyedAction } from "@/composables/useAction";
 import { outboxAdd } from "@/lib/offline";
 import type { SetlistResult, SetlistSearchParams } from "@/lib/types";
 import { useLog } from "@/stores/log";
@@ -36,7 +38,6 @@ const error = ref<string | null>(null);
 
 // Per-result state from this visit: logged attendance ids, in-flight, queued offline.
 const justLogged = reactive<Record<string, string>>({});
-const busy = reactive<Record<string, boolean>>({});
 const queued = reactive<Record<string, boolean>>({});
 // Expanded result cards (setlist + notes), so people can check it's the right night.
 const expanded = reactive<Record<string, boolean>>({});
@@ -143,8 +144,14 @@ function attendanceFor(r: SetlistResult): string | null {
   return justLogged[r.setlistfm_id] ?? r.attendance_id ?? log.loggedSetlistIds.get(r.setlistfm_id) ?? null;
 }
 
+const { run: logOne, busy } = useKeyedAction(async (id: string) => {
+  const res = await log.logSetlist(id);
+  justLogged[id] = res.attendance_id;
+  ui.flash(res.created ? (res.show_number ? `Logged! That's show #${res.show_number}` : "Logged!") : "Already in your log");
+});
+
 async function iWasThere(r: SetlistResult) {
-  if (busy[r.setlistfm_id] || attendanceFor(r) || queued[r.setlistfm_id]) return;
+  if (busy.value[r.setlistfm_id] || attendanceFor(r) || queued[r.setlistfm_id]) return;
   const label = `${r.artist} · ${r.venue}`;
   if (!ui.online) {
     await outboxAdd({ kind: "log-setlist", setlistfm_id: r.setlistfm_id, label });
@@ -152,16 +159,7 @@ async function iWasThere(r: SetlistResult) {
     ui.flash("Saved. We'll log it when you're back online.");
     return;
   }
-  busy[r.setlistfm_id] = true;
-  try {
-    const res = await log.logSetlist(r.setlistfm_id);
-    justLogged[r.setlistfm_id] = res.attendance_id;
-    ui.flash(res.created ? (res.show_number ? `Logged! That's show #${res.show_number}` : "Logged!") : "Already in your log");
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    busy[r.setlistfm_id] = false;
-  }
+  await logOne(r.setlistfm_id);
 }
 
 const manualLink = computed(() => {
@@ -238,14 +236,10 @@ const matchedNote = computed(() =>
             :aria-controls="`setlist-${r.setlistfm_id}`"
             @click="toggle(r.setlistfm_id)"
           >
-            <div class="result__date">
-              <div class="result__mon">{{ dateParts(r.date).mon }}</div>
-              <div class="result__day">{{ dateParts(r.date).day }}</div>
-              <div class="result__yr">{{ dateParts(r.date).yr }}</div>
-            </div>
+            <DateBlock :date="r.date" size="md" />
             <div class="result__body">
               <div class="result__artist">{{ r.artist }}</div>
-              <div class="result__venue">{{ r.venue }}<template v-if="r.city"> · {{ place(r.city, r.state_code, r.country_code) }}</template></div>
+              <div class="result__venue">{{ r.venue }}<template v-if="r.city"> · {{ placeOf(r) }}</template></div>
               <div class="result__meta">
                 <template v-if="r.tour">{{ r.tour }} · </template>{{ r.songs ? `${r.songs} songs` : "No setlist yet" }}
                 <span class="result__more">{{ expanded[r.setlistfm_id] ? "Hide setlist" : "Show setlist" }}</span>
@@ -407,10 +401,6 @@ const matchedNote = computed(() =>
 .set__songs li.is-tape { color: var(--ss-text-muted); }
 .song { font-weight: 600; }
 .song__note { font-size: 13px; color: var(--ss-text-muted); }
-.result__date { width: 56px; text-align: center; flex-shrink: 0; }
-.result__mon { font-family: var(--ss-font-mono); font-size: 11px; color: var(--ss-accent); }
-.result__day { font-weight: 900; font-size: 26px; line-height: 1; }
-.result__yr { font-size: 12px; color: var(--ss-text-muted); }
 .result__body { flex: 1 1 180px; min-width: 0; }
 .result__artist { font-weight: 900; font-size: 18px; line-height: 1.15; }
 .result__venue { font-size: 14px; color: var(--ss-text-3); }

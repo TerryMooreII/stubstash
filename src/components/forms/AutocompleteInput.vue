@@ -3,6 +3,7 @@
 // suggestion emits `select` so the parent can remember its id.
 import { ref, watch } from "vue";
 import { SsInput } from "@/design-system";
+import { useDebouncedSearch } from "@/composables/useDebouncedSearch";
 
 export interface AutocompleteOption {
   id: string;
@@ -24,25 +25,22 @@ const props = withDefaults(
 );
 const emit = defineEmits<{ select: [option: AutocompleteOption] }>();
 
-const options = ref<AutocompleteOption[]>([]);
 const open = ref(false);
 const active = ref(-1);
-let timer: ReturnType<typeof setTimeout> | undefined;
-let seq = 0;
 let suppress = false; // don't re-search right after a pick
 
-watch(model, (v) => {
+const { results: options, run } = useDebouncedSearch(model, (q) => props.search(q), {
+  ms: 250,
+  minChars: props.minChars,
+  auto: false,
+});
+watch(model, () => {
   if (suppress) { suppress = false; return; }
-  clearTimeout(timer);
-  if ((v ?? "").trim().length < props.minChars) { options.value = []; open.value = false; return; }
-  timer = setTimeout(async () => {
-    const mine = ++seq;
-    const res = await props.search(v.trim()).catch(() => []);
-    if (mine !== seq) return;
-    options.value = res;
-    active.value = -1;
-    open.value = res.length > 0;
-  }, 250);
+  run();
+});
+watch(options, (res) => {
+  active.value = -1;
+  open.value = res.length > 0;
 });
 
 function pick(o: AutocompleteOption) {
@@ -76,7 +74,7 @@ function onBlur() {
       :aria-expanded="open"
       aria-autocomplete="list"
     />
-    <ul v-if="open" class="ac__list" role="listbox">
+    <ul v-if="open" class="ac__list ss-list" role="listbox">
       <li
         v-for="(o, i) in options"
         :key="o.id"
@@ -102,9 +100,7 @@ function onBlur() {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  margin: 0;
   padding: 4px;
-  list-style: none;
   background: var(--ss-surface-2);
   border: 1px solid var(--ss-line-strong);
   border-radius: var(--ss-radius-sm);

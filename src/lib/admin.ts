@@ -1,11 +1,7 @@
 // Admin-only data and actions. Every RPC here checks is_admin() on the server;
 // the UI hides the admin page for everyone else, but the server is the guard.
-import { supabase } from "./supabase";
-
-function check<T>(res: { data: T; error: unknown }): T {
-  if (res.error) throw res.error;
-  return res.data;
-}
+import { check, invokeFn, supabase } from "./supabase";
+import type { GeoSource } from "./types";
 
 export interface AdminJob {
   name: string;
@@ -55,18 +51,21 @@ export interface AdminUser {
 export type ArtistFilter = "all" | "no_image" | "manual" | "unused";
 export type VenueFilter = "all" | "no_image" | "no_pin" | "manual" | "unused";
 
-export interface AdminArtist {
-  id: string; name: string; mbid: string | null; disambiguation: string | null; genre: string | null;
-  source: "setlistfm" | "manual"; image_url: string | null; image_source: string | null; image_credit: string | null;
-  image_checked_at: string | null; shows: number; fans: number; created_at: string; total: number;
-}
-
-export interface AdminVenue {
-  id: string; name: string; city: string | null; state_code: string | null; country_code: string | null;
-  lat: number | null; lng: number | null; city_lat: number | null; city_lng: number | null;
-  geo_source: string; wikidata_id: string | null; capacity: number | null; source: "setlistfm" | "manual";
+/** Fields every admin artist/venue row has. */
+export interface AdminCatalogRow {
+  id: string; name: string; source: "setlistfm" | "manual";
   image_url: string | null; image_source: string | null; image_credit: string | null; image_checked_at: string | null;
   shows: number; fans: number; created_at: string; total: number;
+}
+
+export interface AdminArtist extends AdminCatalogRow {
+  mbid: string | null; disambiguation: string | null; genre: string | null;
+}
+
+export interface AdminVenue extends AdminCatalogRow {
+  city: string | null; state_code: string | null; country_code: string | null;
+  lat: number | null; lng: number | null; city_lat: number | null; city_lng: number | null;
+  geo_source: GeoSource; wikidata_id: string | null; capacity: number | null;
 }
 
 export interface ArtistPatch { name?: string; genre?: string; disambiguation?: string; image_url?: string; image_credit?: string }
@@ -104,12 +103,6 @@ export const admin = {
   deleteUser: (userId: string) => userAction("delete", userId),
 };
 
-async function userAction(action: "suspend" | "unsuspend" | "delete", userId: string) {
-  const { data, error } = await supabase.functions.invoke("admin", { body: { action, user_id: userId } });
-  if (error) {
-    const ctx = (error as { context?: Response }).context;
-    const payload = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
-    throw new Error(payload?.error ?? "That didn't work. Try again.");
-  }
-  return data as { ok: true; files_removed?: number };
+function userAction(action: "suspend" | "unsuspend" | "delete", userId: string) {
+  return invokeFn<{ ok: true; files_removed?: number }>("admin", { action, user_id: userId }, "That didn't work. Try again.");
 }

@@ -112,17 +112,42 @@ export function monthsLabel(n: number): string {
   return `${n} mo`;
 }
 
+export interface TimeAgoOptions {
+  /** Defaults to the current time. */
+  now?: Date;
+  /** Added after "5m" / "3h" / "2d", e.g. " ago". Default "". */
+  suffix?: string;
+  /** Shown when there's no date. Default "". */
+  never?: string;
+  /** Switch to a date after this many days. Default 7; Infinity never does. */
+  dateAfterDays?: number;
+  /** Always include the year in the date. Default false. */
+  fullDate?: boolean;
+}
+
 /** "just now", "5m", "3h", "2d", then a short date ("Mar 4" or "Mar 4, 2025"). */
-export function timeAgo(iso: string | null | undefined, now: Date = new Date()): string {
-  if (!iso) return "";
+export function timeAgo(iso: string | null | undefined, nowOrOpts: Date | TimeAgoOptions = {}): string {
+  const o: TimeAgoOptions = nowOrOpts instanceof Date ? { now: nowOrOpts } : nowOrOpts;
+  const { now = new Date(), suffix = "", never = "", dateAfterDays = 7, fullDate = false } = o;
+  if (!iso) return never;
   const t = new Date(iso);
   const s = Math.max(0, Math.round((now.getTime() - t.getTime()) / 1000));
   if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  if (s < 7 * 86400) return `${Math.floor(s / 86400)}d`;
-  const sameYear = t.getFullYear() === now.getFullYear();
-  return t.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
+  if (s < 3600) return `${Math.floor(s / 60)}m${suffix}`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h${suffix}`;
+  if (s < dateAfterDays * 86400) return `${Math.floor(s / 86400)}d${suffix}`;
+  const withYear = fullDate || t.getFullYear() !== now.getFullYear();
+  return t.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(withYear ? { year: "numeric" } : {}) });
+}
+
+/** 512 -> "512 B", 2048 -> "2.0 KB", 5_000_000 -> "4.8 MB" */
+export function bytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ["KB", "MB", "GB"];
+  let v = n / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
 }
 
 /** place() for anything with city / state_code / country_code fields. */

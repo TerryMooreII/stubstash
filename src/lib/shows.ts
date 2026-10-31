@@ -1,6 +1,7 @@
 // Shows as people think of them: everything at one venue on one date is one
 // show (headliner + openers), on one ticket. Each artist keeps its own page
 // (attendance) with its own setlist. Also spots likely festivals.
+import { placeOf } from "./format";
 import type { LogEntry } from "./types";
 
 export interface ShowGroup {
@@ -67,6 +68,39 @@ export function groupShows(entries: LogEntry[]): ShowGroup[] {
     });
   }
   return out.sort((a, b) => b.event_date.localeCompare(a.event_date) || b.show_number - a.show_number);
+}
+
+/** SsTicketRow props for a show: headliner, openers (each linking to its own page), place. */
+export function ticketProps(g: ShowGroup, base = "/app/shows") {
+  const head = g.acts[0]!;
+  return {
+    to: `${base}/${head.attendance_id}`,
+    date: g.event_date,
+    artist: head.artist_name,
+    openers: g.acts.slice(1).map((a) => ({ name: a.artist_name, to: `${base}/${a.attendance_id}` })),
+    venue: g.venue_name,
+    place: placeOf(g),
+    number: g.show_number,
+    source: g.source,
+    festival: g.is_festival ? g.festival_name ?? true : null,
+    songs: g.song_count,
+    rating: g.rating,
+  };
+}
+
+/** SsTicketRow props for a single log entry (one act, no openers). */
+export function entryTicketProps(e: LogEntry, base = "/app/shows") {
+  return {
+    to: `${base}/${e.attendance_id}`,
+    date: e.event_date,
+    artist: e.artist_name,
+    venue: e.venue_name,
+    place: placeOf(e),
+    number: e.show_number,
+    source: e.source,
+    songs: e.song_count,
+    rating: e.rating,
+  };
 }
 
 /** Distinct festivals: by name, or (unnamed) by venue and year. */

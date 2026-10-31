@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { festivalCount, groupShows, suggestFestivals } from "./shows";
+import { entryTicketProps, festivalCount, groupShows, suggestFestivals, ticketProps } from "./shows";
 import type { LogEntry } from "./types";
 
 let n = 0;
@@ -73,5 +73,32 @@ describe("festivals", () => {
       e({ event_date: "2018-08-24", venue_id: "f", is_festival: true }),
     ]);
     expect(s).toHaveLength(0);
+  });
+});
+
+describe("ticketProps", () => {
+  it("maps a show to ticket props with openers linking to their own pages", () => {
+    const [g] = groupShows([
+      e({ attendance_id: "h", artist_name: "Head", song_count: 20 }),
+      e({ attendance_id: "o", artist_name: "Opener", song_count: 5 }),
+    ]);
+    const p = ticketProps(g!, "/u/sam/shows");
+    expect(p.to).toBe("/u/sam/shows/h");
+    expect(p.artist).toBe("Head");
+    expect(p.openers).toEqual([{ name: "Opener", to: "/u/sam/shows/o" }]);
+    expect(p.place).toBe("Raleigh, NC");
+    expect(p.festival).toBeNull();
+    expect(p.songs).toBe(25);
+  });
+
+  it("marks festivals with their name, or true when unnamed", () => {
+    expect(ticketProps(groupShows([e({ is_festival: true, festival_name: "Bonnaroo" })])[0]!).festival).toBe("Bonnaroo");
+    expect(ticketProps(groupShows([e({ is_festival: true })])[0]!).festival).toBe(true);
+  });
+
+  it("maps a single entry", () => {
+    const p = entryTicketProps(e({ attendance_id: "x", city: "London", country_code: "GB" }));
+    expect(p.to).toBe("/app/shows/x");
+    expect(p.place).toBe("London, GB");
   });
 });

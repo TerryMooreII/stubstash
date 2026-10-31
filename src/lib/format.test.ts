@@ -74,3 +74,29 @@ describe("timeAgo", () => {
     expect(timeAgo(null, now)).toBe("");
   });
 });
+
+describe("timeAgo options", () => {
+  const now = new Date("2026-10-28T12:00:00Z");
+  it("adds a suffix and a 'never' text", async () => {
+    const { timeAgo } = await import("./format");
+    expect(timeAgo("2026-10-28T11:55:00Z", { now, suffix: " ago" })).toBe("5m ago");
+    expect(timeAgo("2026-10-28T11:59:30Z", { now, suffix: " ago" })).toBe("just now");
+    expect(timeAgo(null, { now, never: "never" })).toBe("never");
+  });
+  it("keeps counting days until dateAfterDays", async () => {
+    const { timeAgo } = await import("./format");
+    expect(timeAgo("2026-09-28T12:00:00Z", { now, dateAfterDays: Infinity })).toBe("30d");
+    expect(timeAgo("2026-09-28T12:00:00Z", { now, dateAfterDays: 60 })).toBe("30d");
+    expect(timeAgo("2026-03-04T12:00:00Z", { now, dateAfterDays: 60 })).toBe("Mar 4");
+    expect(timeAgo("2026-03-04T12:00:00Z", { now, dateAfterDays: 60, fullDate: true })).toBe("Mar 4, 2026");
+  });
+});
+
+describe("bytes", () => {
+  it("picks a unit", async () => {
+    const { bytes } = await import("./format");
+    expect(bytes(512)).toBe("512 B");
+    expect(bytes(2048)).toBe("2.0 KB");
+    expect(bytes(50 * 1024 * 1024)).toBe("50 MB");
+  });
+});

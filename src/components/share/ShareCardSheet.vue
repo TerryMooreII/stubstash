@@ -7,40 +7,29 @@ import { computed, ref } from "vue";
 import { SsButton, SsIcon, SsSheet } from "@/design-system";
 import { CARD_COLORS } from "@/lib/color";
 import { useAuth } from "@/stores/auth";
-import { useUi } from "@/stores/ui";
 import type { ShareCard } from "./shareCard";
-import { shareElementAsPng, slugFile } from "@/lib/shareImage";
+import ImageSheetActions from "./ImageSheetActions.vue";
+import { useShareImage } from "@/composables/useShareImage";
 
 const open = defineModel<boolean>({ default: false });
 const props = defineProps<{ card: ShareCard }>();
 
 const auth = useAuth();
-const ui = useUi();
 const colorIx = ref(0);
 const bg = computed(() => CARD_COLORS[colorIx.value % CARD_COLORS.length]);
 const footer = computed(
   () => props.card.footer ?? `${SITE_HOST}/u/${auth.profile?.handle ?? ""} · setlist via setlist.fm`,
 );
 const cardEl = ref<HTMLElement>();
-const busy = ref(false);
+const { share: shareImage, busy } = useShareImage(cardEl);
 
 function shuffle() {
   colorIx.value++;
 }
 
 async function share() {
-  if (!cardEl.value) return;
-  busy.value = true;
-  try {
-    const res = await shareElementAsPng(cardEl.value, slugFile("stubstash", props.card.big));
-    if (res === "cancelled") return;
-    if (res === "saved") ui.flash("Card saved. Ready for Stories.");
-    open.value = false;
-  } catch {
-    ui.error("Couldn't make the image. Try again.");
-  } finally {
-    busy.value = false;
-  }
+  const res = await shareImage("stubstash", props.card.big, "Card saved. Ready for Stories.");
+  if (res && res !== "cancelled") open.value = false;
 }
 </script>
 
@@ -61,13 +50,12 @@ async function share() {
       </div>
       <div class="card__foot">{{ footer }}</div>
     </div>
-    <div class="actions">
+    <ImageSheetActions @close="open = false">
       <SsButton variant="outline" size="sm" class="actions__dark" @click="shuffle">Shuffle colors</SsButton>
       <SsButton variant="light" size="sm" :loading="busy" @click="share">
         <SsIcon name="share" :size="16" />Share
       </SsButton>
-      <button type="button" class="close" aria-label="Close" @click="open = false"><SsIcon name="close" :size="18" /></button>
-    </div>
+    </ImageSheetActions>
   </SsSheet>
 </template>
 
@@ -123,17 +111,4 @@ async function share() {
 .card__v { font-weight: 900; font-size: 26px; line-height: 1; }
 .card__k { font-size: 11px; font-weight: 700; }
 .card__foot { font-family: var(--ss-font-mono); font-size: 9px; margin-top: 12px; }
-.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
-.actions__dark { background: var(--ss-surface-2); }
-.close {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid var(--ss-line-strong);
-  background: var(--ss-surface-2);
-  color: var(--ss-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 </style>

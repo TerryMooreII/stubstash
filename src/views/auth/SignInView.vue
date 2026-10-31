@@ -5,6 +5,7 @@ import { SsButton, SsField, SsInput } from "@/design-system";
 import AuthFrame from "./AuthFrame.vue";
 import { useAuth } from "@/stores/auth";
 import { errorMessage } from "@/lib/supabase";
+import { safeNext } from "@/lib/url";
 
 const auth = useAuth();
 const route = useRoute();
@@ -15,10 +16,7 @@ const password = ref("");
 const busy = ref(false);
 const error = ref<string | null>(null);
 
-const next = computed(() => {
-  const n = route.query.next;
-  return typeof n === "string" && n.startsWith("/") && !n.startsWith("//") ? n : "/app";
-});
+const next = computed(() => safeNext(route.query.next));
 
 async function submit() {
   error.value = null;
@@ -63,7 +61,5 @@ async function submit() {
 </template>
 
 <style scoped>
-.form { display: flex; flex-direction: column; gap: 14px; }
-.error { color: var(--ss-danger); font-weight: 600; font-size: 14px; }
 .links { display: flex; flex-direction: column; gap: 10px; font-size: 15px; color: var(--ss-text-muted); }
 </style>

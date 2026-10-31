@@ -9,7 +9,8 @@ import StreakCard from "@/components/dashboard/StreakCard.vue";
 import TopArtists from "@/components/dashboard/TopArtists.vue";
 import TopSongs from "@/components/dashboard/TopSongs.vue";
 import { badges as fetchBadges } from "@/lib/api";
-import { compact, num, place, plural } from "@/lib/format";
+import { compact, num, plural } from "@/lib/format";
+import { ticketProps } from "@/lib/shows";
 import { nextMilestone } from "@/lib/milestones";
 import type { Badge } from "@/lib/types";
 import { useAuth } from "@/stores/auth";
@@ -40,7 +41,7 @@ const kicker = computed(() => {
   return firstYear.value ? `${who} STAGE PASS · ${firstYear.value}—NOW` : `${who} STAGE PASS`;
 });
 // Milestones count shows (a venue on a date), the same way the badges do.
-const headline = computed(() => `${num(shows.value)} show${shows.value === 1 ? "" : "s"} deep. ${milestone.value.remaining} to the ${milestone.value.name}.`);
+const headline = computed(() => `${plural(shows.value, "show")} deep. ${milestone.value.remaining} to the ${milestone.value.name}.`);
 const progress = computed(() => Math.round((shows.value / milestone.value.target) * 100));
 
 const homeCity = computed(() => auth.profile?.home_city ?? s.value?.home.city ?? null);
@@ -164,21 +165,7 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
         <RouterLink to="/app/shows" class="more">All {{ num(shows) }} →</RouterLink>
       </div>
       <div class="ss-grid" style="--ss-grid-min: 300px">
-        <SsTicketRow
-          v-for="g in recent"
-          :key="g.key"
-          :to="`/app/shows/${g.acts[0]!.attendance_id}`"
-          :date="g.event_date"
-          :artist="g.acts[0]!.artist_name"
-          :openers="g.acts.slice(1).map((a) => ({ name: a.artist_name, to: `/app/shows/${a.attendance_id}` }))"
-          :venue="g.venue_name"
-          :place="place(g.city, g.state_code, g.country_code)"
-          :number="g.show_number"
-          :source="g.source"
-          :festival="g.is_festival ? g.festival_name ?? true : null"
-          :songs="g.song_count"
-          :rating="g.rating"
-        />
+        <SsTicketRow v-for="g in recent" :key="g.key" v-bind="ticketProps(g)" />
       </div>
 
       <SsCard v-if="badgeList.length" title="Badges">

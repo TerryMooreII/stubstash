@@ -38,6 +38,22 @@ export function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Per-key spacing so we respect "N requests per second" policies. */
+const lastCall: Record<string, number> = {};
+export async function throttle(key: string, gapMs: number) {
+  const wait = (lastCall[key] ?? 0) + gapMs - Date.now();
+  if (wait > 0) await sleep(wait);
+  lastCall[key] = Date.now();
+}
+
+const SITE_URL = "https://stubstash.terrymooreii.dev";
+/** CONTACT_EMAIL (as a mailto: link when asked), or the site URL when it isn't set. */
+export function contactUrl(mailto = false): string {
+  const email = Deno.env.get("CONTACT_EMAIL");
+  if (!email) return SITE_URL;
+  return mailto ? `mailto:${email}` : email;
+}
+
 /** True when the request carries the pg_cron shared secret (checked against Vault). */
 export async function isCron(
   req: Request,

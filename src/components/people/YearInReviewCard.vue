@@ -76,7 +76,7 @@ const card = computed<ShareCard>(() => {
   return {
     kicker: `${year.value} WRAPPED`,
     pre: "My year in live music",
-    big: `${d?.shows ?? 0} SHOW${d?.shows === 1 ? "" : "S"}`,
+    big: plural(d?.shows ?? 0, "SHOW"),
     sub: bits.length ? bits.join(", ") + "." : "Just getting started.",
     stats: [
       { v: num(d?.songs ?? 0), k: "songs" },

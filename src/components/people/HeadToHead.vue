@@ -3,7 +3,7 @@
 import { computed } from "vue";
 import { SsAvatar } from "@/design-system";
 import { avatarColor } from "@/lib/color";
-import { num, plural } from "@/lib/format";
+import { firstName, num, plural } from "@/lib/format";
 
 const props = defineProps<{
   name: string;
@@ -14,7 +14,7 @@ const props = defineProps<{
   shared: number;
   max: number;
 }>();
-const first = computed(() => (props.name || props.handle).split(" ")[0]);
+const first = computed(() => firstName(props.name, props.handle));
 const pct = (n: number) => `${Math.max(2, (n / Math.max(1, props.max)) * 100)}%`;
 </script>
 

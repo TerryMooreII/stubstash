@@ -5,7 +5,7 @@ import { computed, onActivated, onMounted, ref } from "vue";
 import { SsBarChart, SsButton, SsCard, SsEmpty, SsSkeleton, SsStatCard, SsTag } from "@/design-system";
 import { admin, type AdminOverview } from "@/lib/admin";
 import { errorMessage } from "@/lib/supabase";
-import { num } from "@/lib/format";
+import { bytes, num, timeAgo } from "@/lib/format";
 import { useUi } from "@/stores/ui";
 
 const emit = defineEmits<{ go: [tab: "users" | "artists" | "venues"] }>();
@@ -35,23 +35,7 @@ onActivated(() => {
 });
 
 /** "3m ago", "2h ago", "4d ago" */
-function ago(iso: string | null | undefined): string {
-  if (!iso) return "never";
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
-
-function bytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  const units = ["KB", "MB", "GB"];
-  let v = n / 1024;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
-}
+const ago = (iso: string | null | undefined) => timeAgo(iso, { suffix: " ago", never: "never", dateAfterDays: Infinity });
 
 const weekLabel = (iso: string) => {
   const [, m, d] = iso.split("-");

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { SITE_HOST } from "@/lib/url";
+import { SITE_HOST, safeNext } from "@/lib/url";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsField, SsInput } from "@/design-system";
 import AuthFrame from "./AuthFrame.vue";
 import { useAuth } from "@/stores/auth";
 import { errorMessage } from "@/lib/supabase";
+import { PASSWORD_ERROR, PASSWORD_HINT, passwordOk } from "@/lib/validate";
 
 const auth = useAuth();
 const route = useRoute();
@@ -18,18 +19,14 @@ const busy = ref(false);
 const error = ref<string | null>(null);
 const sentTo = ref<string | null>(null);
 
-const next = computed(() => {
-  const n = route.query.next;
-  return typeof n === "string" && n.startsWith("/") && !n.startsWith("//") ? n : "/app";
-});
+const next = computed(() => safeNext(route.query.next));
 
-const passwordOk = computed(() => password.value.length >= 8 && /[a-z]/i.test(password.value) && /\d/.test(password.value));
 const handleOk = computed(() => !handle.value || /^@?[A-Za-z0-9_]{3,24}$/.test(handle.value.trim()));
 
 async function submit() {
   error.value = null;
   if (!/^\S+@\S+\.\S+$/.test(email.value.trim())) return void (error.value = "Enter a valid email.");
-  if (!passwordOk.value) return void (error.value = "Use at least 8 characters with letters and numbers.");
+  if (!passwordOk(password.value)) return void (error.value = PASSWORD_ERROR);
   if (!handleOk.value) return void (error.value = "Handles are 3 to 24 letters, numbers or underscores.");
   busy.value = true;
   try {
@@ -74,7 +71,7 @@ async function submit() {
       <SsField label="Email">
         <SsInput v-model="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" size="lg" />
       </SsField>
-      <SsField label="Password" hint="8+ characters, letters and numbers">
+      <SsField label="Password" :hint="PASSWORD_HINT">
         <SsInput v-model="password" type="password" autocomplete="new-password" placeholder="Make it a good one" size="lg" />
       </SsField>
       <SsField label="Handle (optional)" :hint="`Your public link: ${SITE_HOST}/u/handle`" :error="handleOk ? null : 'Letters, numbers or underscores, 3 to 24 long'">
@@ -90,8 +87,6 @@ async function submit() {
 </template>
 
 <style scoped>
-.form { display: flex; flex-direction: column; gap: 14px; }
-.error { color: var(--ss-danger); font-weight: 600; font-size: 14px; }
 .links { font-size: 15px; color: var(--ss-text-muted); }
 .note { color: var(--ss-text-muted); font-size: 15px; line-height: 1.45; }
 .linkish { border: 0; background: none; padding: 0; color: var(--ss-accent); font-weight: 600; }

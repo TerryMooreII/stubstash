@@ -3,6 +3,7 @@
 // Also lists photos already saved on the show, with delete.
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { SsIcon } from "@/design-system";
+import { plural } from "@/lib/format";
 
 export interface SavedPhoto { id: string; storage_path: string; url: string | null }
 
@@ -54,7 +55,7 @@ const stubSrc = computed(() => stubPreview.value ?? (props.stubRemoved ? null : 
     <div class="pp__tiles">
       <button type="button" class="pp__tile" @click="photoInput?.click()">
         <span class="pp__plus">+</span>
-        {{ photoCount ? `${photoCount} photo${photoCount === 1 ? "" : "s"}` : "Add photos" }}
+        {{ photoCount ? plural(photoCount, "photo") : "Add photos" }}
       </button>
       <button type="button" class="pp__tile" :class="{ 'is-done': hasStub }" @click="stubInput?.click()">
         <span class="pp__tag">{{ hasStub ? "STUB ✓" : "CAMERA" }}</span>

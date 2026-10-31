@@ -57,6 +57,9 @@ defineProps<{ kicker?: string; title: string; lede?: string }>();
   letter-spacing: var(--ss-tracking-tight);
   text-wrap: balance;
 }
+/* Forms on the auth screens (the views put these classes in the slot). */
+.auth__col :deep(.form) { display: flex; flex-direction: column; gap: 14px; }
+.auth__col :deep(.error) { color: var(--ss-danger); font-weight: 600; font-size: 14px; }
 .auth__lede {
   font-size: 18px;
   color: var(--ss-text-3);

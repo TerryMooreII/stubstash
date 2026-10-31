@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // /invite/:token: someone tagged you at a show before you joined.
-import { computed, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { SsButton, SsSpinner } from "@/design-system";
 import AuthFrame from "./auth/AuthFrame.vue";
@@ -10,6 +10,7 @@ import { useUi } from "@/stores/ui";
 import { social } from "@/lib/api";
 import { errorMessage } from "@/lib/supabase";
 import { dateParts, mediumDate } from "@/lib/format";
+import { useAsyncData } from "@/composables/useAsyncData";
 
 const props = defineProps<{ token: string }>();
 const auth = useAuth();
@@ -17,24 +18,14 @@ const log = useLog();
 const ui = useUi();
 const router = useRouter();
 
-type Invite = Awaited<ReturnType<typeof social.peekInvite>> | null;
-const loading = ref(true);
-const invite = ref<Invite>(null);
+const { data: invite, loading } = useAsyncData(async () => {
+  await auth.init();
+  return social.peekInvite(props.token).catch(() => null);
+});
 const busy = ref(false);
 const next = computed(() => `/invite/${encodeURIComponent(props.token)}`);
 const d = computed(() => (invite.value ? dateParts(invite.value.event_date) : null));
 const inviter = computed(() => invite.value?.inviter_name || `@${invite.value?.inviter_handle}`);
-
-onMounted(async () => {
-  await auth.init();
-  try {
-    invite.value = await social.peekInvite(props.token);
-  } catch {
-    invite.value = null;
-  } finally {
-    loading.value = false;
-  }
-});
 
 async function claim() {
   busy.value = true;

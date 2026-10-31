@@ -42,7 +42,7 @@ function submit() {
 </script>
 
 <template>
-  <form class="adv" @submit.prevent="submit">
+  <form class="adv ss-tile" @submit.prevent="submit">
     <div class="adv__grid">
       <SsField label="Artist" class="span-2" :hint="f.artist_mbid ? 'Exact artist picked from setlist.fm' : 'Pick from the list for an exact match'">
         <div class="artist">
@@ -110,8 +110,6 @@ function submit() {
   gap: 14px;
   padding: 20px;
   border-radius: var(--ss-radius-lg, 16px);
-  background: var(--ss-surface-1);
-  border: 1px solid var(--ss-line);
 }
 .adv__grid {
   display: grid;

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // Full-height venue map for you (/app/map) or another user (/u/:handle/map).
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { SsButton, SsChip, SsEmpty, SsSpinner } from "@/design-system";
 import VenueMap from "@/components/map/VenueMap.vue";
 import { mapHomes, mapTrips, mapVenues, publicProfile } from "@/lib/api";
-import { errorMessage } from "@/lib/supabase";
+import { useAsyncData } from "@/composables/useAsyncData";
 import { num } from "@/lib/format";
 import type { MapHome, MapTrip, MapVenue } from "@/lib/types";
 import { useAuth } from "@/stores/auth";
@@ -14,13 +14,36 @@ const props = defineProps<{ handle?: string }>();
 const router = useRouter();
 const auth = useAuth();
 
-const venues = ref<MapVenue[]>([]);
-const homes = ref<MapHome[]>([]);
-const trips = ref<MapTrip[]>([]);
-const loading = ref(true);
-const error = ref<string | null>(null);
-const blocked = ref<"private" | "missing" | null>(null);
-const ownerName = ref<string | null>(null);
+interface MapData {
+  blocked: "private" | "missing" | null;
+  ownerName: string | null;
+  venues: MapVenue[];
+  homes: MapHome[];
+  trips: MapTrip[];
+}
+const empty = { venues: [], homes: [], trips: [] };
+
+const { data, loading, error, reload } = useAsyncData<MapData>(
+  async () => {
+    let uid: string | undefined;
+    let ownerName: string | null = null;
+    if (props.handle) {
+      const p = await publicProfile(props.handle);
+      if (!p) return { blocked: "missing", ownerName, ...empty };
+      ownerName = p.display_name || p.handle;
+      if (!p.can_view) return { blocked: "private", ownerName, ...empty };
+      if (!p.is_self) uid = p.id;
+    }
+    const [v, h, t] = await Promise.all([mapVenues(uid), mapHomes(uid), mapTrips(uid)]);
+    return { blocked: null, ownerName, venues: v, homes: h.filter((x) => x.lat != null && x.lng != null), trips: t };
+  },
+  { watch: () => props.handle },
+);
+const venues = computed(() => data.value?.venues ?? []);
+const homes = computed(() => data.value?.homes ?? []);
+const trips = computed(() => data.value?.trips ?? []);
+const blocked = computed(() => data.value?.blocked ?? null);
+const ownerName = computed(() => data.value?.ownerName ?? null);
 const mode = ref<"pins" | "glow" | "arcs">("pins");
 
 const modes = [
@@ -33,35 +56,9 @@ const cities = computed(() => new Set(venues.value.map((v) => `${(v.city ?? "").
 const unplaced = computed(() => venues.value.filter((v) => v.lat == null || v.lng == null).length);
 const isOwn = computed(() => !props.handle);
 
-async function load() {
-  loading.value = true;
-  error.value = null;
-  blocked.value = null;
-  try {
-    let uid: string | undefined;
-    if (props.handle) {
-      const p = await publicProfile(props.handle);
-      if (!p) { blocked.value = "missing"; return; }
-      if (!p.can_view) { blocked.value = "private"; ownerName.value = p.display_name || p.handle; return; }
-      ownerName.value = p.display_name || p.handle;
-      if (!p.is_self) uid = p.id;
-    }
-    const [v, h, t] = await Promise.all([mapVenues(uid), mapHomes(uid), mapTrips(uid)]);
-    venues.value = v;
-    homes.value = h.filter((x) => x.lat != null && x.lng != null);
-    trips.value = t;
-  } catch (e) {
-    error.value = errorMessage(e);
-  } finally {
-    loading.value = false;
-  }
-}
-
 function openVenue(id: string) {
   if (auth.signedIn) router.push(`/app/venues/${id}`);
 }
-
-watch(() => props.handle, load, { immediate: true });
 </script>
 
 <template>
@@ -78,7 +75,7 @@ watch(() => props.handle, load, { immediate: true });
       </SsEmpty>
       <SsEmpty v-else-if="blocked === 'missing'" title="No one by that name" body="Check the link and try again." />
       <SsEmpty v-else title="The map didn't load" :body="error ?? undefined">
-        <SsButton size="sm" variant="outline" @click="load">Try again</SsButton>
+        <SsButton size="sm" variant="outline" @click="reload">Try again</SsButton>
       </SsEmpty>
     </div>
 

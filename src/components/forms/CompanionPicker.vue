@@ -4,6 +4,7 @@
 import { computed, onMounted, ref } from "vue";
 import { SsAvatar, SsIcon } from "@/design-system";
 import { social } from "@/lib/api";
+import { firstName } from "@/lib/format";
 import type { Friend } from "@/lib/types";
 
 export interface Companion { name: string; user_id: string | null }
@@ -51,7 +52,7 @@ function remove(c: Companion) {
         @click="toggle(f)"
       >
         <SsAvatar :name="f.display_name || f.handle" :path="f.avatar_path" :size="24" />
-        {{ (f.display_name || f.handle).split(" ")[0] }}
+        {{ firstName(f.display_name, f.handle) }}
       </button>
       <span v-for="c in extras" :key="c.name" class="cp__chip is-on">
         <SsAvatar :name="c.name" :size="24" />

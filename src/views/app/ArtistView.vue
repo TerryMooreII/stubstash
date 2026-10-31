@@ -4,8 +4,10 @@ import { computed, ref, watch } from "vue";
 import { SsArt, SsBackLink, SsCard, SsChip, SsEmpty, SsIcon, SsSkeleton, SsStars } from "@/design-system";
 import { artistStats, getArtist } from "@/lib/api";
 import GigPoster from "@/components/poster/GigPoster.vue";
-import { errorMessage } from "@/lib/supabase";
-import { dateParts, monthYear, num, parseDate, place, plural } from "@/lib/format";
+import DateBlock from "@/components/shows/DateBlock.vue";
+import ShowListRow from "@/components/shows/ShowListRow.vue";
+import { useAsyncData } from "@/composables/useAsyncData";
+import { monthYear, num, parseDate, placeOf, plural } from "@/lib/format";
 import type { ArtistStats } from "@/lib/types";
 import { useLog } from "@/stores/log";
 import { useUi } from "@/stores/ui";
@@ -15,25 +17,15 @@ const log = useLog();
 const ui = useUi();
 
 type Artist = NonNullable<Awaited<ReturnType<typeof getArtist>>>;
-const artist = ref<Artist | null>(null);
-const stats = ref<ArtistStats | null>(null);
-const loading = ref(true);
-const error = ref<string | null>(null);
-
-async function load() {
-  loading.value = true;
-  error.value = null;
-  try {
+const { data, loading, error } = useAsyncData(
+  async () => {
     const [a, s] = await Promise.all([getArtist(props.id), artistStats(props.id), log.load()]);
-    artist.value = a as Artist | null;
-    stats.value = s;
-  } catch (e) {
-    error.value = errorMessage(e);
-  } finally {
-    loading.value = false;
-  }
-}
-watch(() => props.id, load, { immediate: true });
+    return { artist: a as Artist | null, stats: s as ArtistStats | null };
+  },
+  { watch: () => props.id },
+);
+const artist = computed(() => data.value?.artist ?? null);
+const stats = computed(() => data.value?.stats ?? null);
 
 // Banner: the artist photo blurred behind a sharp portrait. With no artist
 // photo (or one that fails to load), generated poster art instead.
@@ -113,20 +105,12 @@ const kicker = computed(() => {
         </SsCard>
 
         <SsCard :title="`Your ${artist.name} shows`">
-          <RouterLink v-for="s in shows" :key="s.attendance_id" :to="`/app/shows/${s.attendance_id}`" class="show">
-            <div class="show__date">
-              <div class="show__mon">{{ dateParts(s.event_date).mon }}</div>
-              <div class="show__day">{{ dateParts(s.event_date).day }}</div>
-              <div class="show__yr">{{ dateParts(s.event_date).yr }}</div>
-            </div>
-            <div class="show__body">
-              <div class="show__venue">{{ s.venue_name }}</div>
-              <div class="show__sub">
-                {{ place(s.city, s.state_code, s.country_code) }}<template v-if="s.song_count"> · {{ s.song_count }} songs</template>
-              </div>
-            </div>
-            <SsStars :value="s.rating" />
-          </RouterLink>
+          <ShowListRow v-for="s in shows" :key="s.attendance_id" :to="`/app/shows/${s.attendance_id}`">
+            <template #lead><DateBlock :date="s.event_date" /></template>
+            {{ s.venue_name }}
+            <template #sub>{{ placeOf(s) }}<template v-if="s.song_count"> · {{ s.song_count }} songs</template></template>
+            <template #end><SsStars :value="s.rating" /></template>
+          </ShowListRow>
           <p v-if="!shows.length" class="ss-muted">No shows logged with them.</p>
         </SsCard>
       </div>
@@ -176,22 +160,4 @@ const kicker = computed(() => {
 .once-title { margin-top: 22px; }
 .once-sub { font-size: 14px; margin: 2px 0 12px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.show {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 0;
-  border-top: 1px solid var(--ss-line-soft);
-  color: var(--ss-text);
-  text-decoration: none;
-}
-.show:hover { text-decoration: none; color: var(--ss-text); }
-.show:hover .show__venue { color: var(--ss-accent); }
-.show__date { width: 52px; text-align: center; flex-shrink: 0; }
-.show__mon { font-family: var(--ss-font-mono); font-size: 10px; color: var(--ss-accent); }
-.show__day { font-weight: 900; font-size: 22px; line-height: 1; }
-.show__yr { font-size: 11px; color: var(--ss-text-muted); }
-.show__body { flex: 1; min-width: 0; }
-.show__venue { font-weight: 700; }
-.show__sub { font-size: 13px; color: var(--ss-text-muted); }
 </style>

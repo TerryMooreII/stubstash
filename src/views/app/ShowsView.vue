@@ -7,9 +7,9 @@ import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsChip, SsEmpty, SsIcon, SsInput, SsPageHeader, SsSkeleton, SsTicketRow } from "@/design-system";
 import FestivalSheet from "@/components/forms/FestivalSheet.vue";
 import { setFestival } from "@/lib/api";
-import { mediumDate, place, plural } from "@/lib/format";
-import { festivalCount, suggestFestivals, type FestivalSuggestion, type ShowGroup } from "@/lib/shows";
-import { errorMessage } from "@/lib/supabase";
+import { mediumDate, placeOf, plural } from "@/lib/format";
+import { festivalCount, suggestFestivals, ticketProps, type FestivalSuggestion } from "@/lib/shows";
+import { useAction } from "@/composables/useAction";
 import { useLog } from "@/stores/log";
 import { useUi } from "@/stores/ui";
 
@@ -58,9 +58,6 @@ const olderPick = computed({
   set: (v: string) => v && pick(v),
 });
 
-const placeOf = (g: Pick<ShowGroup, "city" | "state_code" | "country_code">) => place(g.city, g.state_code, g.country_code);
-const openersOf = (g: ShowGroup) => g.acts.slice(1).map((a) => ({ name: a.artist_name, to: `/app/shows/${a.attendance_id}` }));
-
 // ---------------------------------------------------------------- select + bulk festival
 const selecting = ref(false);
 const picked = ref(new Set<string>()); // show keys
@@ -88,21 +85,13 @@ function markPicked() {
   };
   sheetOpen.value = true;
 }
-const unmarking = ref(false);
-async function unmarkPicked() {
+const { run: unmarkPicked, busy: unmarking } = useAction(async () => {
   if (!pickedIds.value.length) return;
-  unmarking.value = true;
-  try {
-    await setFestival(pickedIds.value, false);
-    await log.refresh();
-    ui.flash(`${plural(pickedShows.value.length, "show")} no longer marked as a festival`);
-    toggleSelect();
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    unmarking.value = false;
-  }
-}
+  await setFestival(pickedIds.value, false);
+  await log.refresh();
+  ui.flash(`${plural(pickedShows.value.length, "show")} no longer marked as a festival`);
+  toggleSelect();
+});
 function onMarked() {
   if (sheet.value.dismissKey) dismiss(sheet.value.dismissKey);
   if (selecting.value) toggleSelect();
@@ -180,20 +169,7 @@ function acceptSuggestion(s: FestivalSuggestion) {
 
       <div class="list">
         <div v-for="g in list" :key="g.key" class="item" :class="{ 'is-picked': picked.has(g.key) }">
-          <SsTicketRow
-            layout="row"
-            :to="`/app/shows/${g.acts[0]!.attendance_id}`"
-            :date="g.event_date"
-            :artist="g.acts[0]!.artist_name"
-            :openers="openersOf(g)"
-            :venue="g.venue_name"
-            :place="placeOf(g)"
-            :number="g.show_number"
-            :source="g.source"
-            :festival="g.is_festival ? g.festival_name ?? true : null"
-            :songs="g.song_count"
-            :rating="g.rating"
-          />
+          <SsTicketRow layout="row" v-bind="ticketProps(g)" />
           <!-- In select mode a button covers the ticket, so taps select instead of opening. -->
           <button
             v-if="selecting"

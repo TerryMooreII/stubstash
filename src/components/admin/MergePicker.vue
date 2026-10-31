@@ -3,8 +3,9 @@
 // confirm, then move all shows and delete the duplicate.
 import { ref, watch } from "vue";
 import { SsButton, SsInput, SsSheet, SsSpinner } from "@/design-system";
+import { useDebouncedSearch } from "@/composables/useDebouncedSearch";
 import { errorMessage } from "@/lib/supabase";
-import { num } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { useUi } from "@/stores/ui";
 
 export interface MergeItem {
@@ -25,49 +26,29 @@ const emit = defineEmits<{ merged: [moved: number] }>();
 const ui = useUi();
 
 const q = ref("");
-const results = ref<MergeItem[]>([]);
-const searching = ref(false);
 const target = ref<MergeItem | null>(null);
 const busy = ref(false);
-let timer: ReturnType<typeof setTimeout> | undefined;
-let seq = 0;
+const { results, searching, now: searchNow } = useDebouncedSearch(
+  q,
+  async (term) => (await props.search(term)).filter((x) => x.id !== props.from?.id),
+  { onError: (e) => ui.error(errorMessage(e)) },
+);
 
 watch(open, (v) => {
   if (v) {
     q.value = props.from?.name ?? "";
     target.value = null;
     results.value = [];
-    runSearch();
+    searchNow();
   }
 });
-
-watch(q, () => {
-  clearTimeout(timer);
-  timer = setTimeout(runSearch, 300);
-});
-
-async function runSearch() {
-  const term = q.value.trim();
-  const mine = ++seq;
-  if (term.length < 2) { results.value = []; return; }
-  searching.value = true;
-  try {
-    const list = await props.search(term);
-    if (mine !== seq) return;
-    results.value = list.filter((x) => x.id !== props.from?.id);
-  } catch (e) {
-    if (mine === seq) ui.error(errorMessage(e));
-  } finally {
-    if (mine === seq) searching.value = false;
-  }
-}
 
 async function confirm() {
   if (!props.from || !target.value) return;
   busy.value = true;
   try {
     const moved = await props.merge(props.from.id, target.value.id);
-    ui.flash(`Merged. ${num(moved)} show${moved === 1 ? "" : "s"} moved to ${target.value.name}.`);
+    ui.flash(`Merged. ${plural(moved, "show")} moved to ${target.value.name}.`);
     emit("merged", moved);
     open.value = false;
   } catch (e) {
@@ -91,10 +72,10 @@ async function confirm() {
         <SsInput v-model="q" icon="search" :placeholder="`Search ${noun}s`" clearable autofocus />
         <div class="list">
           <div v-if="searching" class="center"><SsSpinner :size="18" /></div>
-          <button v-for="r in results" v-else :key="r.id" type="button" class="opt" @click="target = r">
+          <button v-for="r in results" v-else :key="r.id" type="button" class="opt ss-tile" @click="target = r">
             <span class="opt__name">{{ r.name }}</span>
             <span class="opt__sub">
-              <template v-if="r.sub">{{ r.sub }} · </template>{{ num(r.shows) }} show{{ r.shows === 1 ? "" : "s" }}
+              <template v-if="r.sub">{{ r.sub }} · </template>{{ plural(r.shows, "show") }}
             </span>
           </button>
           <p v-if="!searching && q.trim().length >= 2 && !results.length" class="ss-muted">No other {{ noun }}s match.</p>
@@ -106,20 +87,20 @@ async function confirm() {
 
       <template v-else>
         <div class="confirm">
-          <div class="side side--from">
+          <div class="side side--from ss-tile">
             <div class="side__k">Delete</div>
             <div class="side__name">{{ from.name }}</div>
-            <div class="side__sub"><template v-if="from.sub">{{ from.sub }} · </template>{{ num(from.shows) }} show{{ from.shows === 1 ? "" : "s" }}</div>
+            <div class="side__sub"><template v-if="from.sub">{{ from.sub }} · </template>{{ plural(from.shows, "show") }}</div>
           </div>
           <div class="arrow" aria-hidden="true">→</div>
-          <div class="side side--into">
+          <div class="side side--into ss-tile">
             <div class="side__k">Keep</div>
             <div class="side__name">{{ target.name }}</div>
-            <div class="side__sub"><template v-if="target.sub">{{ target.sub }} · </template>{{ num(target.shows) }} show{{ target.shows === 1 ? "" : "s" }}</div>
+            <div class="side__sub"><template v-if="target.sub">{{ target.sub }} · </template>{{ plural(target.shows, "show") }}</div>
           </div>
         </div>
         <p class="ss-muted">
-          {{ num(from.shows) }} show{{ from.shows === 1 ? "" : "s" }} will move to {{ target.name }}. Missing details
+          {{ plural(from.shows, "show") }} will move to {{ target.name }}. Missing details
           (image, ids, pin) are copied over. This can't be undone.
         </p>
         <div class="actions">
@@ -142,8 +123,6 @@ async function confirm() {
   gap: 2px;
   padding: 10px 12px;
   border-radius: var(--ss-radius-sm);
-  border: 1px solid var(--ss-line);
-  background: var(--ss-surface-1);
   color: var(--ss-text);
   text-align: left;
   min-width: 0;
@@ -157,8 +136,6 @@ async function confirm() {
   min-width: 0;
   padding: 12px;
   border-radius: var(--ss-radius-sm);
-  background: var(--ss-surface-1);
-  border: 1px solid var(--ss-line);
 }
 .side--from { border-color: var(--ss-danger); }
 .side--into { border-color: var(--ss-accent); }

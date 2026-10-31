@@ -1,8 +1,7 @@
 <script setup lang="ts">
 // Admin: health overview, users, and catalog cleanup (artists, venues).
 // The route is admin-only; every call is also checked on the server.
-import { computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useQueryTab } from "@/composables/useQueryTab";
 import { SsPageHeader } from "@/design-system";
 import AdminOverview from "@/components/admin/AdminOverview.vue";
 import AdminUsers from "@/components/admin/AdminUsers.vue";
@@ -17,15 +16,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "venues", label: "Venues" },
 ];
 
-const route = useRoute();
-const router = useRouter();
-const tab = computed<Tab>(() => {
-  const t = route.query.tab;
-  return TABS.some((x) => x.key === t) ? (t as Tab) : "overview";
-});
-function go(t: Tab) {
-  router.replace({ query: t === "overview" ? {} : { tab: t } });
-}
+const { tab, go } = useQueryTab<Tab>("tab", () => TABS.map((x) => x.key), "overview");
 </script>
 
 <template>

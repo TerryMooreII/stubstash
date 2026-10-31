@@ -5,6 +5,7 @@ import { computed, reactive } from "vue";
 import { SsButton, SsIcon } from "@/design-system";
 import { addSet, addSong, canMove, moveSong, removeSet, removeSong, songNumber, totalSongs } from "@/lib/setlist";
 import type { SetDraft } from "@/lib/types";
+import { plural } from "@/lib/format";
 
 const sets = defineModel<SetDraft[]>({ required: true });
 const drafts = reactive<Record<number, string>>({});
@@ -22,7 +23,7 @@ function add(i: number) {
   <div class="sle">
     <div class="sle__head">
       <h2 class="ss-h3">Setlist</h2>
-      <span class="ss-muted sle__count">{{ count }} song{{ count === 1 ? "" : "s" }}</span>
+      <span class="ss-muted sle__count">{{ plural(count, "song") }}</span>
     </div>
 
     <div v-for="(set, i) in sets" :key="i" class="sle__set">
@@ -32,7 +33,7 @@ function add(i: number) {
           <SsIcon name="trash" :size="16" />
         </button>
       </div>
-      <ol class="sle__songs">
+      <ol class="sle__songs ss-list">
         <li v-for="(song, j) in set.songs" :key="`${i}-${j}-${song}`" class="sle__song">
           <span class="sle__n">{{ songNumber(sets, i, j) }}</span>
           <span class="sle__t">{{ song }}</span>
@@ -68,7 +69,6 @@ function add(i: number) {
 .sle__count { font-size: 13px; }
 .sle__set { display: flex; flex-direction: column; gap: 6px; }
 .sle__set-head { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
-.sle__songs { list-style: none; margin: 0; padding: 0; }
 .sle__song {
   display: flex;
   align-items: center;

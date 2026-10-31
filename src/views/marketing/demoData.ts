@@ -1,5 +1,6 @@
 // Demo data for the marketing page map (from the design's stubstash-data.js).
 import type { MapVenue } from "@/lib/types";
+import { milesBetween } from "@/lib/geo";
 
 type Demo = [id: string, name: string, city: string, state: string | null, cc: string, lat: number, lng: number, visits: number, first: number, artists: string[]];
 
@@ -28,10 +29,7 @@ const rows: Demo[] = [
 export const demoHome = { lat: 40.6782, lng: -73.9442, city: "Brooklyn, NY" };
 
 function miles(lat: number, lng: number): number {
-  const r = (x: number) => (x * Math.PI) / 180;
-  const dLat = r(lat - demoHome.lat), dLng = r(lng - demoHome.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(demoHome.lat)) * Math.cos(r(lat)) * Math.sin(dLng / 2) ** 2;
-  return Math.round(2 * 3958.8 * Math.asin(Math.sqrt(h)));
+  return Math.round(milesBetween(demoHome.lat, demoHome.lng, lat, lng));
 }
 
 export const demoVenues: MapVenue[] = rows.map(([id, name, city, state, cc, lat, lng, visits, first, artists]) => ({

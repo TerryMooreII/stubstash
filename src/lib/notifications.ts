@@ -1,5 +1,5 @@
 // In-app notifications and per-kind preferences (in-app / push).
-import { supabase } from "./supabase";
+import { check, supabase } from "./supabase";
 
 export type NotificationKind =
   | "friend_request" | "friend_accepted" | "friend_show" | "same_show"
@@ -37,11 +37,6 @@ export const NOTIFICATION_KINDS: { kind: NotificationKind; label: string; hint: 
 
 export function prefOn(prefs: NotificationPrefs | null | undefined, kind: NotificationKind, channel: "inapp" | "push"): boolean {
   return prefs?.[kind]?.[channel] ?? true;
-}
-
-function check<T>(res: { data: T; error: unknown }): T {
-  if (res.error) throw res.error;
-  return res.data;
 }
 
 export const notificationsApi = {

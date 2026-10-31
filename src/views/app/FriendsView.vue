@@ -2,14 +2,18 @@
 import { appUrl } from "@/lib/url";
 // Find and manage friends: incoming requests, search, people who were at your
 // shows, a scannable QR code, an invite link, and your current friends.
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { SsAvatar, SsBackLink, SsButton, SsCard, SsInput, SsPageHeader, SsSkeleton } from "@/design-system";
 import PersonRow from "@/components/people/PersonRow.vue";
 import QrCode from "@/components/people/QrCode.vue";
 import { social } from "@/lib/api";
-import { plural } from "@/lib/format";
+import { firstName, plural } from "@/lib/format";
 import { errorMessage } from "@/lib/supabase";
-import type { Friend, FriendshipState, PersonCard } from "@/lib/types";
+import type { Friend, FriendshipState } from "@/lib/types";
+import { useAction, useKeyedAction } from "@/composables/useAction";
+import { useDebouncedSearch } from "@/composables/useDebouncedSearch";
+import { useFriendRequest } from "@/composables/useFriendRequest";
+import { useShareLink } from "@/composables/useShareLink";
 import { useAuth } from "@/stores/auth";
 import { useUi } from "@/stores/ui";
 
@@ -23,18 +27,13 @@ const incoming = ref<Incoming[]>([]);
 const suggested = ref<Suggested[]>([]);
 const friends = ref<Friend[]>([]);
 const loading = ref(true);
-const busy = ref<Record<string, boolean>>({});
 /** Local friendship overrides after taps, keyed by handle. */
 const states = ref<Record<string, FriendshipState>>({});
 
 const q = ref("");
-const results = ref<PersonCard[]>([]);
-const searching = ref(false);
-const searched = ref(false);
 
 const inviteUrl = computed(() => appUrl(`/add/${auth.profile?.handle ?? ""}`));
 const inviteDisplay = computed(() => inviteUrl.value.replace(/^https?:\/\//, ""));
-const canShare = typeof navigator !== "undefined" && "share" in navigator;
 
 async function load() {
   loading.value = true;
@@ -52,103 +51,58 @@ async function load() {
 onMounted(load);
 
 // ---- search (debounced)
-let timer: ReturnType<typeof setTimeout> | undefined;
-let seq = 0;
-watch(q, (v) => {
-  clearTimeout(timer);
-  const term = v.trim();
-  if (term.replace(/^@/, "").length < 2) {
-    results.value = [];
-    searched.value = false;
-    return;
-  }
-  timer = setTimeout(async () => {
-    const my = ++seq;
-    searching.value = true;
-    try {
-      const r = await social.search(term);
-      if (my === seq) {
-        results.value = r;
-        searched.value = true;
-      }
-    } catch (err) {
-      ui.error(errorMessage(err));
-    } finally {
-      if (my === seq) searching.value = false;
-    }
-  }, 300);
-});
+const { results, searching } = useDebouncedSearch(
+  q,
+  async (term) => (term.replace(/^@/, "").length < 2 ? [] : social.search(term)),
+  { onError: (err) => ui.error(errorMessage(err)) },
+);
 
 const stateOf = (p: { handle: string; friendship?: FriendshipState }) => states.value[p.handle] ?? p.friendship ?? null;
-const firstName = (p: { display_name: string; handle: string }) => (p.display_name || p.handle).split(" ")[0];
 
-async function add(p: { handle: string; display_name: string }) {
-  busy.value[p.handle] = true;
-  try {
-    const res = await social.request(p.handle);
-    states.value[p.handle] = res;
+async function refreshFriends() {
+  friends.value = await social.friends();
+}
+
+const { request, busy: requesting } = useFriendRequest({
+  onDone: async (handle, res) => {
+    states.value[handle] = res;
     if (res === "friends") {
-      ui.flash(`You and ${firstName(p)} are now friends`);
-      friends.value = await social.friends();
-      incoming.value = incoming.value.filter((i) => i.handle !== p.handle);
-    } else {
-      ui.flash(`Request sent to ${firstName(p)}`);
+      await refreshFriends();
+      incoming.value = incoming.value.filter((i) => i.handle !== handle);
     }
-  } catch (err) {
-    ui.error(errorMessage(err));
-  } finally {
-    busy.value[p.handle] = false;
-  }
-}
+  },
+});
+const add = (p: { handle: string; display_name: string }) => request(p.handle, firstName(p.display_name, p.handle));
 
-async function respond(r: Incoming, accept: boolean) {
-  busy.value[r.handle] = true;
-  try {
-    await social.respond(r.requester_id, accept);
-    incoming.value = incoming.value.filter((i) => i.requester_id !== r.requester_id);
-    if (accept) {
-      states.value[r.handle] = "friends";
-      ui.flash(`You and ${firstName(r)} are now friends`);
-      friends.value = await social.friends();
-    }
-  } catch (err) {
-    ui.error(errorMessage(err));
-  } finally {
-    busy.value[r.handle] = false;
+const { run: runRespond, busy: responding } = useKeyedAction(async (handle: string, r: Incoming, accept: boolean) => {
+  await social.respond(r.requester_id, accept);
+  incoming.value = incoming.value.filter((i) => i.requester_id !== r.requester_id);
+  if (accept) {
+    states.value[handle] = "friends";
+    ui.flash(`You and ${firstName(r.display_name, r.handle)} are now friends`);
+    await refreshFriends();
   }
-}
+});
+const respond = (r: Incoming, accept: boolean) => runRespond(r.handle, r, accept);
+/** In-flight taps, by handle. */
+const busy = computed(() => ({ ...requesting.value, ...responding.value }));
 
-async function remove(f: Friend) {
+const { run: remove } = useAction(async (f: Friend) => {
   if (!confirm(`Remove ${f.display_name || "@" + f.handle} from your friends?`)) return;
-  try {
-    await social.remove(f.id);
-    friends.value = friends.value.filter((x) => x.id !== f.id);
-    states.value[f.handle] = null;
-    ui.flash("Removed", "info");
-  } catch (err) {
-    ui.error(errorMessage(err));
-  }
-}
+  await social.remove(f.id);
+  friends.value = friends.value.filter((x) => x.id !== f.id);
+  states.value[f.handle] = null;
+  ui.flash("Removed", "info");
+});
 
-async function copyInvite() {
-  try {
-    await navigator.clipboard.writeText(inviteUrl.value);
-    ui.flash("Invite link copied");
-  } catch {
-    ui.error("Couldn't copy. Press and hold the link to copy it.");
-  }
-}
-async function shareInvite() {
-  try {
-    await navigator.share({
-      title: "Add me on Stubstash",
-      text: `I'm logging my concerts on Stubstash. Add me so we can compare shows.`,
-      url: inviteUrl.value,
-    });
-  } catch {
-    /* cancelled */
-  }
-}
+const { canShare, copy, share } = useShareLink();
+const copyInvite = () => copy(inviteUrl.value, "Invite link copied");
+const shareInvite = () =>
+  share({
+    title: "Add me on Stubstash",
+    text: `I'm logging my concerts on Stubstash. Add me so we can compare shows.`,
+    url: inviteUrl.value,
+  });
 </script>
 
 <template>
@@ -195,7 +149,7 @@ async function shareInvite() {
         :busy="busy[p.handle]"
         @add="add(p)"
       />
-      <p v-if="searched && !searching && !results.length" class="none">
+      <p v-if="!searching && !results.length" class="none">
         No one by that name yet. Send them your invite link below.
       </p>
     </SsCard>

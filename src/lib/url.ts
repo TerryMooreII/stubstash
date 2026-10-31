@@ -8,3 +8,8 @@ export function appUrl(path: string): string {
 
 /** Public host shown on share cards and profile links. */
 export const SITE_HOST = "stubstash.terrymooreii.dev";
+
+/** A `?next=` value that's safe to redirect to: an in-app path, not "//evil.com". */
+export function safeNext(next: unknown, fallback = "/app"): string {
+  return typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : fallback;
+}

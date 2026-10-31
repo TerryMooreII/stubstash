@@ -12,7 +12,11 @@ import HeadToHead from "@/components/people/HeadToHead.vue";
 import YearInReviewCard from "@/components/people/YearInReviewCard.vue";
 import { useNotifications } from "@/stores/notifications";
 import { badges as loadBadges, publicProfile, social, userLog } from "@/lib/api";
-import { mediumDate, place, plural } from "@/lib/format";
+import { firstName, mediumDate, plural } from "@/lib/format";
+import { entryTicketProps } from "@/lib/shows";
+import ShowListRow from "@/components/shows/ShowListRow.vue";
+import { useAction } from "@/composables/useAction";
+import { useFriendRequest } from "@/composables/useFriendRequest";
 import { profileBanner } from "@/lib/heroImage";
 import { badgeNumbers, groupBadges } from "@/lib/badgeArt";
 import { errorMessage } from "@/lib/supabase";
@@ -40,7 +44,6 @@ const badgeList = ref<Badge[]>([]);
 const friends = ref<Friend[]>([]);
 const loading = ref(true);
 const notFound = ref(false);
-const friendBusy = ref(false);
 
 const entries = computed(() => (isSelf.value ? log.entries : otherLog.value));
 const targetId = computed(() => (isSelf.value ? auth.userId ?? undefined : other.value?.id));
@@ -110,16 +113,13 @@ watch(() => [props.handle, auth.userId, auth.profile?.handle], load, { immediate
 
 
 // ---- public toggle (self)
+const { run: setPublic } = useAction(async (v: boolean) => {
+  await auth.saveProfile({ is_public: v });
+  ui.flash(v ? "Public: anyone with your link can see your shows" : "Private: only friends can see your shows", "info", 3600);
+});
 const isPublic = computed({
   get: () => !!auth.profile?.is_public,
-  set: async (v: boolean) => {
-    try {
-      await auth.saveProfile({ is_public: v });
-      ui.flash(v ? "Public: anyone with your link can see your shows" : "Private: only friends can see your shows", "info", 3600);
-    } catch (err) {
-      ui.error(errorMessage(err));
-    }
-  },
+  set: (v: boolean) => void setPublic(v),
 });
 
 // ---- friend button (others)
@@ -131,6 +131,13 @@ const friendLabel = computed(() => {
     default: return "Add friend";
   }
 });
+const { request, busy: requesting } = useFriendRequest({
+  onDone: (_handle, res) => {
+    if (other.value) other.value = { ...other.value, friendship: res };
+    if (res === "friends") load();
+  },
+});
+const friendBusy = computed(() => !!other.value && !!requesting.value[other.value.handle]);
 async function friendAction() {
   if (!other.value) return;
   if (!auth.signedIn) {
@@ -138,17 +145,7 @@ async function friendAction() {
     return;
   }
   if (other.value.friendship === "friends" || other.value.friendship === "sent") return;
-  friendBusy.value = true;
-  try {
-    const res = await social.request(other.value.handle);
-    other.value = { ...other.value, friendship: res };
-    ui.flash(res === "friends" ? `You and ${name.value.split(" ")[0]} are now friends` : `Request sent to ${name.value.split(" ")[0]}`);
-    if (res === "friends") load();
-  } catch (err) {
-    ui.error(errorMessage(err));
-  } finally {
-    friendBusy.value = false;
-  }
+  await request(other.value.handle, firstName(name.value));
 }
 
 const profileUrl = computed(() => `${SITE_HOST}/u/${handle.value}`);
@@ -209,7 +206,7 @@ const latest = computed(() => otherLog.value.slice(0, 6));
       <!-- Private profile -->
       <SsEmpty
         v-if="!loading && !canView"
-        :title="name ? `${name.split(' ')[0]}'s log is private` : 'This log is private'"
+        :title="name ? `${firstName(name)}'s log is private` : 'This log is private'"
         :body="
           auth.signedIn
             ? 'Add them as a friend. Once they accept, you can see their shows and go head-to-head.'
@@ -295,13 +292,11 @@ const latest = computed(() => otherLog.value.slice(0, 6));
           <SsCard v-if="auth.signedIn" title="Shows you were both at">
             <template #aside>{{ plural(shared.length, "show") }}</template>
             <div v-if="shared.length" class="rows">
-              <RouterLink v-for="s in shared" :key="s.attendance_id" :to="`/app/shows/${s.attendance_id}`" class="row">
-                <div class="row__main">
-                  <div class="row__title">{{ s.artist_name }}</div>
-                  <div class="row__sub ss-truncate">{{ s.venue_name }}<template v-if="s.city"> · {{ s.city }}</template></div>
-                </div>
-                <span class="row__date">{{ mediumDate(s.event_date) }}</span>
-              </RouterLink>
+              <ShowListRow v-for="s in shared" :key="s.attendance_id" :to="`/app/shows/${s.attendance_id}`" truncate>
+                {{ s.artist_name }}
+                <template #sub>{{ s.venue_name }}<template v-if="s.city"> · {{ s.city }}</template></template>
+                <template #end><span class="row__date">{{ mediumDate(s.event_date) }}</span></template>
+              </ShowListRow>
             </div>
             <p v-else class="ss-muted">None yet. Next time, go together.</p>
           </SsCard>
@@ -310,19 +305,7 @@ const latest = computed(() => otherLog.value.slice(0, 6));
             <h2 class="ss-h2">Latest shows</h2>
           </div>
           <div v-if="latest.length" class="ss-grid" style="--ss-grid-min: 300px">
-            <SsTicketRow
-              v-for="e in latest"
-              :key="e.attendance_id"
-              :to="`/u/${handle}/shows/${e.attendance_id}`"
-              :date="e.event_date"
-              :artist="e.artist_name"
-              :venue="e.venue_name"
-              :place="place(e.city, e.state_code, e.country_code)"
-              :number="e.show_number"
-              :source="e.source"
-              :songs="e.song_count"
-              :rating="e.rating"
-            />
+            <SsTicketRow v-for="e in latest" :key="e.attendance_id" v-bind="entryTicketProps(e, `/u/${handle}/shows`)" />
           </div>
           <SsButton v-if="otherLog.length" :to="`/u/${handle}/map`" variant="outline" style="align-self: flex-start">
             <SsIcon name="pin" :size="16" />See their map
@@ -417,30 +400,6 @@ const latest = computed(() => otherLog.value.slice(0, 6));
 .rows {
   display: flex;
   flex-direction: column;
-}
-.row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  border-top: 1px solid var(--ss-line-soft);
-  color: var(--ss-text);
-  text-decoration: none;
-}
-.row:hover {
-  text-decoration: none;
-  color: var(--ss-accent);
-}
-.row__main {
-  flex: 1;
-  min-width: 0;
-}
-.row__title {
-  font-weight: 700;
-}
-.row__sub {
-  font-size: 13px;
-  color: var(--ss-text-muted);
 }
 .row__date {
   font-size: 13px;

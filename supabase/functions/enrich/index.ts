@@ -9,12 +9,12 @@
 // Called with the x-cron-secret header. Each run handles a small batch so it
 // stays inside MusicBrainz's and Nominatim's 1 request/second policies.
 
-import { HttpError, isCron, json, serve, sleep } from "../_shared/http.ts";
+import { contactUrl, HttpError, isCron, json, serve, throttle } from "../_shared/http.ts";
 import { adminClient } from "../_shared/supabase.ts";
 
 const ARTIST_BATCH = 8;
 const VENUE_BATCH = 6;
-const UA = `Stubstash/1.0 (+${Deno.env.get("CONTACT_EMAIL") ?? "https://stubstash.terrymooreii.dev"})`;
+const UA = `Stubstash/1.0 (+${contactUrl()})`;
 /** How far (km) a venue match may be from setlist.fm's city centre. */
 const MAX_KM = 45;
 
@@ -35,13 +35,8 @@ async function getJson(url: string, headers: Record<string, string> = {}): Promi
   }
 }
 
-/** Per-host spacing so we respect "1 request per second" policies. */
-const lastCall: Record<string, number> = {};
-async function polite(host: string, gapMs = 1100) {
-  const wait = (lastCall[host] ?? 0) + gapMs - Date.now();
-  if (wait > 0) await sleep(wait);
-  lastCall[host] = Date.now();
-}
+/** Most lookup hosts ask for about 1 request per second. */
+const polite = (host: string) => throttle(host, 1100);
 
 function commonsUrl(file: string, width = 1000): string {
   return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=${width}`;

@@ -3,13 +3,13 @@
 //   { action: "test" }    (signed-in user)  -> sends a test notification to your devices
 
 import webpush from "npm:web-push@3.6.7";
-import { HttpError, isCron, json, serve } from "../_shared/http.ts";
+import { contactUrl, HttpError, isCron, json, serve } from "../_shared/http.ts";
 import { adminClient, requireUser } from "../_shared/supabase.ts";
 
 function configure() {
   const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
   if (!pub || !priv) throw new HttpError(503, "Push isn't configured yet.");
-  webpush.setVapidDetails(Deno.env.get("CONTACT_EMAIL") ? `mailto:${Deno.env.get("CONTACT_EMAIL")}` : "https://stubstash.terrymooreii.dev", pub, priv);
+  webpush.setVapidDetails(contactUrl(true), pub, priv);
 }
 
 interface Payload { title: string; body: string; url: string; tag?: string }

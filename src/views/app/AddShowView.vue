@@ -18,7 +18,9 @@ import {
 } from "@/lib/api";
 import { addShowPhoto, deleteShowPhoto, removeFile, signedUrl, signedUrls, upload } from "@/lib/media";
 import { errorMessage } from "@/lib/supabase";
-import { longDate, parseMoney, place, todayIso } from "@/lib/format";
+import { longDate, parseMoney, placeOf, plural, todayIso } from "@/lib/format";
+import { useAction, useKeyedAction } from "@/composables/useAction";
+import { useShareLink } from "@/composables/useShareLink";
 import { cleanSets, emptySets, fromSetlist } from "@/lib/setlist";
 import { countryOptions } from "@/lib/countries";
 import type { AttendanceDetail, SetDraft } from "@/lib/types";
@@ -36,7 +38,6 @@ const ui = useUi();
 const isEdit = computed(() => !!props.id);
 const loading = ref(isEdit.value);
 const loadError = ref<string | null>(null);
-const saving = ref(false);
 const detail = ref<AttendanceDetail | null>(null);
 
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"];
@@ -101,7 +102,7 @@ const venueRows = new Map<string, { city: string | null; state_code: string | nu
 async function venueOptions(q: string): Promise<AutocompleteOption[]> {
   const rows = await searchCatalogVenues(q);
   rows.forEach((v) => venueRows.set(v.id, v));
-  return rows.map((v) => ({ id: v.id, label: v.name, sub: place(v.city, v.state_code, v.country_code) }));
+  return rows.map((v) => ({ id: v.id, label: v.name, sub: placeOf(v) }));
 }
 let pickedArtist = "";
 let pickedVenue = "";
@@ -218,7 +219,7 @@ async function uploadMedia(attendanceId: string) {
     await updateAttendance(attendanceId, { stub_path: null });
     await removeFile("stubs", oldStub).catch(() => {});
   }
-  if (failed) ui.error(`${failed} photo${failed > 1 ? "s" : ""} didn't upload. Try adding them again.`);
+  if (failed) ui.error(`${plural(failed, "photo")} didn't upload. Try adding them again.`);
 }
 
 function finish(path: string) {
@@ -238,126 +239,100 @@ async function save() {
     ui.error("That price doesn't look right.");
     return;
   }
-  saving.value = true;
-  try {
-    if (!isEdit.value) {
-      const input: ManualShowInput = {
-        artist_id: artistId.value,
-        artist_name: form.artist_name.trim(),
-        venue_id: venueId.value,
-        venue_name: form.venue_name.trim(),
-        city: form.city.trim(),
-        state_code: form.state_code || undefined,
-        country_code: form.country_code || undefined,
-        event_date: form.event_date,
-        tour_name: form.tour_name.trim(),
-        is_festival: form.is_festival,
-        sets: cleanSets(form.sets),
-        rating: form.rating,
-        seat: form.seat.trim() || null,
-        price_cents: priceCents.value,
-        currency: form.currency,
-        merch: form.merch.trim() || null,
-        notes: form.notes.trim() || null,
-      };
-      const attendanceId = await createManualShow(input);
-      if (form.is_festival && form.festival_name.trim()) await updateAttendance(attendanceId, { festival_name: festivalNameValue() });
-      if (form.companions.length) await saveCompanions(attendanceId, []);
-      await uploadMedia(attendanceId);
-      await log.refresh();
-      const n = log.entries.find((e) => e.attendance_id === attendanceId)?.show_number;
-      ui.flash(n ? `Saved! Show #${n} is in the books` : "Saved!");
-      finish(`/app/shows/${attendanceId}`);
-      return;
-    }
+  await doSave();
+}
 
-    // ---- edit
-    const d = detail.value!;
-    if (canEditShow.value && original) {
-      const patch: Partial<ManualShowInput> = {};
-      if (form.artist_name.trim() && form.artist_name !== original.artist) patch.artist_name = form.artist_name.trim();
-      if (form.venue_name.trim() && form.venue_name !== original.venue) patch.venue_name = form.venue_name.trim();
-      if (form.city !== original.city) patch.city = form.city.trim();
-      if (form.state_code !== original.state) patch.state_code = form.state_code.trim();
-      if (form.country_code !== original.country) patch.country_code = form.country_code;
-      if (form.event_date && form.event_date !== original.date) patch.event_date = form.event_date;
-      if (form.tour_name !== original.tour) patch.tour_name = form.tour_name.trim();
-      if (form.is_festival !== original.fest) patch.is_festival = form.is_festival;
-      const sets = cleanSets(form.sets);
-      if (JSON.stringify(sets) !== original.sets) patch.sets = sets;
-      if (Object.keys(patch).length) await updateManualShow(d.show.id, patch);
-    }
-    await updateAttendance(d.id, {
+const { run: doSave, busy: saving } = useAction(async () => {
+  if (!isEdit.value) {
+    const input: ManualShowInput = {
+      artist_id: artistId.value,
+      artist_name: form.artist_name.trim(),
+      venue_id: venueId.value,
+      venue_name: form.venue_name.trim(),
+      city: form.city.trim(),
+      state_code: form.state_code || undefined,
+      country_code: form.country_code || undefined,
+      event_date: form.event_date,
+      tour_name: form.tour_name.trim(),
+      is_festival: form.is_festival,
+      sets: cleanSets(form.sets),
       rating: form.rating,
       seat: form.seat.trim() || null,
       price_cents: priceCents.value,
       currency: form.currency,
       merch: form.merch.trim() || null,
       notes: form.notes.trim() || null,
-      // For setlist.fm shows the festival switch is your own override.
-      // For your own shows it lives on the show, so clear any per-log override (e.g. from bulk "Mark as festival").
-      is_festival: canEditShow.value ? (form.is_festival === original?.fest ? null : form.is_festival)
-        : form.is_festival === d.show.is_festival ? null : form.is_festival,
-      festival_name: form.is_festival ? festivalNameValue() : null,
-    });
-    if (original && JSON.stringify(form.companions) !== original.companions) {
-      await saveCompanions(d.id, d.companions.map((c) => c.name));
-    }
-    await uploadMedia(d.id);
+    };
+    const attendanceId = await createManualShow(input);
+    if (form.is_festival && form.festival_name.trim()) await updateAttendance(attendanceId, { festival_name: festivalNameValue() });
+    if (form.companions.length) await saveCompanions(attendanceId, []);
+    await uploadMedia(attendanceId);
     await log.refresh();
-    ui.flash("Saved");
-    finish(`/app/shows/${d.id}`);
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    saving.value = false;
+    const n = log.entries.find((e) => e.attendance_id === attendanceId)?.show_number;
+    ui.flash(n ? `Saved! Show #${n} is in the books` : "Saved!");
+    finish(`/app/shows/${attendanceId}`);
+    return;
   }
-}
 
-async function deleteSaved(p: SavedPhoto) {
-  try {
-    await deleteShowPhoto(p.id, p.storage_path);
-    savedPhotos.value = savedPhotos.value.filter((x) => x.id !== p.id);
-  } catch (e) {
-    ui.error(errorMessage(e));
+  // ---- edit
+  const d = detail.value!;
+  if (canEditShow.value && original) {
+    const patch: Partial<ManualShowInput> = {};
+    if (form.artist_name.trim() && form.artist_name !== original.artist) patch.artist_name = form.artist_name.trim();
+    if (form.venue_name.trim() && form.venue_name !== original.venue) patch.venue_name = form.venue_name.trim();
+    if (form.city !== original.city) patch.city = form.city.trim();
+    if (form.state_code !== original.state) patch.state_code = form.state_code.trim();
+    if (form.country_code !== original.country) patch.country_code = form.country_code;
+    if (form.event_date && form.event_date !== original.date) patch.event_date = form.event_date;
+    if (form.tour_name !== original.tour) patch.tour_name = form.tour_name.trim();
+    if (form.is_festival !== original.fest) patch.is_festival = form.is_festival;
+    const sets = cleanSets(form.sets);
+    if (JSON.stringify(sets) !== original.sets) patch.sets = sets;
+    if (Object.keys(patch).length) await updateManualShow(d.show.id, patch);
   }
-}
+  await updateAttendance(d.id, {
+    rating: form.rating,
+    seat: form.seat.trim() || null,
+    price_cents: priceCents.value,
+    currency: form.currency,
+    merch: form.merch.trim() || null,
+    notes: form.notes.trim() || null,
+    // For setlist.fm shows the festival switch is your own override.
+    // For your own shows it lives on the show, so clear any per-log override (e.g. from bulk "Mark as festival").
+    is_festival: canEditShow.value ? (form.is_festival === original?.fest ? null : form.is_festival)
+      : form.is_festival === d.show.is_festival ? null : form.is_festival,
+    festival_name: form.is_festival ? festivalNameValue() : null,
+  });
+  if (original && JSON.stringify(form.companions) !== original.companions) {
+    await saveCompanions(d.id, d.companions.map((c) => c.name));
+  }
+  await uploadMedia(d.id);
+  await log.refresh();
+  ui.flash("Saved");
+  finish(`/app/shows/${d.id}`);
+});
+
+const { run: deletePhoto } = useKeyedAction(async (_id: string, p: SavedPhoto) => {
+  await deleteShowPhoto(p.id, p.storage_path);
+  savedPhotos.value = savedPhotos.value.filter((x) => x.id !== p.id);
+});
+const deleteSaved = (p: SavedPhoto) => deletePhoto(p.id, p);
 
 // ----- remove from log
 const confirmDelete = ref(false);
-const deleting = ref(false);
-async function removeFromLog() {
-  deleting.value = true;
-  try {
-    await deleteAttendance(props.id!);
-    await log.refresh();
-    confirmDelete.value = false;
-    ui.flash("Removed from your log");
-    router.push("/app/shows");
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    deleting.value = false;
-  }
-}
+const { run: removeFromLog, busy: deleting } = useAction(async () => {
+  await deleteAttendance(props.id!);
+  await log.refresh();
+  confirmDelete.value = false;
+  ui.flash("Removed from your log");
+  router.push("/app/shows");
+});
 
 // ----- invite sheet
-const canShare = typeof navigator !== "undefined" && "share" in navigator;
-async function copyInvite(url: string) {
-  try {
-    await navigator.clipboard.writeText(url);
-    ui.flash("Invite link copied");
-  } catch {
-    ui.error("Couldn't copy. Press and hold the link to copy it.");
-  }
-}
-async function shareInvite(i: { name: string; url: string }) {
-  try {
-    await navigator.share({ title: "You were there", text: `${i.name}, I logged our show on Stubstash. It's already in your log if you join:`, url: i.url });
-  } catch {
-    /* cancelled */
-  }
-}
+const { canShare, copy, share } = useShareLink();
+const copyInvite = (url: string) => copy(url, "Invite link copied");
+const shareInvite = (i: { name: string; url: string }) =>
+  share({ title: "You were there", text: `${i.name}, I logged our show on Stubstash. It's already in your log if you join:`, url: i.url });
 function closeInvites() {
   inviteOpen.value = false;
   if (afterInvites) router.push(afterInvites);
@@ -443,7 +418,7 @@ const inviteTitle = computed(() =>
             <template v-else-if="detail">
               <div class="readonly">
                 <div class="readonly__artist">{{ detail.show.artist.name }}</div>
-                <div>{{ longDate(detail.show.event_date) }} · {{ detail.show.venue.name }}<template v-if="detail.show.venue.city"> · {{ place(detail.show.venue.city, detail.show.venue.state_code, detail.show.venue.country_code) }}</template></div>
+                <div>{{ longDate(detail.show.event_date) }} · {{ detail.show.venue.name }}<template v-if="detail.show.venue.city"> · {{ placeOf(detail.show.venue) }}</template></div>
                 <div v-if="detail.show.tour_name" class="ss-muted">{{ detail.show.tour_name }}</div>
               </div>
               <p class="note">Show details come from setlist.fm. Spot a mistake? Fix it there and it updates here.</p>

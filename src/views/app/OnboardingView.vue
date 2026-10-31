@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // First-run setup, from the design's onboarding: intro → setlist.fm import →
 // home base → "You're in" with real totals.
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsChip, SsInput, SsLogo, SsProgress, SsSpinner } from "@/design-system";
 import { useAuth } from "@/stores/auth";
@@ -9,7 +9,10 @@ import { useLog } from "@/stores/log";
 import { useUi } from "@/stores/ui";
 import { setlistfm } from "@/lib/api";
 import { searchPlaces, type PlaceResult } from "@/lib/geocode";
-import { compact, mediumDate, num } from "@/lib/format";
+import { compact, mediumDate, num, plural } from "@/lib/format";
+import { safeNext } from "@/lib/url";
+import { useAction } from "@/composables/useAction";
+import { useDebouncedSearch } from "@/composables/useDebouncedSearch";
 import { errorMessage } from "@/lib/supabase";
 
 const auth = useAuth();
@@ -38,7 +41,7 @@ watch(username, () => {
 const importLabel = computed(() => {
   switch (importState.value) {
     case "looking": return "Digging through setlist.fm…";
-    case "found": return `Import ${num(preview.value?.total ?? 0)} show${preview.value?.total === 1 ? "" : "s"}`;
+    case "found": return `Import ${plural(preview.value?.total ?? 0, "show")}`;
     case "importing": return "Importing…";
     case "none": return "Try again";
     default: return "Find my shows";
@@ -88,64 +91,47 @@ const importPct = computed(() => (preview.value?.pages ? ((importPage.value - (i
 
 // ---------------------------------------------------------------- step 2: home base
 const cityQuery = ref(auth.profile?.home_city ?? "");
-const cityResults = ref<PlaceResult[]>([]);
-const citySearching = ref(false);
 const picked = ref<PlaceResult | null>(
   auth.profile?.home_lat != null && auth.profile.home_lng != null && auth.profile.home_city
     ? { label: auth.profile.home_city, city: auth.profile.home_city, country_code: auth.profile.home_country_code, lat: auth.profile.home_lat, lng: auth.profile.home_lng }
     : null,
 );
 const defaults = ["Brooklyn, NY", "Chicago, IL", "Denver, CO", "London, GB"];
-let debounce: ReturnType<typeof setTimeout> | undefined;
 
+// Typing clears the pick. The picked label itself isn't searched again.
 watch(cityQuery, (q) => {
-  if (picked.value && q === picked.value.label) return;
-  picked.value = null;
-  clearTimeout(debounce);
-  if (q.trim().length < 2) { cityResults.value = []; return; }
-  debounce = setTimeout(async () => {
-    citySearching.value = true;
-    try { cityResults.value = await searchPlaces(q); } catch { cityResults.value = []; }
-    finally { citySearching.value = false; }
-  }, 450);
+  if (picked.value && q !== picked.value.label) picked.value = null;
 });
-onBeforeUnmount(() => clearTimeout(debounce));
+const cityTerm = computed(() => (picked.value && cityQuery.value === picked.value.label ? "" : cityQuery.value));
+const { results: cityResults, searching, clear: clearCities } = useDebouncedSearch(cityTerm, searchPlaces, { ms: 450 });
+const findingDefault = ref(false);
+const citySearching = computed(() => searching.value || findingDefault.value);
 
 function pickPlace(p: PlaceResult) {
   picked.value = p;
   cityQuery.value = p.label;
-  cityResults.value = [];
+  clearCities();
 }
 async function pickDefault(label: string) {
-  citySearching.value = true;
+  findingDefault.value = true;
   try {
     const [first] = await searchPlaces(label);
     if (first) pickPlace(first);
   } finally {
-    citySearching.value = false;
+    findingDefault.value = false;
   }
 }
 
-const savingHome = ref(false);
-async function saveHome() {
+const { run: saveHomeBase, busy: savingHome } = useAction(async (p: PlaceResult) => {
+  await auth.saveProfile({ home_city: p.label, home_lat: p.lat, home_lng: p.lng, home_country_code: p.country_code });
+  step.value = 3;
+});
+function saveHome() {
   if (!picked.value) {
     if (cityResults.value[0]) pickPlace(cityResults.value[0]);
     else return void ui.error("Pick your city from the list so we can map it.");
   }
-  savingHome.value = true;
-  try {
-    await auth.saveProfile({
-      home_city: picked.value!.label,
-      home_lat: picked.value!.lat,
-      home_lng: picked.value!.lng,
-      home_country_code: picked.value!.country_code,
-    });
-    step.value = 3;
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    savingHome.value = false;
-  }
+  void saveHomeBase(picked.value!);
 }
 
 // ---------------------------------------------------------------- step 3: you're in
@@ -163,8 +149,9 @@ async function finish() {
   finishing.value = true;
   try {
     await auth.saveProfile({ onboarded_at: new Date().toISOString() });
-    const n = route.query.next;
-    router.replace(typeof n === "string" && n.startsWith("/app") ? n : "/app");
+    // Only back into the app: onboarding gates /app, so anything else would skip it.
+    const n = safeNext(route.query.next);
+    router.replace(n.startsWith("/app") ? n : "/app");
   } catch (e) {
     ui.error(errorMessage(e));
     finishing.value = false;

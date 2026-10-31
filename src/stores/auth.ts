@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { appUrl } from "@/lib/url";
+import { firstName as firstNameOf } from "@/lib/format";
 import { getMyProfile, updateMyProfile } from "@/lib/api";
 import { admin } from "@/lib/admin";
 import type { Profile } from "@/lib/types";
@@ -20,7 +21,7 @@ export const useAuth = defineStore("auth", () => {
   const signedIn = computed(() => !!session.value);
   const needsOnboarding = computed(() => signedIn.value && !!profile.value && !profile.value.onboarded_at);
   const displayName = computed(() => profile.value?.display_name || profile.value?.handle || "");
-  const firstName = computed(() => displayName.value.split(" ")[0] ?? "");
+  const firstName = computed(() => firstNameOf(displayName.value));
 
   async function loadProfile() {
     profile.value = session.value ? await getMyProfile() : null;
@@ -48,6 +49,20 @@ export const useAuth = defineStore("auth", () => {
       });
     })();
     return initPromise;
+  }
+
+  /**
+   * After an email link, supabase-js swaps the code in the URL for a session
+   * (detectSessionInUrl). Polls until it lands; resolves true if signed in.
+   */
+  async function waitForSession(tries = 20): Promise<boolean> {
+    await init();
+    for (let i = 0; i < tries && !session.value; i++) {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) { session.value = data.session; break; }
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    return !!session.value;
   }
 
   async function signUp(email: string, password: string, handle?: string) {
@@ -97,6 +112,6 @@ export const useAuth = defineStore("auth", () => {
 
   return {
     session, profile, isAdmin, ready, userId, signedIn, needsOnboarding, displayName, firstName,
-    init, loadProfile, signUp, signIn, sendPasswordReset, updatePassword, signOut, saveProfile,
+    init, waitForSession, loadProfile, signUp, signIn, sendPasswordReset, updatePassword, signOut, saveProfile,
   };
 });

@@ -2,6 +2,7 @@
 // Teal streak card: consecutive months with at least one show.
 import { computed } from "vue";
 import type { DashboardStats } from "@/lib/types";
+import { plural } from "@/lib/format";
 
 const props = defineProps<{ streak: DashboardStats["streak"] }>();
 
@@ -16,7 +17,7 @@ const cells = computed(() => {
 const footer = computed(() => {
   const s = props.streak;
   if (!s.longest) return "Log a show to start a streak.";
-  const longest = `Longest: ${s.longest} month${s.longest === 1 ? "" : "s"}${s.longest_year ? ` (${s.longest_year})` : ""}.`;
+  const longest = `Longest: ${plural(s.longest, "month")}${s.longest_year ? ` (${s.longest_year})` : ""}.`;
   return s.current ? `${longest} Next show keeps it alive.` : `${longest} One show this month starts a new one.`;
 });
 </script>

@@ -1,50 +1,34 @@
 <script setup lang="ts">
 // /add/:handle: the "Scan to add me" / invite-link landing page.
-import { computed, onMounted, ref } from "vue";
+import { computed } from "vue";
 import { SsAvatar, SsButton, SsSpinner } from "@/design-system";
 import AuthFrame from "./auth/AuthFrame.vue";
 import { useAuth } from "@/stores/auth";
-import { useUi } from "@/stores/ui";
-import { publicProfile, social } from "@/lib/api";
-import { errorMessage } from "@/lib/supabase";
+import { publicProfile } from "@/lib/api";
 import { plural } from "@/lib/format";
-import type { PublicProfile } from "@/lib/types";
+import { useAsyncData } from "@/composables/useAsyncData";
+import { useFriendRequest } from "@/composables/useFriendRequest";
 
 const props = defineProps<{ handle: string }>();
 const auth = useAuth();
-const ui = useUi();
 
-const loading = ref(true);
-const person = ref<PublicProfile | null>(null);
-const busy = ref(false);
 const clean = computed(() => props.handle.replace(/^@/, ""));
-const next = computed(() => `/add/${encodeURIComponent(clean.value)}`);
-
-onMounted(async () => {
+const { data: person, loading } = useAsyncData(async () => {
   await auth.init();
-  try {
-    person.value = await publicProfile(clean.value);
-  } catch {
-    person.value = null;
-  } finally {
-    loading.value = false;
-  }
+  return publicProfile(clean.value).catch(() => null);
 });
+const next = computed(() => `/add/${encodeURIComponent(clean.value)}`);
 
 const name = computed(() => person.value?.display_name || `@${person.value?.handle ?? clean.value}`);
 
+const { request, busy: requesting } = useFriendRequest({
+  onDone: (_handle, res) => {
+    if (person.value) person.value = { ...person.value, friendship: res };
+  },
+});
+const busy = computed(() => !!person.value && !!requesting.value[person.value.handle]);
 async function add() {
-  if (!person.value) return;
-  busy.value = true;
-  try {
-    const res = await social.request(person.value.handle);
-    person.value = { ...person.value, friendship: res };
-    ui.flash(res === "friends" ? `You and ${name.value} are now friends` : `Request sent to ${name.value}`);
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    busy.value = false;
-  }
+  if (person.value) await request(person.value.handle, name.value);
 }
 </script>
 

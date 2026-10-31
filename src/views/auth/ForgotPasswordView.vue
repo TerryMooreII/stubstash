@@ -50,7 +50,5 @@ async function submit() {
 </template>
 
 <style scoped>
-.form { display: flex; flex-direction: column; gap: 14px; }
-.error { color: var(--ss-danger); font-weight: 600; font-size: 14px; }
 .back { font-size: 15px; }
 </style>

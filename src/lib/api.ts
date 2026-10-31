@@ -3,7 +3,7 @@
 // Reads go through cached() (lib/offline.ts): fresh when online, the last saved
 // copy when offline. Writes always go straight to the server.
 
-import { supabase } from "./supabase";
+import { check, invokeFn, supabase } from "./supabase";
 import { cached } from "./offline";
 import type {
   ArtistStats, AttendanceDetail, Badge, DashboardStats, Friend, LogEntry, MapVenue,
@@ -12,26 +12,27 @@ import type {
   MapHome, MapTrip, PastHome,
 } from "./types";
 
-function check<T>(res: { data: T; error: unknown }): T {
-  if (res.error) throw res.error;
-  return res.data;
+/** RPC arg for "this user, or me when omitted". */
+const forUser = (userId?: string) => (userId ? { p_user: userId } : {});
+/** Cache key part: the user id, or "me". */
+const who = (userId?: string) => userId ?? "me";
+
+/** The signed-in user's id, or null. */
+async function currentUserId(): Promise<string | null> {
+  const { data: u } = await supabase.auth.getUser();
+  return u.user?.id ?? null;
+}
+
+/** The signed-in user's id; throws when signed out. */
+async function myId(): Promise<string> {
+  const id = await currentUserId();
+  if (!id) throw new Error("Please sign in.");
+  return id;
 }
 
 // ---------------------------------------------------------------- edge functions
 
-async function sfm<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("setlistfm", { body });
-  if (error) {
-    // supabase-js wraps non-2xx responses; pull our { error } message out of the body.
-    const ctx = (error as { context?: Response }).context;
-    if (ctx && typeof ctx.json === "function") {
-      const payload = await ctx.json().catch(() => null);
-      if (payload?.error) throw new Error(payload.error);
-    }
-    throw error;
-  }
-  return data as T;
-}
+const sfm = <T>(body: Record<string, unknown>) => invokeFn<T>("setlistfm", body);
 
 export const setlistfm = {
   search: (params: SetlistSearchParams) => sfm<SetlistSearchResponse>({ action: "search", ...params }),
@@ -50,9 +51,7 @@ export const setlistfm = {
 };
 
 export async function sendTestPush(): Promise<number> {
-  const { data, error } = await supabase.functions.invoke("push", { body: { action: "test" } });
-  if (error) throw error;
-  return (data as { sent: number }).sent;
+  return (await invokeFn<{ sent: number }>("push", { action: "test" })).sent;
 }
 
 // ---------------------------------------------------------------- profile
@@ -67,9 +66,7 @@ export async function getMyProfile(): Promise<Profile | null> {
 }
 
 export async function updateMyProfile(patch: Partial<Omit<Profile, "id" | "created_at">>): Promise<Profile> {
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) throw new Error("Please sign in.");
-  return check(await supabase.from("profiles").update(patch).eq("id", u.user.id).select("*").single()) as Profile;
+  return check(await supabase.from("profiles").update(patch).eq("id", await myId()).select("*").single()) as Profile;
 }
 
 // ---------------------------------------------------------------- past homes
@@ -105,14 +102,14 @@ export async function publicProfile(handle: string): Promise<PublicProfile | nul
 export async function userLog(userId?: string): Promise<LogEntry[]> {
   // Your own log is saved by the log store; other people's here.
   const get = async () => {
-    const rows = check(await supabase.rpc("user_log", userId ? { p_user: userId } : {})) as LogEntry[];
+    const rows = check(await supabase.rpc("user_log", forUser(userId))) as LogEntry[];
     return (rows ?? []).sort((a, b) => b.show_number - a.show_number);
   };
   return userId ? cached(`user_log:${userId}`, get) : get();
 }
 
 export async function dashboardStats(userId?: string): Promise<DashboardStats | null> {
-  return check(await supabase.rpc("dashboard_stats", userId ? { p_user: userId } : {})) as DashboardStats | null;
+  return check(await supabase.rpc("dashboard_stats", forUser(userId))) as DashboardStats | null;
 }
 
 export async function showSetlist(attendanceId: string): Promise<SetlistSong[]> {
@@ -126,38 +123,38 @@ export async function showStats(attendanceId: string): Promise<ShowStats | null>
 }
 
 export async function artistStats(artistId: string, userId?: string): Promise<ArtistStats> {
-  return cached(`artist_stats:${artistId}:${userId ?? "me"}`, async () =>
-    check(await supabase.rpc("artist_stats", { p_artist: artistId, ...(userId ? { p_user: userId } : {}) })) as ArtistStats);
+  return cached(`artist_stats:${artistId}:${who(userId)}`, async () =>
+    check(await supabase.rpc("artist_stats", { p_artist: artistId, ...forUser(userId) })) as ArtistStats);
 }
 
 export async function venueStats(venueId: string, userId?: string): Promise<VenueStats> {
-  return cached(`venue_stats:${venueId}:${userId ?? "me"}`, async () =>
-    check(await supabase.rpc("venue_stats", { p_venue: venueId, ...(userId ? { p_user: userId } : {}) })) as VenueStats);
+  return cached(`venue_stats:${venueId}:${who(userId)}`, async () =>
+    check(await supabase.rpc("venue_stats", { p_venue: venueId, ...forUser(userId) })) as VenueStats);
 }
 
 export async function mapVenues(userId?: string): Promise<MapVenue[]> {
-  return cached(`map_venues:${userId ?? "me"}`, async () =>
-    (check(await supabase.rpc("map_venues", userId ? { p_user: userId } : {})) as MapVenue[]) ?? []);
+  return cached(`map_venues:${who(userId)}`, async () =>
+    (check(await supabase.rpc("map_venues", forUser(userId))) as MapVenue[]) ?? []);
 }
 
 export async function mapHomes(userId?: string): Promise<MapHome[]> {
-  return cached(`map_homes:${userId ?? "me"}`, async () =>
-    (check(await supabase.rpc("map_homes", userId ? { p_user: userId } : {})) as MapHome[]) ?? []);
+  return cached(`map_homes:${who(userId)}`, async () =>
+    (check(await supabase.rpc("map_homes", forUser(userId))) as MapHome[]) ?? []);
 }
 
 export async function mapTrips(userId?: string): Promise<MapTrip[]> {
-  return cached(`map_trips:${userId ?? "me"}`, async () =>
-    (check(await supabase.rpc("map_trips", userId ? { p_user: userId } : {})) as MapTrip[]) ?? []);
+  return cached(`map_trips:${who(userId)}`, async () =>
+    (check(await supabase.rpc("map_trips", forUser(userId))) as MapTrip[]) ?? []);
 }
 
 export async function yearInReview(year: number, userId?: string): Promise<YearInReview> {
-  return cached(`year_in_review:${year}:${userId ?? "me"}`, async () =>
-    check(await supabase.rpc("year_in_review", { p_year: year, ...(userId ? { p_user: userId } : {}) })) as YearInReview);
+  return cached(`year_in_review:${year}:${who(userId)}`, async () =>
+    check(await supabase.rpc("year_in_review", { p_year: year, ...forUser(userId) })) as YearInReview);
 }
 
 export async function badges(userId?: string): Promise<Badge[]> {
-  return cached(`badges:${userId ?? "me"}`, async () =>
-    (check(await supabase.rpc("user_badges", userId ? { p_user: userId } : {})) as Badge[]) ?? []);
+  return cached(`badges:${who(userId)}`, async () =>
+    (check(await supabase.rpc("user_badges", forUser(userId))) as Badge[]) ?? []);
 }
 
 // ---------------------------------------------------------------- catalog
@@ -288,9 +285,7 @@ export async function setCompanions(attendanceId: string, people: { name: string
 }
 
 export async function setVenuePin(venueId: string, lat: number, lng: number) {
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) throw new Error("Please sign in.");
-  check(await supabase.from("user_venue_pins").upsert({ user_id: u.user.id, venue_id: venueId, lat, lng, updated_at: new Date().toISOString() }));
+  check(await supabase.from("user_venue_pins").upsert({ user_id: await myId(), venue_id: venueId, lat, lng, updated_at: new Date().toISOString() }));
 }
 
 // ---------------------------------------------------------------- social
@@ -305,14 +300,13 @@ export const social = {
       { requester_id: string; handle: string; display_name: string; avatar_path: string | null; created_at: string; shared_example: string | null }[]) ?? [],
   request: async (handle: string) => check(await supabase.rpc("send_friend_request", { p_handle: handle })) as "sent" | "friends",
   respond: async (requesterId: string, accept: boolean) => {
-    const { data: u } = await supabase.auth.getUser();
+    const me = await myId();
     check(await supabase.from("friendships")
       .update({ status: accept ? "accepted" : "declined", responded_at: new Date().toISOString() })
-      .eq("requester_id", requesterId).eq("addressee_id", u.user!.id));
+      .eq("requester_id", requesterId).eq("addressee_id", me));
   },
   remove: async (otherId: string) => {
-    const { data: u } = await supabase.auth.getUser();
-    const me = u.user!.id;
+    const me = await myId();
     check(await supabase.from("friendships").delete()
       .or(`and(requester_id.eq.${me},addressee_id.eq.${otherId}),and(requester_id.eq.${otherId},addressee_id.eq.${me})`));
   },
@@ -320,9 +314,9 @@ export const social = {
     (check(await supabase.rpc("shared_shows", { p_other: otherId })) as
       { attendance_id: string; event_date: string; artist_name: string; venue_name: string; city: string | null }[]) ?? [],
   createInvite: async (attendanceId: string, companionId: string | null) => {
-    const { data: u } = await supabase.auth.getUser();
+    const me = await myId();
     return check(await supabase.from("show_invites")
-      .insert({ inviter_id: u.user!.id, attendance_id: attendanceId, companion_id: companionId })
+      .insert({ inviter_id: me, attendance_id: attendanceId, companion_id: companionId })
       .select("token").single()) as { token: string };
   },
   peekInvite: async (token: string) => {
@@ -336,11 +330,11 @@ export const social = {
 // ---------------------------------------------------------------- push
 
 export async function savePushSubscription(sub: PushSubscription) {
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) return;
+  const me = await currentUserId();
+  if (!me) return;
   const j = sub.toJSON();
   check(await supabase.from("push_subscriptions").upsert({
-    user_id: u.user.id, endpoint: j.endpoint!, p256dh: j.keys!.p256dh!, auth: j.keys!.auth!,
+    user_id: me, endpoint: j.endpoint!, p256dh: j.keys!.p256dh!, auth: j.keys!.auth!,
     user_agent: navigator.userAgent.slice(0, 200),
   }, { onConflict: "endpoint" }));
 }

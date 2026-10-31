@@ -30,7 +30,7 @@ function notNow() {
         <div class="sub">Free · works offline · no app store</div>
       </div>
     </div>
-    <ul class="perks">
+    <ul class="perks ss-list">
       <li><b>✓</b>Log shows offline. They sync when you're back on signal.</li>
       <li><b>✓</b>Full screen, launches from your home screen.</li>
       <li><b>✓</b>A nudge the morning after to rate the show.</li>
@@ -54,7 +54,7 @@ function notNow() {
 }
 .title { font-weight: 900; font-size: 22px; line-height: 1.05; }
 .sub { font-size: 14px; color: var(--ss-text-muted); }
-.perks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 15px; }
+.perks { display: flex; flex-direction: column; gap: 8px; font-size: 15px; }
 .perks li { display: flex; gap: 10px; }
 .perks b { color: var(--ss-accent); }
 .ios {

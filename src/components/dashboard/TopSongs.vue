@@ -7,7 +7,7 @@ defineProps<{ songs: DashboardStats["top_songs"] }>();
 
 <template>
   <SsCard title="Songs you’ve heard most">
-    <ol v-if="songs.length" class="list">
+    <ol v-if="songs.length" class="ss-list">
       <li v-for="(s, i) in songs.slice(0, 6)" :key="s.artist_id + s.name" class="row">
         <span class="row__rank">{{ String(i + 1).padStart(2, "0") }}</span>
         <div class="row__body">
@@ -22,7 +22,6 @@ defineProps<{ songs: DashboardStats["top_songs"] }>();
 </template>
 
 <style scoped>
-.list { list-style: none; margin: 0; padding: 0; }
 .row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--ss-line-soft); }
 .row__rank { font-family: var(--ss-font-mono); font-size: 11px; color: var(--ss-text-faint); width: 20px; }
 .row__body { flex: 1; min-width: 0; }

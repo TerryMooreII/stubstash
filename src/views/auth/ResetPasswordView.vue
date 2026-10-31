@@ -6,7 +6,8 @@ import { useRouter } from "vue-router";
 import { SsButton, SsField, SsInput, SsSpinner } from "@/design-system";
 import AuthFrame from "./AuthFrame.vue";
 import { useAuth } from "@/stores/auth";
-import { supabase, errorMessage } from "@/lib/supabase";
+import { errorMessage } from "@/lib/supabase";
+import { PASSWORD_ERROR, PASSWORD_HINT, passwordOk } from "@/lib/validate";
 import { useUi } from "@/stores/ui";
 
 const auth = useAuth();
@@ -20,23 +21,16 @@ const confirm = ref("");
 const busy = ref(false);
 const error = ref<string | null>(null);
 
-const ok = computed(() => password.value.length >= 8 && /[a-z]/i.test(password.value) && /\d/.test(password.value));
+const ok = computed(() => passwordOk(password.value));
 
 onMounted(async () => {
-  await auth.init();
-  // Give detectSessionInUrl a moment to finish the PKCE exchange.
-  for (let i = 0; i < 20 && !auth.session; i++) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) { auth.session = data.session; break; }
-    await new Promise((r) => setTimeout(r, 150));
-  }
-  hasSession.value = !!auth.session;
+  hasSession.value = await auth.waitForSession(20);
   ready.value = true;
 });
 
 async function submit() {
   error.value = null;
-  if (!ok.value) return void (error.value = "Use at least 8 characters with letters and numbers.");
+  if (!ok.value) return void (error.value = PASSWORD_ERROR);
   if (password.value !== confirm.value) return void (error.value = "Those passwords don't match.");
   busy.value = true;
   try {
@@ -63,7 +57,7 @@ async function submit() {
   </AuthFrame>
   <AuthFrame v-else kicker="NEW PASSWORD" title="Pick a new password.">
     <form class="form" novalidate @submit.prevent="submit">
-      <SsField label="New password" hint="8+ characters, letters and numbers">
+      <SsField label="New password" :hint="PASSWORD_HINT">
         <SsInput v-model="password" type="password" autocomplete="new-password" size="lg" />
       </SsField>
       <SsField label="Type it again">
@@ -74,8 +68,3 @@ async function submit() {
     </form>
   </AuthFrame>
 </template>
-
-<style scoped>
-.form { display: flex; flex-direction: column; gap: 14px; }
-.error { color: var(--ss-danger); font-weight: 600; font-size: 14px; }
-</style>

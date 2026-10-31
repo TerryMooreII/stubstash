@@ -3,7 +3,7 @@ import { SITE_HOST } from "@/lib/url";
 // Account settings: profile, home base, privacy, notifications, setlist.fm,
 // install, password and sign out.
 import { computed, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import NotificationSettings from "@/components/notifications/NotificationSettings.vue";
 import {
   SsAvatar, SsBackLink, SsButton, SsCard, SsField, SsIcon, SsInput, SsPageHeader, SsToggle, type IconName,
@@ -21,6 +21,9 @@ import { exportAttendances } from "@/lib/api";
 import { downloadCsv, exportFileName, exportRows, toCsv } from "@/lib/exportCsv";
 import { disablePush } from "@/lib/pwa";
 import { errorMessage } from "@/lib/supabase";
+import { PASSWORD_ERROR, passwordOk } from "@/lib/validate";
+import { useAction } from "@/composables/useAction";
+import { useQueryTab } from "@/composables/useQueryTab";
 import { useAuth } from "@/stores/auth";
 import { useUi } from "@/stores/ui";
 
@@ -28,7 +31,6 @@ const auth = useAuth();
 const ui = useUi();
 const log = useLog();
 const router = useRouter();
-const route = useRoute();
 
 // ---------------------------------------------------------------- sections
 // One settings hub: a menu (side on desktop, chips on phones) and one section at a time.
@@ -43,13 +45,7 @@ const sections = computed(() =>
     { key: "account", label: "Account", icon: "logout" },
   ] as { key: Section; label: string; icon: IconName }[]),
 );
-const section = computed<Section>(() => {
-  const q = route.query.section;
-  return sections.value.some((x) => x.key === q) ? (q as Section) : "profile";
-});
-function goSection(key: Section) {
-  router.replace({ query: key === "profile" ? {} : { section: key } });
-}
+const { tab: section, go: goSection } = useQueryTab<Section>("section", () => sections.value.map((x) => x.key), "profile");
 
 // ---------------------------------------------------------------- profile
 const displayName = ref(auth.profile?.display_name ?? "");
@@ -94,18 +90,13 @@ async function saveProfile() {
 // ---------------------------------------------------------------- header photo
 const photoNumbers = Array.from({ length: GENERIC_PHOTO_COUNT }, (_, i) => i + 1);
 const autoPhoto = computed(() => profilePhotoNumber(auth.userId ?? ""));
-const savingPhoto = ref(false);
-async function pickHeaderPhoto(n: number | null) {
+const { run: saveHeaderPhoto, busy: savingPhoto } = useAction(async (n: number | null) => {
+  await auth.saveProfile({ header_photo: n });
+  ui.flash(n ? "Header photo updated" : "Header photo set to automatic");
+});
+function pickHeaderPhoto(n: number | null) {
   if ((auth.profile?.header_photo ?? null) === n) return;
-  savingPhoto.value = true;
-  try {
-    await auth.saveProfile({ header_photo: n });
-    ui.flash(n ? "Header photo updated" : "Header photo set to automatic");
-  } catch (err) {
-    ui.error(errorMessage(err));
-  } finally {
-    savingPhoto.value = false;
-  }
+  void saveHeaderPhoto(n);
 }
 
 // ---------------------------------------------------------------- offline
@@ -120,7 +111,7 @@ async function saveAllOffline() {
     await log.load();
     const failed = await saveForOffline(log.entries, { full: true, onProgress: (p) => (saving.value = p) });
     offlineSavedAt.value = lastOfflineSave();
-    if (failed) ui.error(`Saved most of it, but ${failed} item${failed > 1 ? "s" : ""} didn't download. Try again later.`);
+    if (failed) ui.error(`Saved most of it, but ${plural(failed, "item")} didn't download. Try again later.`);
     else ui.flash(`All ${log.entries.length} shows saved to this device`);
   } finally {
     saving.value = null;
@@ -129,86 +120,66 @@ async function saveAllOffline() {
 
 // ---------------------------------------------------------------- export
 // Every show as CSV, minus photos, stubs and setlists (see lib/exportCsv.ts).
-const exporting = ref(false);
-async function exportCsv() {
-  if (!ui.online) return ui.error("You're offline. Export needs signal.");
-  exporting.value = true;
-  try {
+const { run: runExport, busy: exporting } = useAction(
+  async () => {
     const list = await exportAttendances();
     if (!list.length) return ui.flash("No shows to export yet", "info");
     await log.load();
     const numbers = new Map(log.entries.map((e) => [e.attendance_id, e.show_number]));
     downloadCsv(toCsv(exportRows(list, numbers)), exportFileName(auth.profile?.handle ?? ""));
     ui.flash(`Exported ${plural(list.length, "show")}`);
-  } catch (err) {
-    ui.error(errorMessage(err, "Couldn't export. Try again."));
-  } finally {
-    exporting.value = false;
-  }
+  },
+  { fallback: "Couldn't export. Try again." },
+);
+function exportCsv() {
+  if (!ui.online) return ui.error("You're offline. Export needs signal.");
+  void runExport();
 }
 
 // ---------------------------------------------------------------- avatar
 const avatarInput = ref<HTMLInputElement>();
-const uploadingAvatar = ref(false);
-async function onAvatar(e: Event) {
+const { run: uploadAvatar, busy: uploadingAvatar } = useAction(
+  async (file: File) => {
+    const old = auth.profile?.avatar_path;
+    const path = await upload("avatars", file, "avatar", { maxEdge: 512 });
+    await auth.saveProfile({ avatar_path: path });
+    if (old) removeFile("avatars", old).catch(() => {});
+  },
+  { success: "Looking good", fallback: "Couldn't upload that photo." },
+);
+function onAvatar(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   (e.target as HTMLInputElement).value = "";
   if (!file) return;
   if (!file.type.startsWith("image/")) return ui.error("Pick an image file.");
-  uploadingAvatar.value = true;
-  const old = auth.profile?.avatar_path;
-  try {
-    const path = await upload("avatars", file, "avatar", { maxEdge: 512 });
-    await auth.saveProfile({ avatar_path: path });
-    if (old) removeFile("avatars", old).catch(() => {});
-    ui.flash("Looking good");
-  } catch (err) {
-    ui.error(errorMessage(err, "Couldn't upload that photo."));
-  } finally {
-    uploadingAvatar.value = false;
-  }
+  void uploadAvatar(file);
 }
-async function removeAvatar() {
+const { run: removeAvatar } = useAction(async () => {
   const old = auth.profile?.avatar_path;
   if (!old) return;
-  try {
-    await auth.saveProfile({ avatar_path: null });
-    removeFile("avatars", old).catch(() => {});
-  } catch (err) {
-    ui.error(errorMessage(err));
-  }
-}
+  await auth.saveProfile({ avatar_path: null });
+  removeFile("avatars", old).catch(() => {});
+});
 
 // ---------------------------------------------------------------- home base
-const savingHome = ref(false);
-async function pickPlace(p: PlaceResult) {
-  savingHome.value = true;
-  try {
-    await auth.saveProfile({
-      home_city: p.label,
-      home_lat: p.lat,
-      home_lng: p.lng,
-      home_country_code: p.country_code ? p.country_code.toUpperCase() : null,
-    });
-    ui.flash(`Home base set to ${p.label}`);
-  } catch (err) {
-    ui.error(errorMessage(err));
-  } finally {
-    savingHome.value = false;
-  }
-}
+const { run: pickPlace, busy: savingHome } = useAction(async (p: PlaceResult) => {
+  await auth.saveProfile({
+    home_city: p.label,
+    home_lat: p.lat,
+    home_lng: p.lng,
+    home_country_code: p.country_code ? p.country_code.toUpperCase() : null,
+  });
+  ui.flash(`Home base set to ${p.label}`);
+});
 
 // ---------------------------------------------------------------- privacy
+const { run: setPublic } = useAction(async (v: boolean) => {
+  await auth.saveProfile({ is_public: v });
+  ui.flash(v ? "Your profile is public" : "Your profile is private", "info");
+});
 const isPublic = computed({
   get: () => !!auth.profile?.is_public,
-  set: async (v: boolean) => {
-    try {
-      await auth.saveProfile({ is_public: v });
-      ui.flash(v ? "Your profile is public" : "Your profile is private", "info");
-    } catch (err) {
-      ui.error(errorMessage(err));
-    }
-  },
+  set: (v: boolean) => void setPublic(v),
 });
 
 // ---------------------------------------------------------------- account
@@ -219,8 +190,8 @@ const passwordError = ref<string | null>(null);
 const savingPassword = ref(false);
 async function changePassword() {
   passwordError.value = null;
-  if (newPassword.value.length < 8 || !/[A-Za-z]/.test(newPassword.value) || !/\d/.test(newPassword.value)) {
-    passwordError.value = "Use at least 8 characters with letters and numbers.";
+  if (!passwordOk(newPassword.value)) {
+    passwordError.value = PASSWORD_ERROR;
     return;
   }
   if (newPassword.value !== confirmPassword.value) {

@@ -2,11 +2,10 @@
 // public.api_cache, and calls are spaced out to respect the ~2 req/sec limit.
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
-import { HttpError, sleep } from "./http.ts";
+import { HttpError, sleep, throttle } from "./http.ts";
 
 const BASE = "https://api.setlist.fm/rest/1.0";
 const MIN_GAP_MS = 600;
-let lastCall = 0;
 
 export interface SfmCoords { lat?: number; long?: number }
 export interface SfmCity {
@@ -35,9 +34,7 @@ export async function sfmGet<T>(db: SupabaseClient, path: string, ttlMinutes = 6
   if (!apiKey) throw new HttpError(503, "setlist.fm isn't connected yet.");
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    const wait = lastCall + MIN_GAP_MS - Date.now();
-    if (wait > 0) await sleep(wait);
-    lastCall = Date.now();
+    await throttle("setlistfm", MIN_GAP_MS);
 
     const res = await fetch(BASE + path, {
       headers: { "x-api-key": apiKey, Accept: "application/json", "Accept-Language": "en" },

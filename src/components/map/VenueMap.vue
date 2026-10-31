@@ -8,7 +8,8 @@
 import L from "leaflet";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import type { MapHome, MapTrip, MapVenue } from "@/lib/types";
-import { num, place } from "@/lib/format";
+import { num, placeOf, plural } from "@/lib/format";
+import { milesBetween } from "@/lib/geo";
 
 const props = withDefaults(
   defineProps<{
@@ -110,11 +111,6 @@ const thisYear = computed(() => new Set(trips.value.filter((t) => t.years.includ
 const homesThisYear = computed(() => (homePins.value.length > 1 ? homePins.value.filter((h) => livedIn(h, year.value)) : []));
 
 // ---------- regions
-function milesBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const r = (d: number) => (d * Math.PI) / 180;
-  const a = Math.sin(r(lat2 - lat1) / 2) ** 2 + Math.cos(r(lat1)) * Math.cos(r(lat2)) * Math.sin(r(lng2 - lng1) / 2) ** 2;
-  return 3958.8 * 2 * Math.asin(Math.sqrt(a));
-}
 interface Region { key: string; label: string; bounds: L.LatLngBounds }
 function boundsOf(points: [number, number][]): L.LatLngBounds {
   return L.latLngBounds(points.map(([a, b]) => L.latLng(a, b)));
@@ -156,9 +152,9 @@ function esc(s: string | null | undefined): string {
 function popupHtml(v: Placed): string {
   const artists = v.recent_artists?.filter(Boolean) ?? [];
   return `<div class="ssm-pop">
-    <div class="ssm-pop__k">${v.visits} visit${v.visits === 1 ? "" : "s"} · since ${v.first_year}</div>
+    <div class="ssm-pop__k">${plural(v.visits, "visit")} · since ${v.first_year}</div>
     <div class="ssm-pop__n">${esc(v.name)}</div>
-    <div class="ssm-pop__c">${esc(place(v.city, v.state_code, v.country_code))}</div>
+    <div class="ssm-pop__c">${esc(placeOf(v))}</div>
     ${artists.length ? `<div class="ssm-pop__c ssm-pop__a">Saw: ${artists.map(esc).join(", ")}</div>` : ""}
     <button type="button" class="ssm-pop__b" data-venue="${esc(v.venue_id)}">Open venue →</button>
   </div>`;
@@ -380,7 +376,7 @@ watch(
       <div class="ss-kicker">Your venue map</div>
       <h3>{{ num(venues.length) }} venues · {{ num(cityCount) }} cities</h3>
       <div class="vm-mono">
-        {{ num(countryCount) }} {{ countryCount === 1 ? "country" : "countries" }}<template v-if="farthest"> · farthest {{ num(farthest) }} mi</template>
+        {{ plural(countryCount, "country", "countries") }}<template v-if="farthest"> · farthest {{ num(farthest) }} mi</template>
       </div>
       <button v-for="(v, i) in topVenues" :key="v.venue_id" type="button" class="vm-row" @click="focusVenue(v)">
         <span class="vm-row__k">{{ String(i + 1).padStart(2, "0") }}</span>
@@ -393,7 +389,7 @@ watch(
       <div class="vm-scrub__text">
         <span class="vm-scrub__yr">{{ year }}</span>
         <span>
-          {{ num(venuesByYear.length) }} venue{{ venuesByYear.length === 1 ? "" : "s" }}<template v-if="farthestByYear"> · farthest {{ num(farthestByYear) }} mi from home</template>
+          {{ plural(venuesByYear.length, "venue") }}<template v-if="farthestByYear"> · farthest {{ num(farthestByYear) }} mi from home</template>
         </span>
       </div>
       <div v-if="homesThisYear.length" class="vm-mono vm-scrub__home">

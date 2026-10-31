@@ -6,7 +6,7 @@ import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsSpinner } from "@/design-system";
 import AuthFrame from "./AuthFrame.vue";
 import { useAuth } from "@/stores/auth";
-import { supabase } from "@/lib/supabase";
+import { safeNext } from "@/lib/url";
 
 const auth = useAuth();
 const route = useRoute();
@@ -14,19 +14,12 @@ const router = useRouter();
 const failed = ref(false);
 
 onMounted(async () => {
-  await auth.init();
-  for (let i = 0; i < 25 && !auth.session; i++) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) { auth.session = data.session; break; }
-    await new Promise((r) => setTimeout(r, 150));
-  }
-  if (!auth.session) {
+  if (!(await auth.waitForSession(25))) {
     failed.value = true;
     return;
   }
   await auth.loadProfile().catch(() => {});
-  const n = route.query.next;
-  router.replace(typeof n === "string" && n.startsWith("/") && !n.startsWith("//") ? n : "/app");
+  router.replace(safeNext(route.query.next));
 });
 </script>
 

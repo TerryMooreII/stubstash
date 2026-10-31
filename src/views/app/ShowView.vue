@@ -9,7 +9,8 @@ import GigPoster from "@/components/poster/GigPoster.vue";
 import PosterSheet from "@/components/poster/PosterSheet.vue";
 import type { ShareCard } from "@/components/share/shareCard";
 import { getAttendance, setHeadliner, setlistfm, showSetlist, showStats, updateAttendance } from "@/lib/api";
-import { dateParts, longDate, money, ordinal, place } from "@/lib/format";
+import { dateParts, firstName, longDate, money, ordinal, placeOf, plural } from "@/lib/format";
+import { useAction } from "@/composables/useAction";
 import { heroCandidates } from "@/lib/heroImage";
 import { signedUrl, signedUrls } from "@/lib/media";
 import { errorMessage } from "@/lib/supabase";
@@ -67,7 +68,7 @@ watch(() => props.id, load, { immediate: true });
 const mine = computed(() => !!att.value && att.value.user_id === auth.userId);
 const show = computed(() => att.value?.show);
 const d = computed(() => (show.value ? dateParts(show.value.event_date) : null));
-const venuePlace = computed(() => (show.value ? place(show.value.venue.city, show.value.venue.state_code, show.value.venue.country_code) : ""));
+const venuePlace = computed(() => placeOf(show.value?.venue));
 // Header image: your first photo, then artist, venue, then a generated gig poster.
 // heroSkip moves down the list when an image fails to load.
 const heroSkip = ref(0);
@@ -94,19 +95,11 @@ const isManual = computed(() => show.value?.source === "manual");
 const bill = computed(() => (mine.value ? log.shows.find((g) => g.acts.some((a) => a.attendance_id === props.id)) : null));
 const billActs = computed(() => (bill.value && bill.value.acts.length > 1 ? bill.value.acts : []));
 const isHeadliner = computed(() => billActs.value[0]?.attendance_id === props.id);
-const settingHead = ref(false);
-async function makeHeadliner() {
-  settingHead.value = true;
-  try {
-    await setHeadliner(props.id);
-    await log.refresh();
-    ui.flash(`${show.value?.artist.name ?? "This act"} is now the headliner`);
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    settingHead.value = false;
-  }
-}
+const { run: makeHeadliner, busy: settingHead } = useAction(async () => {
+  await setHeadliner(props.id);
+  await log.refresh();
+  ui.flash(`${show.value?.artist.name ?? "This act"} is now the headliner`);
+});
 
 // ---- setlist grouped by set
 const sets = computed(() => {
@@ -126,7 +119,7 @@ const timeSeeing = computed(() => (stats.value?.artist_ordinal ? ordinal(stats.v
 // ---- your night
 const companions = computed(() => att.value?.companions ?? []);
 const withNames = computed(() => {
-  const n = companions.value.map((c) => c.name.split(" ")[0]);
+  const n = companions.value.map((c) => firstName(c.name));
   return n.length <= 2 ? n.join(" & ") : `${n.slice(0, -1).join(", ")} & ${n[n.length - 1]}`;
 });
 const nightEmpty = computed(
@@ -134,43 +127,27 @@ const nightEmpty = computed(
 );
 
 // ---- refresh setlist from setlist.fm
-const refreshing = ref(false);
-async function checkAgain() {
+const { run: checkAgain, busy: refreshing } = useAction(async () => {
   if (!show.value) return;
-  refreshing.value = true;
-  try {
-    await setlistfm.refresh(show.value.id);
-    await load();
-    ui.flash(songs.value.length ? `Got ${songCount.value} songs from setlist.fm` : "Still no setlist. Check back later.", songs.value.length ? "accent" : "info");
-    if (songs.value.length) log.refresh();
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    refreshing.value = false;
-  }
-}
+  await setlistfm.refresh(show.value.id);
+  await load();
+  ui.flash(songs.value.length ? `Got ${songCount.value} songs from setlist.fm` : "Still no setlist. Check back later.", songs.value.length ? "accent" : "info");
+  if (songs.value.length) log.refresh();
+});
 
 // ---- quick rating
 const rateOpen = ref(false);
 const rateValue = ref<number | null>(null);
-const savingRate = ref(false);
 watch(rateOpen, (o) => o && (rateValue.value = att.value?.rating ?? null));
-async function saveRating() {
+const { run: saveRating, busy: savingRate } = useAction(async () => {
   if (!att.value) return;
-  savingRate.value = true;
-  try {
-    await updateAttendance(att.value.id, { rating: rateValue.value });
-    att.value.rating = rateValue.value;
-    rateOpen.value = false;
-    ui.flash(rateValue.value ? "Rated. Thanks!" : "Rating cleared");
-    log.refresh();
-    if (route.query.rate) router.replace({ query: {} });
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    savingRate.value = false;
-  }
-}
+  await updateAttendance(att.value.id, { rating: rateValue.value });
+  att.value.rating = rateValue.value;
+  rateOpen.value = false;
+  ui.flash(rateValue.value ? "Rated. Thanks!" : "Rating cleared");
+  log.refresh();
+  if (route.query.rate) router.replace({ query: {} });
+});
 
 // ---- lightbox + share
 const lightbox = ref<string | null>(null);
@@ -328,7 +305,7 @@ const shareCard = computed<ShareCard>(() => {
 
           <!-- Photos & stub -->
           <SsCard title="Photos & stub">
-            <template #aside>{{ att.photos.length }} photo{{ att.photos.length === 1 ? "" : "s" }}</template>
+            <template #aside>{{ plural(att.photos.length, "photo") }}</template>
             <div class="photos">
               <button v-if="stubUrl" type="button" class="stub-img" @click="lightbox = stubUrl">
                 <img :src="stubUrl" alt="Ticket stub" loading="lazy" />

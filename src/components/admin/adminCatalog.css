@@ -1,0 +1,8 @@
+/* Shared by AdminArtists and AdminVenues (loaded as scoped styles). */
+.admin-list { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.bar { display: flex; flex-direction: column; gap: 10px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 14px; }
+.edit { display: flex; flex-direction: column; gap: 14px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 14px; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; }

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // Venue page: photo, your visits, shows here, and a small map where you can
 // fix the pin (the fix is yours only; the shared venue stays as is).
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { SsArt, SsBackLink, SsButton, SsCard, SsEmpty, SsSkeleton, SsStars, SsStatCard } from "@/design-system";
 import VenueMap from "@/components/map/VenueMap.vue";
 import { getVenue, setVenuePin, venueStats } from "@/lib/api";
-import { errorMessage } from "@/lib/supabase";
-import { dateParts, num, parseDate, place } from "@/lib/format";
+import ShowListRow from "@/components/shows/ShowListRow.vue";
+import { useAction } from "@/composables/useAction";
+import { useAsyncData } from "@/composables/useAsyncData";
+import { mediumDate, num, parseDate, placeOf } from "@/lib/format";
 import type { MapVenue, VenueStats } from "@/lib/types";
 import { useLog } from "@/stores/log";
 import { useUi } from "@/stores/ui";
@@ -16,30 +18,20 @@ const log = useLog();
 const ui = useUi();
 
 type Venue = NonNullable<Awaited<ReturnType<typeof getVenue>>>;
-const venue = ref<Venue | null>(null);
-const stats = ref<VenueStats | null>(null);
-const loading = ref(true);
-const error = ref<string | null>(null);
-
-async function load() {
-  loading.value = true;
-  error.value = null;
-  try {
+const { data, loading, error } = useAsyncData(
+  async () => {
     const [v, s] = await Promise.all([getVenue(props.id), venueStats(props.id), log.load()]);
-    venue.value = v as Venue | null;
-    stats.value = s;
-  } catch (e) {
-    error.value = errorMessage(e);
-  } finally {
-    loading.value = false;
-  }
-}
-watch(() => props.id, load, { immediate: true });
+    return { venue: v as Venue | null, stats: s as VenueStats | null };
+  },
+  { watch: () => props.id },
+);
+const venue = computed(() => data.value?.venue ?? null);
+const stats = computed(() => data.value?.stats ?? null);
 
 const shows = computed(() => log.entries.filter((e) => e.venue_id === props.id));
 /** Nights here: headliner + openers (or a festival day) are one show. */
 const nights = computed(() => log.shows.filter((g) => g.acts.some((a) => a.venue_id === props.id)));
-const placeText = computed(() => (venue.value ? place(venue.value.city, venue.value.state_code, venue.value.country_code) : ""));
+const placeText = computed(() => placeOf(venue.value));
 const kicker = computed(() => {
   const parts = [placeText.value];
   if (venue.value?.capacity) parts.push(`Cap ${num(venue.value.capacity)}`);
@@ -49,7 +41,6 @@ const kicker = computed(() => {
 // ----- map + pin fixing
 const editing = ref(false);
 const pending = ref<{ lat: number; lng: number } | null>(null);
-const savingPin = ref(false);
 
 const coords = computed(() => {
   if (pending.value) return pending.value;
@@ -90,21 +81,16 @@ function cancelFix() {
   editing.value = false;
   pending.value = null;
 }
-async function savePin() {
-  if (!pending.value) return;
-  savingPin.value = true;
-  try {
+const { run: savePin, busy: savingPin } = useAction(
+  async () => {
+    if (!pending.value) return;
     await setVenuePin(props.id, pending.value.lat, pending.value.lng);
-    await Promise.all([log.refresh(), venueStats(props.id).then((s) => (stats.value = s))]);
+    await Promise.all([log.refresh(), venueStats(props.id).then((s) => data.value && (data.value = { ...data.value, stats: s }))]);
     editing.value = false;
     pending.value = null;
-    ui.flash("Pin moved. Only your map changes.");
-  } catch (e) {
-    ui.error(errorMessage(e));
-  } finally {
-    savingPin.value = false;
-  }
-}
+  },
+  { success: "Pin moved. Only your map changes." },
+);
 </script>
 
 <template>
@@ -152,19 +138,17 @@ async function savePin() {
       <div class="ss-grid">
         <SsCard title="Shows here">
           <template #aside><RouterLink to="/app/map">See on map →</RouterLink></template>
-          <RouterLink v-for="g in nights" :key="g.key" :to="`/app/shows/${g.acts[0]!.attendance_id}`" class="show">
-            <SsArt class="show__art" shape="circle" :src="g.acts[0]!.artist_image" :seed="g.acts[0]!.artist_name" />
-            <div class="show__body">
-              <div class="show__artist">{{ g.acts[0]!.artist_name }}</div>
-              <div v-if="g.acts.length > 1" class="show__with">
-                with {{ g.acts.slice(1).map((a) => a.artist_name).join(", ") }}
-              </div>
-              <div class="show__sub">
-                {{ dateParts(g.event_date).mon }} {{ dateParts(g.event_date).day }}, {{ dateParts(g.event_date).yr }}<template v-if="g.festival_name"> · {{ g.festival_name }}</template><template v-else-if="g.song_count"> · {{ g.song_count }} songs</template>
-              </div>
-            </div>
-            <SsStars :value="g.rating" />
-          </RouterLink>
+          <ShowListRow v-for="g in nights" :key="g.key" :to="`/app/shows/${g.acts[0]!.attendance_id}`">
+            <template #lead><SsArt class="show__art" shape="circle" :src="g.acts[0]!.artist_image" :seed="g.acts[0]!.artist_name" /></template>
+            {{ g.acts[0]!.artist_name }}
+            <template v-if="g.acts.length > 1" #meta>
+              <div class="show__with">with {{ g.acts.slice(1).map((a) => a.artist_name).join(", ") }}</div>
+            </template>
+            <template #sub>
+              {{ mediumDate(g.event_date) }}<template v-if="g.festival_name"> · {{ g.festival_name }}</template><template v-else-if="g.song_count"> · {{ g.song_count }} songs</template>
+            </template>
+            <template #end><SsStars :value="g.rating" /></template>
+          </ShowListRow>
           <p v-if="!nights.length" class="ss-muted">You haven't logged a show here yet.</p>
         </SsCard>
 
@@ -212,22 +196,8 @@ async function savePin() {
 }
 .hero__name { overflow-wrap: anywhere; margin-top: 6px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-.show {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 0;
-  border-top: 1px solid var(--ss-line-soft);
-  color: var(--ss-text);
-  text-decoration: none;
-}
-.show:hover { text-decoration: none; color: var(--ss-text); }
-.show:hover .show__artist { color: var(--ss-accent); }
 .show__art { width: 44px; height: 44px; }
-.show__body { flex: 1; min-width: 0; }
-.show__artist { font-weight: 700; }
 .show__with { font-size: 13px; color: var(--ss-text-2); overflow-wrap: anywhere; }
-.show__sub { font-size: 13px; color: var(--ss-text-muted); }
 .map { border-radius: var(--ss-radius-md); overflow: hidden; border: 1px solid var(--ss-line); }
 .linkish { border: 0; background: transparent; color: var(--ss-accent); font-weight: 700; padding: 0; }
 .hint { font-size: 13px; color: var(--ss-text-faint); margin-top: 8px; }
