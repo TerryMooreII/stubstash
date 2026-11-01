@@ -328,3 +328,80 @@ export interface SetDraft {
   encore: boolean;
   songs: string[];
 }
+
+// ---------------------------------------------------------------- upcoming shows (SeatGeek)
+
+/** Your plan for an upcoming show. "invited": a friend invited you and you haven't answered. */
+export type PlanStatus = "going" | "interested" | "cant" | "invited";
+
+/** A SeatGeek event (a public.upcoming_events row). id is null until someone opens or plans it. */
+export interface UpcomingEvent {
+  id: string | null;
+  seatgeek_id: number;
+  title: string;
+  artist: string;
+  performers: string[];
+  image_url: string | null;
+  venue_name: string;
+  city: string | null;
+  state: string | null;
+  country_code: string | null;
+  lat: number | null;
+  lng: number | null;
+  starts_at: string | null;
+  local_date: string;
+  /** "19:30:00", or null when the time isn't set yet. */
+  local_time: string | null;
+  date_tbd: boolean;
+  timezone: string | null;
+  ticket_url: string | null;
+  lowest_price: number | null;
+  listing_count: number | null;
+  status: string;
+}
+
+/** A friend's plan for the same event (only what you're allowed to see). */
+export interface CrewMember {
+  user_id: string;
+  handle: string;
+  display_name: string;
+  avatar_path: string | null;
+  status: PlanStatus;
+  invited_by_me: boolean;
+}
+
+/** An event with your plan and your friends' plans. */
+export interface PlanItem {
+  event: UpcomingEvent;
+  status: PlanStatus | null;
+  note: string | null;
+  invited_by: { id: string; handle: string; display_name: string; avatar_path: string | null } | null;
+  crew: CrewMember[];
+  /** Times you've seen this artist (matched by name). Not filled in for my_plans(). */
+  seen?: number;
+}
+
+export interface UpcomingSearchParams {
+  q?: string;
+  artist?: string;
+  venue?: string;
+  /** Search around this place instead of your home. */
+  lat?: number;
+  lng?: number;
+  place_label?: string;
+  /** Miles, or "any" for anywhere. */
+  range?: "25" | "50" | "100" | "250" | "any";
+  from?: string;
+  to?: string;
+  seen_only?: boolean;
+  page?: number;
+}
+
+export interface UpcomingSearchResponse {
+  results: PlanItem[];
+  total: number;
+  page: number;
+  pages: number;
+  /** The city searched around, when there was one. */
+  near: string | null;
+}

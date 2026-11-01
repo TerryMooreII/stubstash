@@ -19,6 +19,7 @@ const earlier = computed(() => store.items.filter((n) => n.read_at));
 const ICONS: Record<NotificationKind, IconName> = {
   friend_request: "users", friend_accepted: "users", friend_show: "ticket", same_show: "ticket",
   tagged: "users", invite_claimed: "users", badge_earned: "star", rate_show: "star",
+  event_invite: "calendar", event_reply: "calendar", friend_going: "calendar", log_plan: "ticket",
 };
 
 async function open(n: AppNotification) {

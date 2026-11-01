@@ -12,7 +12,7 @@ declare module "vue-router" {
     /** Allowed before onboarding is finished. */
     preOnboarding?: boolean;
     /** Which bottom/side nav item to highlight. */
-    nav?: "home" | "shows" | "log" | "map" | "profile" | "admin" | "notifications";
+    nav?: "home" | "shows" | "log" | "upcoming" | "map" | "profile" | "admin" | "notifications";
     title?: string;
   }
 }
@@ -46,6 +46,8 @@ const routes: RouteRecordRaw[] = [
       { path: "log/manual", name: "add-manual", component: () => import("@/views/app/AddShowView.vue"), meta: { nav: "log", title: "Add a show" } },
       { path: "artists/:id", name: "artist", component: () => import("@/views/app/ArtistView.vue"), meta: { nav: "shows", title: "Artist" }, props: true },
       { path: "venues/:id", name: "venue", component: () => import("@/views/app/VenueView.vue"), meta: { nav: "map", title: "Venue" }, props: true },
+      { path: "upcoming", name: "upcoming", component: () => import("@/views/app/UpcomingView.vue"), meta: { nav: "upcoming", title: "Upcoming" } },
+      { path: "upcoming/:id(\\d+)", name: "event", component: () => import("@/views/app/EventView.vue"), meta: { nav: "upcoming", title: "Upcoming show" }, props: true },
       { path: "map", name: "map", component: () => import("@/views/app/MapView.vue"), meta: { nav: "map", title: "Map" } },
       { path: "me", name: "me", component: () => import("@/views/app/ProfileView.vue"), meta: { nav: "profile", title: "Profile" } },
       { path: "friends", name: "friends", component: () => import("@/views/app/FriendsView.vue"), meta: { nav: "profile", title: "Friends" } },

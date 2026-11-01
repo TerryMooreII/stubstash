@@ -19,12 +19,17 @@ const ui = useUi();
 const route = useRoute();
 
 const active = computed(() => route.meta.nav);
-const items: { key: "home" | "shows" | "map" | "profile"; label: string; short: string; icon: IconName; to: string }[] = [
+type NavKey = "home" | "shows" | "upcoming" | "map" | "profile";
+const items: { key: NavKey; label: string; short: string; icon: IconName; to: string }[] = [
   { key: "home", label: "Dashboard", short: "Home", icon: "home", to: "/app" },
   { key: "shows", label: "My shows", short: "Shows", icon: "ticket", to: "/app/shows" },
+  { key: "upcoming", label: "Upcoming", short: "Upcoming", icon: "calendar", to: "/app/upcoming" },
   { key: "map", label: "Map", short: "Map", icon: "pin", to: "/app/map" },
   { key: "profile", label: "Profile & badges", short: "Me", icon: "user", to: "/app/me" },
 ];
+// Phones: Home, Shows, (+), Upcoming, Map. Your profile is the avatar in the top bar.
+const tabsLeft = items.filter((i) => i.key === "home" || i.key === "shows");
+const tabsRight = items.filter((i) => i.key === "upcoming" || i.key === "map");
 </script>
 
 <template>
@@ -102,11 +107,11 @@ const items: { key: "home" | "shows" | "map" | "profile"; label: string; short: 
 
       <!-- Mobile tab bar -->
       <nav v-if="ui.isMobile && auth.signedIn" class="tabs" aria-label="Main">
-        <RouterLink v-for="i in items.slice(0, 2)" :key="i.key" :to="i.to" class="tabs__item" :class="{ 'is-active': active === i.key }">
+        <RouterLink v-for="i in tabsLeft" :key="i.key" :to="i.to" class="tabs__item" :class="{ 'is-active': active === i.key }">
           <SsIcon :name="i.icon" :size="22" />{{ i.short }}
         </RouterLink>
         <RouterLink to="/app/log" class="tabs__log" aria-label="Log a show"><SsIcon name="plus" :size="24" :stroke="2.8" /></RouterLink>
-        <RouterLink v-for="i in items.slice(2)" :key="i.key" :to="i.to" class="tabs__item" :class="{ 'is-active': active === i.key }">
+        <RouterLink v-for="i in tabsRight" :key="i.key" :to="i.to" class="tabs__item" :class="{ 'is-active': active === i.key }">
           <SsIcon :name="i.icon" :size="22" />{{ i.short }}
         </RouterLink>
       </nav>

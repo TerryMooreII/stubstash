@@ -10,6 +10,7 @@ import type {
   PersonCard, Profile, PublicProfile, SetDraft, SetlistSearchParams, SetlistSearchResponse, SetlistSong,
   ShowStats, VenueStats, YearInReview,
   MapHome, MapTrip, PastHome,
+  PlanItem, PlanStatus, UpcomingSearchParams, UpcomingSearchResponse,
 } from "./types";
 
 /** RPC arg for "this user, or me when omitted". */
@@ -48,6 +49,30 @@ export const setlistfm = {
   importPage: (username: string, page: number) =>
     sfm<{ page: number; pages: number; total: number; imported: number; skipped: number }>({ action: "import_user", username, page }),
   refresh: (showId: string) => sfm<{ show_id: string }>({ action: "refresh", show_id: showId }),
+};
+
+// ---------------------------------------------------------------- upcoming shows
+// SeatGeek search and plan changes go through the seatgeek edge function (it
+// saves the event); reads of plans and invites are RPCs.
+
+const sg = <T>(body: Record<string, unknown>) => invokeFn<T>("seatgeek", body);
+
+export const upcoming = {
+  search: (params: UpcomingSearchParams) => sg<UpcomingSearchResponse>({ action: "search", ...params }),
+  /** One event with your plan and crew. Saves it so it can be planned and shared. */
+  event: (seatgeekId: number) => sg<PlanItem>({ action: "event", seatgeek_id: seatgeekId }),
+  /** Sets your plan (null clears it). Returns the updated event. */
+  setPlan: (seatgeekId: number, status: Exclude<PlanStatus, "invited"> | null) =>
+    sg<PlanItem>({ action: "plan", seatgeek_id: seatgeekId, status }),
+  /** Your plans and pending invites, soonest first. */
+  myPlans: async () => cached("my_plans", async () => (check(await supabase.rpc("my_plans")) as PlanItem[]) ?? []),
+  /** Upcoming shows your friends are going to or interested in. */
+  friendsGoing: async () => (check(await supabase.rpc("friends_going_events")) as PlanItem[]) ?? [],
+  /** Your plan and crew for a saved event (fresh from the database). */
+  plan: async (eventId: string) => check(await supabase.rpc("event_plan", { p_event: eventId })) as PlanItem | null,
+  /** Invites friends; returns how many were invited (people already in are skipped). */
+  invite: async (eventId: string, userIds: string[], note?: string) =>
+    check(await supabase.rpc("invite_to_event", { p_event: eventId, p_users: userIds, p_note: note ?? null })) as number,
 };
 
 export async function sendTestPush(): Promise<number> {

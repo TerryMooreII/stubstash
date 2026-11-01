@@ -3,7 +3,8 @@ import { check, supabase } from "./supabase";
 
 export type NotificationKind =
   | "friend_request" | "friend_accepted" | "friend_show" | "same_show"
-  | "tagged" | "invite_claimed" | "badge_earned" | "rate_show";
+  | "tagged" | "invite_claimed" | "badge_earned" | "rate_show"
+  | "event_invite" | "event_reply" | "friend_going" | "log_plan";
 
 export interface AppNotification {
   id: string;
@@ -33,6 +34,10 @@ export const NOTIFICATION_KINDS: { kind: NotificationKind; label: string; hint: 
   { kind: "invite_claimed", label: "Invite accepted", hint: "Someone joined from your \"you were there\" invite" },
   { kind: "badge_earned", label: "Badges", hint: "You unlocked a badge" },
   { kind: "rate_show", label: "Rate last night", hint: "10am the morning after a show you haven't rated" },
+  { kind: "event_invite", label: "Show invites", hint: "A friend invited you to an upcoming show" },
+  { kind: "event_reply", label: "Invite replies", hint: "Someone answered your invite" },
+  { kind: "friend_going", label: "Friends going", hint: "A friend is going to a show you're going to or interested in" },
+  { kind: "log_plan", label: "Log a show you went to", hint: "10am the morning after a show you were going to" },
 ];
 
 export function prefOn(prefs: NotificationPrefs | null | undefined, kind: NotificationKind, channel: "inapp" | "push"): boolean {

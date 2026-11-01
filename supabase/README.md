@@ -6,6 +6,7 @@ Everything needed to recreate the backend lives in this folder.
 | --- | --- |
 | `migrations/` | Database schema, security rules, stats functions, storage buckets, cron jobs. Applied in filename order. |
 | `functions/setlistfm` | setlist.fm gateway: search, log a show, import a user's history, refresh a setlist. Needs a signed-in user. |
+| `functions/seatgeek` | SeatGeek gateway for upcoming shows: search (near your home by default), open an event, set your plan. Needs a signed-in user. |
 | `functions/enrich` | Background job (every 2 min): artist images and genres, venue coordinates, photos and capacity. |
 | `functions/push` | Web push: delivers a notification to the user's devices (`deliver`, queued by `_notify()` through pg_net) and a test send. |
 | `functions/admin` | Admin-only user actions that need the Auth admin API: suspend, unsuspend, delete (with their uploaded files). |
@@ -20,6 +21,7 @@ Hosted project: **Stub Stash**, ref `mkwexvexzxdbgjkqfoac` (us-east-1).
 - **Catalog** (shared by everyone): `artists`, `venues`, `shows`, `setlist_songs`. Rows from setlist.fm are written only by the `setlistfm` edge function. Manual shows are created with the `create_manual_show` RPC and are visible only to the creator and people who can see their log.
 - **Personal log:** `attendances` (one row per user per show, with rating, seat, price, merch, notes and stub photo), plus `attendance_companions`, `attendance_photos` and `user_venue_pins` (your own fix for a venue's location).
 - **Social:** `friendships` (mutual requests) and `show_invites` (tag someone not on Stubstash; they claim the show when they join).
+- **Upcoming shows:** `upcoming_events` (SeatGeek events someone opened or planned; written only by the `seatgeek` function) and `event_plans` (going / interested / can't go, or `invited` by a friend and not answered yet). Friends see your going and interested plans; the friend who invited you also sees a pending invite or a "can't go". Read through `my_plans()`, `event_plan(id)` and `friends_going_events()`; invite with `invite_to_event(event, user_ids, note)` (friends only, and you must be going or interested).
 - **Stats** are SQL functions (`dashboard_stats`, `show_setlist`, `artist_stats`, `venue_stats`, `map_venues`, `year_in_review`, `user_badges`). They compute only from the user's own log, and return nothing unless the caller may see that user (self, friend, or public profile).
 
 ## Recreating from scratch
@@ -34,6 +36,7 @@ Hosted project: **Stub Stash**, ref `mkwexvexzxdbgjkqfoac` (us-east-1).
 4. Deploy the functions:
    ```sh
    supabase functions deploy setlistfm
+   supabase functions deploy seatgeek
    supabase functions deploy enrich --no-verify-jwt
    supabase functions deploy push --no-verify-jwt
    supabase functions deploy admin
@@ -44,6 +47,8 @@ Hosted project: **Stub Stash**, ref `mkwexvexzxdbgjkqfoac` (us-east-1).
    | --- | --- | --- |
    | `SETLISTFM_API_KEY` | yes | From https://www.setlist.fm/settings/api |
    | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | for push | From `.secrets.local`, or generate new ones with `npx web-push generate-vapid-keys`. The public key also goes in the app's `VITE_VAPID_PUBLIC_KEY`. |
+   | `SEATGEEK_CLIENT_ID` / `SEATGEEK_CLIENT_SECRET` | for upcoming shows | From https://seatgeek.com/account/develop |
+   | `SEATGEEK_AFFILIATE_ID` | optional | Partner id added to ticket links as `aid` |
    | `FANART_API_KEY` | optional | Free personal key from https://fanart.tv/get-an-api-key/ for better artist photos |
    | `THEAUDIODB_API_KEY` | optional | Defaults to TheAudioDB's free test key `123` |
    | `CONTACT_EMAIL` | recommended | Sent in the User-Agent to OpenStreetMap/Wikidata, as their usage policies ask |
@@ -85,6 +90,8 @@ Suspending, unsuspending and deleting users go through the `admin` edge function
 | `invite_claimed` | trigger on `show_invites` |
 | `badge_earned` | `badge-check` cron |
 | `rate_show` | `rating-nudges` cron |
+| `event_invite`, `event_reply`, `friend_going` | trigger on `event_plans` (a friend invited you; someone answered your invite; a friend is going to a show you're going to or interested in) |
+| `log_plan` | `plan-log-nudges` cron |
 
 ## Background jobs (pg_cron)
 
@@ -94,10 +101,12 @@ Suspending, unsuspending and deleting users go through the `admin` edge function
 | `rating-nudges` | hourly at :15 | `queue_rating_nudges()`: "rate last night" at 10am local time the day after a show |
 | `badge-check` | every 5 min | `check_new_badges()`: announces newly earned badges (each once, tracked in `badge_awards`) |
 | `prune-notifications` | daily 04:45 UTC | Deletes notifications read more than 90 days ago |
+| `plan-log-nudges` | hourly at :20 | `queue_plan_log_nudges()`: "how was it? log it" at 10am the day after a show you were going to, unless it's already in your log |
+| `prune-upcoming-events` | daily 04:50 UTC | Deletes upcoming events (and their plans) more than 60 days past |
 | `prune-api-cache` | daily 04:30 UTC | Deletes setlist.fm cache rows older than 2 days |
 
 Check recent job calls with `select * from net._http_response order by created desc limit 10;`.
 
 ## Image and data credits
 
-Setlists from setlist.fm. Artist images: Deezer first, then fanart.tv, TheAudioDB and Wikimedia Commons (MusicBrainz fills in missing artist ids). Venue locations: Wikidata coordinates, then Photon and Nominatim (OpenStreetMap), with Open-Meteo for city centres; venue photos and capacities from Wikidata/Wikipedia/Wikimedia Commons. The app shows `image_credit` wherever an image appears.
+Setlists from setlist.fm. Upcoming shows, ticket prices and their artist photos from SeatGeek. Artist images: Deezer first, then fanart.tv, TheAudioDB and Wikimedia Commons (MusicBrainz fills in missing artist ids). Venue locations: Wikidata coordinates, then Photon and Nominatim (OpenStreetMap), with Open-Meteo for city centres; venue photos and capacities from Wikidata/Wikipedia/Wikimedia Commons. The app shows `image_credit` wherever an image appears.

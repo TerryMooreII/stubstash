@@ -424,6 +424,10 @@ enabled = true
 [functions.setlistfm]
 verify_jwt = true
 
+# seatgeek: upcoming shows, called by signed-in users.
+[functions.seatgeek]
+verify_jwt = true
+
 # enrich + push are called by pg_cron with the x-cron-secret header; they do their own auth.
 [functions.enrich]
 verify_jwt = false
