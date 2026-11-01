@@ -22,14 +22,14 @@ const active = computed(() => route.meta.nav);
 type NavKey = "home" | "shows" | "upcoming" | "map" | "profile";
 const items: { key: NavKey; label: string; short: string; icon: IconName; to: string }[] = [
   { key: "home", label: "Dashboard", short: "Home", icon: "home", to: "/app" },
-  { key: "shows", label: "My shows", short: "Shows", icon: "ticket", to: "/app/shows" },
   { key: "upcoming", label: "Upcoming", short: "Upcoming", icon: "calendar", to: "/app/upcoming" },
+  { key: "shows", label: "My shows", short: "Shows", icon: "ticket", to: "/app/shows" },
   { key: "map", label: "Map", short: "Map", icon: "pin", to: "/app/map" },
   { key: "profile", label: "Profile & badges", short: "Me", icon: "user", to: "/app/me" },
 ];
-// Phones: Home, Shows, (+), Upcoming, Map. Your profile is the avatar in the top bar.
-const tabsLeft = items.filter((i) => i.key === "home" || i.key === "shows");
-const tabsRight = items.filter((i) => i.key === "upcoming" || i.key === "map");
+// Phones: Home, Upcoming, (+), Shows, Map. Your profile is the avatar in the top bar.
+const tabsLeft = items.filter((i) => i.key === "home" || i.key === "upcoming");
+const tabsRight = items.filter((i) => i.key === "shows" || i.key === "map");
 </script>
 
 <template>

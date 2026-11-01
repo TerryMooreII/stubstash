@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Upcoming shows: invites waiting on you, then two tabs: your plans, and a
-// SeatGeek search (near your home by default, or anywhere with the advanced search).
+// Upcoming shows: invites waiting on you, then two tabs: a SeatGeek search
+// (near your home by default, or anywhere with the advanced search) and your plans.
 import { computed, onMounted, ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsChip, SsEmpty, SsIcon, SsInput, SsPageHeader, SsSkeleton } from "@/design-system";
@@ -32,25 +32,17 @@ const planSummary = computed(() => {
   return `${going} going · ${mine.value.length - going} interested`;
 });
 
-// ---- tabs (?tab=plans|find). With no tab picked: your plans if you have any, else the search.
-type Tab = "plans" | "find";
-/** Picked once, when plans first load, so marking a show doesn't switch tabs under you. */
-const defaultTab = ref<Tab>("plans");
-const tab = computed<Tab>(() => {
-  const q = route.query.tab;
-  return q === "plans" || q === "find" ? q : defaultTab.value;
-});
+// ---- tabs (?tab=find|plans), Find shows first
+type Tab = "find" | "plans";
+const tab = computed<Tab>(() => (route.query.tab === "plans" ? "plans" : "find"));
 function go(t: Tab) {
-  router.replace({ query: { ...route.query, tab: t } });
+  const { tab: _old, ...rest } = route.query;
+  router.replace({ query: t === "find" ? rest : { ...rest, tab: t } });
 }
 
 async function loadPlans() {
   try {
-    const first = plansLoading.value;
     plans.value = await upcoming.myPlans();
-    if (first && !mine.value.length) defaultTab.value = "find";
-    // Keep the tab in the URL so coming back from a show lands on the same one.
-    if (first && !route.query.tab) router.replace({ query: { ...route.query, tab: defaultTab.value } });
   } catch (e) {
     ui.error(errorMessage(e));
   } finally {
@@ -108,11 +100,11 @@ const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) =>
     />
 
     <div class="tabs" role="tablist" aria-label="Upcoming">
-      <button type="button" role="tab" class="tab" :class="{ on: tab === 'plans' }" :aria-selected="tab === 'plans'" @click="go('plans')">
-        Your plans<span v-if="mine.length" class="tab__n">{{ mine.length }}</span>
-      </button>
       <button type="button" role="tab" class="tab" :class="{ on: tab === 'find' }" :aria-selected="tab === 'find'" @click="go('find')">
         Find shows
+      </button>
+      <button type="button" role="tab" class="tab" :class="{ on: tab === 'plans' }" :aria-selected="tab === 'plans'" @click="go('plans')">
+        Your plans<span v-if="mine.length" class="tab__n">{{ mine.length }}</span>
       </button>
     </div>
 
