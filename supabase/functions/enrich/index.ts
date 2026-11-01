@@ -9,55 +9,18 @@
 // Called with the x-cron-secret header. Each run handles a small batch so it
 // stays inside MusicBrainz's and Nominatim's 1 request/second policies.
 
-import { contactUrl, HttpError, isCron, json, serve, throttle } from "../_shared/http.ts";
+import { HttpError, isCron, json, serve, throttle } from "../_shared/http.ts";
 import { adminClient } from "../_shared/supabase.ts";
+import {
+  commonsUrl, deezer, getJson, km, MAX_KM, nameVariants, norm, wikidataById, wikidataVenue,
+  type Img, type WdVenue,
+} from "../_shared/images.ts";
 
 const ARTIST_BATCH = 8;
 const VENUE_BATCH = 6;
-const UA = `Stubstash/1.0 (+${contactUrl()})`;
-/** How far (km) a venue match may be from setlist.fm's city centre. */
-const MAX_KM = 45;
-
 type Db = ReturnType<typeof adminClient>;
-interface Img { url: string; source: string; credit: string }
-
-async function getJson(url: string, headers: Record<string, string> = {}): Promise<any | null> {
-  try {
-    const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json", ...headers } });
-    if (!res.ok) {
-      console.warn("lookup failed", res.status, new URL(url).host);
-      return null;
-    }
-    return await res.json();
-  } catch (err) {
-    console.warn("lookup error", new URL(url).host, String(err));
-    return null;
-  }
-}
-
 /** Most lookup hosts ask for about 1 request per second. */
 const polite = (host: string) => throttle(host, 1100);
-
-function commonsUrl(file: string, width = 1000): string {
-  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=${width}`;
-}
-
-/** "The SteelDrivers" and "Steeldrivers" compare equal. */
-export function norm(s: string): string {
-  return s
-    .normalize("NFD").replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/^the\s+/, "")
-    .replace(/[^a-z0-9]+/g, "");
-}
-
-function km(aLat: number, aLng: number, bLat: number, bLng: number): number {
-  const r = Math.PI / 180;
-  const x = Math.sin(((bLat - aLat) * r) / 2) ** 2 +
-    Math.cos(aLat * r) * Math.cos(bLat * r) * Math.sin(((bLng - aLng) * r) / 2) ** 2;
-  return 12742 * Math.asin(Math.sqrt(x));
-}
 
 // ---------- artists ----------
 
@@ -104,15 +67,6 @@ async function wikidataArtist(mbid: string): Promise<Img | null> {
   return { url: commonsUrl(file), source: "Wikimedia Commons", credit: `Wikimedia Commons: ${file}` };
 }
 
-/** First choice: widest coverage, good square photos. Skips Deezer's blank default picture. */
-async function deezer(name: string): Promise<Img | null> {
-  const d = await getJson(`https://api.deezer.com/search/artist?q=${encodeURIComponent(name)}&limit=5`);
-  const hit = (d?.data ?? []).find((a: any) => norm(a.name ?? "") === norm(name));
-  const url: string | undefined = hit?.picture_xl;
-  if (!url || url.includes("/artist//")) return null;
-  return { url, source: "Deezer", credit: "Image via Deezer" };
-}
-
 async function enrichArtists(db: Db) {
   const { data: rows } = await db.from("artists").select("id, mbid, name")
     .is("image_checked_at", null).order("created_at").limit(ARTIST_BATCH);
@@ -145,26 +99,6 @@ async function enrichArtists(db: Db) {
 
 // ---------- venues ----------
 
-/**
- * Search names to try for a venue, most specific first:
- *   "ACL Live at The Moody Theater" -> [full, "The Moody Theater", "Moody Theater"]
- *   "Red Rocks Amphitheatre (Morrison)" -> [full, "Red Rocks Amphitheatre"]
- */
-export function nameVariants(name: string): string[] {
-  const out = [name.trim()];
-  const add = (s: string) => {
-    const t = s.trim();
-    if (t.length >= 3 && !out.includes(t)) out.push(t);
-  };
-  const noParens = name.replace(/\s*\([^)]*\)\s*/g, " ").trim();
-  add(noParens);
-  const at = noParens.match(/\bat\s+(.+)$/i);
-  if (at) add(at[1]!);
-  const base = at ? at[1]! : noParens;
-  add(base.replace(/^the\s+/i, ""));
-  return out.slice(0, 3);
-}
-
 /** City centre from Open-Meteo's free geocoder. "Winston-Salem, NC" -> Winston-Salem. */
 async function cityCentre(v: any): Promise<{ lat: number; lng: number } | null> {
   const city = String(v.city ?? "").split(",")[0]!.trim();
@@ -175,63 +109,6 @@ async function cityCentre(v: any): Promise<{ lat: number; lng: number } | null> 
   const state = String(v.state ?? "").toLowerCase();
   const pick = (state && list.find((r) => String(r.admin1 ?? "").toLowerCase() === state)) || list[0];
   return pick ? { lat: pick.latitude, lng: pick.longitude } : null;
-}
-
-interface WdVenue { qid: string; lat: number; lng: number; img: Img | null; capacity: number | null }
-
-/** Lead image of the English Wikipedia article (free images only). */
-async function wikipediaImage(title: string): Promise<Img | null> {
-  const d = await getJson(
-    `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=pageimages&piprop=name&pilicense=free&titles=${encodeURIComponent(title)}`,
-  );
-  const page: any = Object.values(d?.query?.pages ?? {})[0];
-  const file: string | undefined = page?.pageimage;
-  return file ? { url: commonsUrl(file), source: "Wikimedia Commons", credit: `Wikimedia Commons: ${file}` } : null;
-}
-
-async function wdEntities(ids: string[]): Promise<Record<string, any>> {
-  if (!ids.length) return {};
-  const d = await getJson(
-    `https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=claims|sitelinks&sitefilter=enwiki&ids=${ids.join("|")}`,
-  );
-  return d?.entities ?? {};
-}
-
-async function wdDetails(qid: string, e: any): Promise<WdVenue | null> {
-  const c = e?.claims ?? {};
-  const coord = c.P625?.[0]?.mainsnak?.datavalue?.value;
-  const file: string | undefined = c.P18?.[0]?.mainsnak?.datavalue?.value;
-  const capRaw = c.P1083?.[0]?.mainsnak?.datavalue?.value?.amount;
-  let img: Img | null = file ? { url: commonsUrl(file), source: "Wikimedia Commons", credit: `Wikimedia Commons: ${file}` } : null;
-  const wiki: string | undefined = e?.sitelinks?.enwiki?.title;
-  if (!img && wiki) img = await wikipediaImage(wiki);
-  return {
-    qid,
-    lat: coord?.latitude, lng: coord?.longitude,
-    img,
-    capacity: capRaw ? Math.round(Math.abs(Number(capRaw))) || null : null,
-  };
-}
-
-/** Wikidata item for the venue: name search, then keep the one whose coordinates are near the city. */
-async function wikidataVenue(names: string[], near: { lat: number; lng: number }): Promise<WdVenue | null> {
-  for (const name of names) {
-    const s = await getJson(
-      `https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&uselang=en&type=item&limit=7&search=${encodeURIComponent(name)}`,
-    );
-    const ids: string[] = (s?.search ?? []).map((r: any) => r.id).filter((id: string) => /^Q\d+$/.test(id));
-    const ents = await wdEntities(ids);
-    for (const id of ids) {
-      const coord = ents[id]?.claims?.P625?.[0]?.mainsnak?.datavalue?.value;
-      if (coord && km(near.lat, near.lng, coord.latitude, coord.longitude) <= MAX_KM) return wdDetails(id, ents[id]);
-    }
-  }
-  return null;
-}
-
-async function wikidataById(qid: string): Promise<WdVenue | null> {
-  const ents = await wdEntities([qid]);
-  return ents[qid] ? wdDetails(qid, ents[qid]) : null;
 }
 
 interface GeoHit { lat: number; lng: number; qid: string | null; source: "photon" | "nominatim" }

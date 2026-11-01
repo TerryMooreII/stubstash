@@ -40,6 +40,13 @@ const when = computed(() => {
   const t = showTime(e.value.local_time);
   return [e.value.date_tbd ? "Date TBA" : longDate(e.value.local_date), t && `Show ${t}`].filter(Boolean).join(" · ");
 });
+const mapsUrl = computed(() => {
+  if (!e.value) return null;
+  const q = e.value.lat != null && e.value.lng != null
+    ? `${e.value.lat},${e.value.lng}`
+    : [e.value.venue_name, eventPlace(e.value)].filter(Boolean).join(", ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+});
 const canInvite = computed(() => !past.value && (item.value?.status === "going" || item.value?.status === "interested"));
 
 // The morning-after notification: go straight to finding the setlist.
@@ -96,7 +103,7 @@ function shareEvent() {
 
     <template v-else-if="item && e">
       <!-- Hero -->
-      <SsArt :src="e.image_url" :seed="e.artist" :alt="e.artist" credit="SeatGeek" credit-label="Artist image" eager class="hero">
+      <SsArt :src="e.image_url" :seed="e.artist" :alt="e.artist" :credit="e.image_credit" credit-label="Artist image" eager class="hero">
         <div class="hero__cd">
           <div class="hero__days">{{ past ? "✓" : e.date_tbd ? "?" : days }}</div>
           <div class="hero__days-lbl">{{ past ? countdown(e.local_date) : e.date_tbd ? "DATE TBA" : days === 1 ? "DAY TO GO" : days === 0 ? "TONIGHT" : "DAYS TO GO" }}</div>
@@ -180,15 +187,33 @@ function shareEvent() {
             <span class="price__n">${{ Math.round(e.lowest_price) }}</span>
             <span class="ss-muted">lowest<template v-if="e.listing_count"> · {{ num(e.listing_count) }} listings</template></span>
           </div>
-          <div v-else class="ss-muted">No listings right now.</div>
+          <div v-else-if="!past" class="ss-muted">See seats and prices on SeatGeek.</div>
           <SsButton v-if="e.ticket_url && !past" variant="light" :href="e.ticket_url" block>
             Get tickets on SeatGeek <SsIcon name="external" :size="16" />
           </SsButton>
           <SsButton variant="outline" block @click="shareEvent">
             <SsIcon name="share" :size="16" />{{ canShare ? "Share this show" : "Copy show link" }}
           </SsButton>
-          <p class="fine">Prices change often. SeatGeek has the latest.</p>
+          <p v-if="e.lowest_price" class="fine">Prices change often. SeatGeek has the latest.</p>
         </SsCard>
+
+        <!-- The venue -->
+        <section class="venue">
+          <SsArt
+            :src="e.venue_image_url"
+            :seed="e.venue_name"
+            :alt="e.venue_name"
+            :credit="e.venue_image_credit"
+            credit-label="Venue image"
+            class="venue__art"
+          />
+          <div class="venue__body">
+            <div class="ss-kicker">THE VENUE</div>
+            <div class="ss-h3 venue__name">{{ e.venue_name }}</div>
+            <div class="ss-muted">{{ eventPlace(e) }}</div>
+            <SsButton v-if="mapsUrl" variant="outline" size="sm" :href="mapsUrl"><SsIcon name="pin" :size="16" />Directions</SsButton>
+          </div>
+        </section>
       </div>
 
       <InviteSheet v-model="inviteOpen" :item="item" @done="invited" />
@@ -290,4 +315,15 @@ a.who:hover { text-decoration: none; color: var(--ss-accent); }
 .price { display: flex; align-items: baseline; gap: 10px; }
 .price__n { font-weight: 900; font-size: 44px; line-height: 1; }
 .fine { margin: 0; font-size: 12px; color: var(--ss-text-faint); }
+.venue {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--ss-radius-lg);
+  background: var(--ss-surface-1);
+  border: 1px solid var(--ss-line-soft);
+  overflow: hidden;
+}
+.venue__art { height: 180px; }
+.venue__body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.venue__name { overflow-wrap: anywhere; }
 </style>

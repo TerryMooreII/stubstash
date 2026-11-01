@@ -6,10 +6,8 @@ import { HttpError, sleep } from "./http.ts";
 
 const BASE = "https://api.seatgeek.com/2";
 
-export interface SgPerformer {
-  id: number; name: string; slug?: string; image?: string | null;
-  images?: { huge?: string | null } | null; primary?: boolean;
-}
+// SeatGeek's API has no artist or venue images; see the seatgeek function for where ours come from.
+export interface SgPerformer { id: number; name: string; slug?: string; primary?: boolean }
 export interface SgVenue {
   id: number; name: string; city?: string; state?: string; country?: string;
   location?: { lat?: number; lon?: number }; timezone?: string;
@@ -56,7 +54,7 @@ export async function sgGet<T>(db: SupabaseClient, path: string, ttlMinutes = 15
 
 const US_STATES = /^[A-Z]{2}$/;
 
-/** A SeatGeek event in the shape of a public.upcoming_events row (minus our own id). */
+/** A SeatGeek event in the shape of a public.upcoming_events row (minus our id and images). */
 export function toEventRow(e: SgEvent) {
   const performers = e.performers ?? [];
   const lead = performers.find((p) => p.primary) ?? performers[0];
@@ -68,7 +66,6 @@ export function toEventRow(e: SgEvent) {
     title: e.title,
     artist: lead?.name ?? e.short_title ?? e.title,
     performers: performers.map((p) => p.name).slice(0, 12),
-    image_url: lead?.images?.huge ?? lead?.image ?? null,
     venue_name: e.venue?.name ?? "Venue TBA",
     city: e.venue?.city ?? null,
     state: e.venue?.state && US_STATES.test(e.venue.state) ? e.venue.state : (e.venue?.state ?? null),

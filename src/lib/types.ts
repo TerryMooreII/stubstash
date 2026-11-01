@@ -341,7 +341,12 @@ export interface UpcomingEvent {
   title: string;
   artist: string;
   performers: string[];
+  /** Artist photo (our catalog or Deezer; SeatGeek has none) and its credit. */
   image_url: string | null;
+  image_credit: string | null;
+  /** Venue photo (our catalog or Wikidata), filled in when the event is first opened. */
+  venue_image_url: string | null;
+  venue_image_credit: string | null;
   venue_name: string;
   city: string | null;
   state: string | null;

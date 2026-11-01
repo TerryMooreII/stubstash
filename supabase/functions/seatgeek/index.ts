@@ -12,6 +12,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
 import { HttpError, json, serve } from "../_shared/http.ts";
 import { adminClient, requireUser } from "../_shared/supabase.ts";
 import { sgGet, slugify, toEventRow, type SgEvent, type SgEventsPage } from "../_shared/seatgeek.ts";
+import { deezer, nameVariants, norm, wikidataVenue, type Img } from "../_shared/images.ts";
 
 const PER_PAGE = 25;
 const RANGES = new Set(["25", "50", "100", "250", "any"]);
@@ -19,6 +20,45 @@ const STATUSES = new Set(["going", "interested", "cant"]);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type EventRow = ReturnType<typeof toEventRow>;
+/** How far (km) a Wikidata venue may be from SeatGeek's venue pin. */
+const VENUE_MATCH_KM = 3;
+const IMG_CACHE_DAYS = 30;
+
+/** A lookup cached in api_cache under an "img:" key (kept 30 days), including misses. */
+async function cachedImage(db: SupabaseClient, key: string, look: () => Promise<Img | null>): Promise<Img | null> {
+  const { data: hit } = await db.from("api_cache").select("body, fetched_at").eq("key", key).maybeSingle();
+  if (hit && Date.now() - new Date(hit.fetched_at).getTime() < IMG_CACHE_DAYS * 864e5) return hit.body?.img ?? null;
+  const img = await look().catch(() => null);
+  await db.from("api_cache").upsert({ key, body: { img }, fetched_at: new Date().toISOString() });
+  return img;
+}
+
+/** Artist photos by lower-cased name: our catalog first, then Deezer. */
+async function artistImages(db: SupabaseClient, names: string[]): Promise<Map<string, Img>> {
+  const out = new Map<string, Img>();
+  const unique = [...new Set(names.filter(Boolean))];
+  if (!unique.length) return out;
+  const { data } = await db.rpc("_artist_images", { p_names: unique });
+  for (const r of (data ?? []) as { name: string; image_url: string; image_credit: string | null }[]) {
+    out.set(r.name, { url: r.image_url, source: "", credit: r.image_credit ?? "" });
+  }
+  await Promise.all(unique.filter((n) => !out.has(n.toLowerCase())).map(async (n) => {
+    const img = await cachedImage(db, `img:deezer:${norm(n)}`, () => deezer(n));
+    if (img) out.set(n.toLowerCase(), img);
+  }));
+  return out;
+}
+
+/** A venue photo: our catalog first, then Wikidata/Wikipedia near SeatGeek's pin. */
+async function venueImage(db: SupabaseClient, row: EventRow): Promise<Img | null> {
+  const { data } = await db.rpc("_venue_image", { p_name: row.venue_name, p_city: row.city });
+  const mine = (data ?? [])[0] as { image_url: string; image_credit: string | null } | undefined;
+  if (mine) return { url: mine.image_url, source: "", credit: mine.image_credit ?? "" };
+  if (row.lat == null || row.lng == null) return null;
+  const near = { lat: row.lat, lng: row.lng };
+  return cachedImage(db, `img:venue:${norm(row.venue_name)}:${near.lat.toFixed(2)},${near.lng.toFixed(2)}`, async () =>
+    (await wikidataVenue(nameVariants(row.venue_name), near, VENUE_MATCH_KM))?.img ?? null);
+}
 
 function clean(v: unknown, max = 120): string | undefined {
   if (typeof v !== "string") return undefined;
@@ -59,10 +99,12 @@ async function planItem(db: SupabaseClient, userId: string, eventId: string) {
   return { ...data, seen: seen.get(String(data.event.artist).toLowerCase()) ?? 0 };
 }
 
-/** Saves (or refreshes) an event from SeatGeek and returns our id for it. */
+/** Saves (or refreshes) an event from SeatGeek, with images, and returns our id for it. */
 async function saveEvent(db: SupabaseClient, sgId: number, maxAgeMinutes: number): Promise<string> {
-  const { data: have } = await db.from("upcoming_events").select("id, fetched_at").eq("seatgeek_id", sgId).maybeSingle();
-  if (have && Date.now() - new Date(have.fetched_at).getTime() < maxAgeMinutes * 60_000) return have.id;
+  const { data: have } = await db.from("upcoming_events")
+    .select("id, fetched_at, image_url, venue_checked_at").eq("seatgeek_id", sgId).maybeSingle();
+  const fresh = have && Date.now() - new Date(have.fetched_at).getTime() < maxAgeMinutes * 60_000;
+  if (fresh && have.venue_checked_at) return have.id;
 
   const ev = await sgGet<SgEvent>(db, `/events/${sgId}`, 30);
   if (!ev) {
@@ -71,8 +113,21 @@ async function saveEvent(db: SupabaseClient, sgId: number, maxAgeMinutes: number
   }
   const row = toEventRow(ev);
   if (!row.local_date) throw new HttpError(404, "That show doesn't have a date yet.");
+  const images: Record<string, unknown> = {};
+  const [artist, venue] = await Promise.all([
+    have?.image_url ? null : artistImages(db, [row.artist]),
+    have?.venue_checked_at ? null : venueImage(db, row),
+  ]);
+  const a = artist?.get(row.artist.toLowerCase());
+  if (a) Object.assign(images, { image_url: a.url, image_credit: a.credit || null });
+  if (!have?.venue_checked_at) {
+    Object.assign(images, {
+      venue_image_url: venue?.url ?? null, venue_image_credit: venue?.credit || null,
+      venue_checked_at: new Date().toISOString(),
+    });
+  }
   const { data, error } = await db.from("upcoming_events")
-    .upsert({ ...row, fetched_at: new Date().toISOString() }, { onConflict: "seatgeek_id" })
+    .upsert({ ...row, ...images, fetched_at: new Date().toISOString() }, { onConflict: "seatgeek_id" })
     .select("id").single();
   if (error) throw error;
   return data.id;
@@ -138,20 +193,28 @@ serve(async (req) => {
       const res = await sgGet<SgEventsPage>(db, `/events?${p.toString()}`, 15);
       const rows: EventRow[] = (res?.events ?? []).map(toEventRow).filter((r) => r.local_date);
 
-      const [plans, seen] = await Promise.all([
+      const [plans, seen, photos] = await Promise.all([
         rows.length
           ? db.rpc("_plan_items_by_seatgeek", { p_viewer: userId, p_ids: rows.map((r) => r.seatgeek_id) })
           : Promise.resolve({ data: [], error: null }),
         seenCounts(db, userId, rows.map((r) => r.artist)),
+        artistImages(db, rows.map((r) => r.artist)),
       ]);
       if (plans.error) throw plans.error;
       const known = new Map((plans.data ?? []).map((x: { seatgeek_id: number; item: any }) => [Number(x.seatgeek_id), x.item]));
 
       const results = rows.map((row) => {
         const item = known.get(row.seatgeek_id);
+        const photo = photos.get(row.artist.toLowerCase());
         return {
-          // Fresh SeatGeek data, with our id when someone has opened the event before.
-          event: { ...row, id: item?.event?.id ?? null },
+          // Fresh SeatGeek data over what we saved (our id and images) when someone opened it before.
+          event: {
+            image_url: null, image_credit: null, venue_image_url: null, venue_image_credit: null,
+            ...(item?.event ?? {}),
+            ...row,
+            ...(photo ? { image_url: photo.url, image_credit: photo.credit || null } : {}),
+            id: item?.event?.id ?? null,
+          },
           status: item?.status ?? null,
           note: item?.note ?? null,
           invited_by: item?.invited_by ?? null,

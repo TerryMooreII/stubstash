@@ -10,7 +10,7 @@ Everything needed to recreate the backend lives in this folder.
 | `functions/enrich` | Background job (every 2 min): artist images and genres, venue coordinates, photos and capacity. |
 | `functions/push` | Web push: delivers a notification to the user's devices (`deliver`, queued by `_notify()` through pg_net) and a test send. |
 | `functions/admin` | Admin-only user actions that need the Auth admin API: suspend, unsuspend, delete (with their uploaded files). |
-| `functions/_shared` | Code shared by the functions (HTTP helpers, Supabase clients, setlist.fm client). |
+| `functions/_shared` | Code shared by the functions (HTTP helpers, Supabase clients, setlist.fm and SeatGeek clients, image lookups). |
 | `config.toml` | Supabase CLI config (local auth settings, per-function JWT settings). |
 | `.secrets.local` | Generated VAPID keys. Git-ignored; keep a copy somewhere safe. |
 
@@ -109,4 +109,4 @@ Check recent job calls with `select * from net._http_response order by created d
 
 ## Image and data credits
 
-Setlists from setlist.fm. Upcoming shows, ticket prices and their artist photos from SeatGeek. Artist images: Deezer first, then fanart.tv, TheAudioDB and Wikimedia Commons (MusicBrainz fills in missing artist ids). Venue locations: Wikidata coordinates, then Photon and Nominatim (OpenStreetMap), with Open-Meteo for city centres; venue photos and capacities from Wikidata/Wikipedia/Wikimedia Commons. The app shows `image_credit` wherever an image appears.
+Setlists from setlist.fm. Upcoming shows and ticket links from SeatGeek (its API has no images, so upcoming shows use the same sources: artist photos from our catalog or Deezer, venue photos from our catalog or Wikidata/Wikipedia). Artist images: Deezer first, then fanart.tv, TheAudioDB and Wikimedia Commons (MusicBrainz fills in missing artist ids). Venue locations: Wikidata coordinates, then Photon and Nominatim (OpenStreetMap), with Open-Meteo for city centres; venue photos and capacities from Wikidata/Wikipedia/Wikimedia Commons. The app shows `image_credit` wherever an image appears.
