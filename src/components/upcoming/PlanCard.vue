@@ -16,7 +16,7 @@ const d = computed(() => dateParts(e.value.local_date));
 
 <template>
   <RouterLink :to="`/app/upcoming/${e.seatgeek_id}`" class="plan-card">
-    <SsArt :src="e.image_url" :seed="e.artist" class="plan-card__art">
+    <SsArt :src="e.image_url" :seed="e.artist" focus="top" class="plan-card__art">
       <div class="plan-card__pills">
         <span class="plan-card__cd">{{ e.date_tbd ? "DATE TBA" : countdown(e.local_date) }}</span>
         <StatusPill :status="item.status" />

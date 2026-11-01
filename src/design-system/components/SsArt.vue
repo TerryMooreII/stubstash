@@ -13,8 +13,13 @@ const props = withDefaults(
     credit?: string | null;    // e.g. "Wikimedia Commons: File.jpg"
     creditLabel?: string;      // e.g. "ARTIST IMAGE"
     eager?: boolean;
+    /**
+     * Which part of the photo to keep when it's cropped. "top" suits people
+     * (artist photos in wide headers), so heads aren't cut off.
+     */
+    focus?: "center" | "top";
   }>(),
-  { shape: "rect", alt: "" },
+  { shape: "rect", alt: "", focus: "center" },
 );
 
 const emit = defineEmits<{ error: [] }>();
@@ -34,6 +39,7 @@ const creditText = computed(() => {
       v-if="showImg"
       :src="src!"
       :alt="alt"
+      :class="{ 'is-top': focus === 'top' }"
       :loading="eager ? 'eager' : 'lazy'"
       referrerpolicy="no-referrer"
       decoding="async"
@@ -59,6 +65,10 @@ img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+/* Keep the upper part of portraits: faces sit in the top third of most artist photos. */
+img.is-top {
+  object-position: 50% 20%;
 }
 .ss-art__credit {
   position: absolute;

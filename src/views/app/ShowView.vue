@@ -208,6 +208,7 @@ const shareCard = computed<ShareCard>(() => {
         :alt="hero?.kind === 'photo' ? 'Your photo from the show' : hero?.kind === 'venue' ? show.venue.name : hero?.kind === 'artist' ? show.artist.name : ''"
         class="hero"
         :class="hero && `hero--${hero.kind}`"
+        :focus="hero?.kind === 'artist' ? 'top' : 'center'"
         eager
         @error="heroSkip++"
       >

@@ -103,7 +103,7 @@ function shareEvent() {
 
     <template v-else-if="item && e">
       <!-- Hero -->
-      <SsArt :src="e.image_url" :seed="e.artist" :alt="e.artist" :credit="e.image_credit" credit-label="Artist image" eager class="hero">
+      <SsArt :src="e.image_url" :seed="e.artist" :alt="e.artist" :credit="e.image_credit" credit-label="Artist image" focus="top" eager class="hero">
         <div class="hero__cd">
           <div class="hero__days">{{ past ? "✓" : e.date_tbd ? "?" : days }}</div>
           <div class="hero__days-lbl">{{ past ? countdown(e.local_date) : e.date_tbd ? "DATE TBA" : days === 1 ? "DAY TO GO" : days === 0 ? "TONIGHT" : "DAYS TO GO" }}</div>
