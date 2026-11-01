@@ -84,7 +84,7 @@ function shareEvent() {
 
 <template>
   <div class="ss-page">
-    <SsBackLink to="/app/upcoming" label="Upcoming" />
+    <SsBackLink fallback="/app/upcoming" label="Upcoming" />
 
     <template v-if="loading && !item">
       <SsSkeleton height="340px" />

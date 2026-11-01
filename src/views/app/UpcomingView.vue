@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// Upcoming shows: invites waiting on you, your plans, and a SeatGeek search
-// (near your home by default, or anywhere with the advanced search).
+// Upcoming shows: invites waiting on you, then two tabs: your plans, and a
+// SeatGeek search (near your home by default, or anywhere with the advanced search).
 import { computed, onMounted, ref, shallowRef } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsChip, SsEmpty, SsIcon, SsInput, SsPageHeader, SsSkeleton } from "@/design-system";
 import EventRow from "@/components/upcoming/EventRow.vue";
 import InviteCard from "@/components/upcoming/InviteCard.vue";
@@ -18,6 +19,8 @@ import { useUi } from "@/stores/ui";
 
 const auth = useAuth();
 const ui = useUi();
+const route = useRoute();
+const router = useRouter();
 
 // ---- your plans and invites
 const plans = shallowRef<PlanItem[]>([]);
@@ -29,9 +32,25 @@ const planSummary = computed(() => {
   return `${going} going · ${mine.value.length - going} interested`;
 });
 
+// ---- tabs (?tab=plans|find). With no tab picked: your plans if you have any, else the search.
+type Tab = "plans" | "find";
+/** Picked once, when plans first load, so marking a show doesn't switch tabs under you. */
+const defaultTab = ref<Tab>("plans");
+const tab = computed<Tab>(() => {
+  const q = route.query.tab;
+  return q === "plans" || q === "find" ? q : defaultTab.value;
+});
+function go(t: Tab) {
+  router.replace({ query: { ...route.query, tab: t } });
+}
+
 async function loadPlans() {
   try {
+    const first = plansLoading.value;
     plans.value = await upcoming.myPlans();
+    if (first && !mine.value.length) defaultTab.value = "find";
+    // Keep the tab in the URL so coming back from a show lands on the same one.
+    if (first && !route.query.tab) router.replace({ query: { ...route.query, tab: defaultTab.value } });
   } catch (e) {
     ui.error(errorMessage(e));
   } finally {
@@ -67,8 +86,8 @@ onMounted(() => {
 const { run: setPlan, busy } = useKeyedAction(async (_key: string, item: PlanItem, status: "going" | "interested" | "cant" | null) => {
   const next = await upcoming.setPlan(item.event.seatgeek_id, status);
   s.update(next);
-  if (status === "going") ui.flash("You’re going! Invite friends from the show page");
-  else if (status === "interested") ui.flash("Saved to your plans");
+  if (status === "going") ui.flash("You’re going! It’s in Your plans");
+  else if (status === "interested") ui.flash("Saved to Your plans");
   else if (status === "cant") ui.flash("Got it. We’ll let them know", "info");
   await loadPlans();
 });
@@ -88,25 +107,30 @@ const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) =>
       @respond="(st) => plan(i, st)"
     />
 
+    <div class="tabs" role="tablist" aria-label="Upcoming">
+      <button type="button" role="tab" class="tab" :class="{ on: tab === 'plans' }" :aria-selected="tab === 'plans'" @click="go('plans')">
+        Your plans<span v-if="mine.length" class="tab__n">{{ mine.length }}</span>
+      </button>
+      <button type="button" role="tab" class="tab" :class="{ on: tab === 'find' }" :aria-selected="tab === 'find'" @click="go('find')">
+        Find shows
+      </button>
+    </div>
+
     <!-- Your plans -->
-    <section class="ss-stack">
-      <div class="ss-between head">
-        <h2 class="ss-h2">Your plans</h2>
-        <span v-if="mine.length" class="ss-muted">{{ planSummary }}</span>
-      </div>
+    <section v-if="tab === 'plans'" class="ss-stack" role="tabpanel">
+      <div v-if="mine.length" class="summary ss-muted">{{ planSummary }}</div>
       <div v-if="plansLoading && !plans.length" class="plans"><SsSkeleton v-for="i in 2" :key="i" height="230px" /></div>
       <div v-else-if="mine.length" class="plans">
         <PlanCard v-for="p in mine" :key="p.event.seatgeek_id" :item="p" />
       </div>
-      <SsEmpty v-else title="No plans yet" body="Find a show below and tap Interested or Going. Friends see what you’re going to." />
+      <SsEmpty v-else title="No plans yet" body="Find a show and tap Interested or Going. Friends see what you’re going to.">
+        <SsButton size="sm" @click="go('find')"><SsIcon name="search" :size="16" />Find shows</SsButton>
+      </SsEmpty>
     </section>
 
     <!-- Find shows -->
-    <section class="ss-stack find">
-      <div class="ss-between head">
-        <h2 class="ss-h2">Find shows</h2>
-        <span class="where">{{ whereLabel }}</span>
-      </div>
+    <section v-else class="ss-stack" role="tabpanel">
+      <div class="where">{{ whereLabel }}</div>
 
       <div class="search-row">
         <SsInput
@@ -183,11 +207,49 @@ const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) =>
 </template>
 
 <style scoped>
-.head { align-items: baseline; gap: 12px; }
-.head .ss-h2 { margin: 0; }
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--ss-radius-pill);
+  background: var(--ss-surface-1);
+  border: 1px solid var(--ss-line);
+  align-self: flex-start;
+  max-width: 100%;
+}
+.tab {
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--ss-radius-pill);
+  background: transparent;
+  color: var(--ss-text-3);
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--ss-text); }
+.tab.on { background: var(--ss-accent); color: var(--ss-on-accent); }
+.tab__n {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--ss-radius-pill);
+  background: var(--ss-surface-3);
+  color: var(--ss-text);
+  font-size: 12px;
+  font-weight: 900;
+  display: inline-grid;
+  place-items: center;
+}
+.tab.on .tab__n { background: var(--ss-bg); color: var(--ss-accent); }
+.summary { font-size: 14px; }
 .plans { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-.find { margin-top: 8px; }
-.where { font-family: var(--ss-font-mono); font-size: 10px; letter-spacing: 0.12em; color: var(--ss-text-faint); text-align: right; }
+.where { font-family: var(--ss-font-mono); font-size: 10px; letter-spacing: 0.12em; color: var(--ss-text-faint); }
 .search-row { display: flex; gap: 8px; align-items: stretch; }
 .search-row__box { flex: 1; min-width: 0; }
 .search-row__adv { position: relative; flex-shrink: 0; align-self: center; }
