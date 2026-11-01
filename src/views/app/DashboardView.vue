@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from "vue";
 import {
   SsBadgeTile, SsBarChart, SsButton, SsCard, SsIcon, SsProgress, SsSkeleton, SsStatCard, SsTicketRow,
 } from "@/design-system";
+import NextUpCard from "@/components/dashboard/NextUpCard.vue";
 import RareCatches from "@/components/dashboard/RareCatches.vue";
 import StreakCard from "@/components/dashboard/StreakCard.vue";
 import TopArtists from "@/components/dashboard/TopArtists.vue";
@@ -97,6 +98,9 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
       <SsButton size="sm" @click="ui.installSheetOpen = true">Install</SsButton>
       <button class="banner__x" aria-label="Dismiss" @click="ui.dismissInstall()"><SsIcon name="close" :size="16" /></button>
     </div>
+
+    <!-- Your next upcoming show and invites (a "find shows" nudge once you've logged some) -->
+    <NextUpCard :prompt-when-empty="!empty && !showSkeleton" :home-city="homeCity" />
 
     <!-- Loading -->
     <template v-if="showSkeleton">
