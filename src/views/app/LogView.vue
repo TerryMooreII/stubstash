@@ -302,7 +302,7 @@ const matchedNote = computed(() =>
     <RouterLink :to="manualLink" class="manual">
       <div>
         <div class="manual__title">Can't find it? Add it manually</div>
-        <div class="manual__body">Saved to Stubstash only. We never write back to setlist.fm.</div>
+        <div class="manual__body">Saved to Stubstash only.</div>
       </div>
       <span class="manual__arrow" aria-hidden="true">→</span>
     </RouterLink>

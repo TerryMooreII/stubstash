@@ -185,7 +185,7 @@ async function finish() {
         <template v-else-if="step === 1">
           <div class="ss-kicker">STEP 1 · IMPORT</div>
           <h1 class="ob__h">Got a setlist.fm account?</h1>
-          <p class="ob__lede ob__lede--sm">We'll pull every show you've marked "I was there." Read-only. We never write back.</p>
+          <p class="ob__lede ob__lede--sm">We'll pull every show you've marked "I was there."</p>
           <SsInput
             v-model="username"
             prefix="setlist.fm/user/"

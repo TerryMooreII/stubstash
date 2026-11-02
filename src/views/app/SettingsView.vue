@@ -335,7 +335,7 @@ async function signOut() {
               Linked to <b>setlist.fm/user/{{ auth.profile.setlistfm_username }}</b>. Importing again only adds shows you
               don't have yet.
             </template>
-            <template v-else>Pull in every show you've marked "I was there" on setlist.fm. Read-only, we never write back.</template>
+            <template v-else>Pull in every show you've marked "I was there" on setlist.fm.</template>
           </p>
           <SsButton size="sm" variant="outline" to="/app/welcome">
             <SsIcon name="refresh" :size="16" />{{ auth.profile?.setlistfm_username ? "Import again" : "Import from setlist.fm" }}
