@@ -63,20 +63,52 @@ describe("upcoming", () => {
 });
 
 describe("upcoming search params", async () => {
-  const { emptyUpcomingFilters, filtersActive, searchParams } = await import("./upcoming");
+  const { emptyUpcomingFilters, searchParams, whenLabel, whereLabel, whereParams, whereShort } = await import("./upcoming");
+  const denver = { label: "Denver, CO", lat: 39.7, lng: -105 };
 
-  it("defaults to 50 miles around home", () => {
+  it("defaults to 50 miles around home, 6 months out", () => {
     expect(searchParams("", "all", emptyUpcomingFilters(), NOW)).toEqual({ range: "50" });
-    expect(filtersActive(emptyUpcomingFilters())).toBe(false);
+    expect(whereLabel(emptyUpcomingFilters(), "Columbus, OH")).toBe("Within 50 mi of Columbus, OH");
+    expect(whereShort(emptyUpcomingFilters(), "Columbus, OH")).toBe("Columbus · 50 mi");
+    expect(whereLabel(emptyUpcomingFilters(), null)).toBe("Anywhere");
+    expect(whenLabel(emptyUpcomingFilters())).toBe("Next 6 months");
   });
 
-  it("combines the box, quick filter and advanced filters", () => {
-    const f = { ...emptyUpcomingFilters(), venue: "Red Rocks", range: "100" as const, place: { label: "Denver", lat: 39.7, lng: -105 } };
-    expect(filtersActive(f)).toBe(true);
-    expect(searchParams(" phish ", "month", f, NOW)).toEqual({
-      range: "100", q: "phish", venue: "Red Rocks", lat: 39.7, lng: -105, place_label: "Denver",
-      from: "2026-11-01", to: "2026-12-01",
+  it("free text searches around the picked city", () => {
+    const f = { ...emptyUpcomingFilters(), place: denver, range: "100" as const, when: "month" as const };
+    expect(searchParams(" phish ", "all", f, NOW)).toEqual({
+      range: "100", q: "phish", lat: 39.7, lng: -105, place_label: "Denver, CO", from: "2026-11-01", to: "2026-12-01",
     });
-    expect(searchParams("", "seen", emptyUpcomingFilters(), NOW)).toEqual({ range: "50", seen_only: true });
+    expect(whereLabel(f, "Columbus, OH")).toBe("Within 100 mi of Denver, CO");
+  });
+
+  it("a picked artist searches by id, and ignores the box text", () => {
+    const f = { ...emptyUpcomingFilters(), pick: { kind: "artist" as const, id: 7, name: "Phish" } };
+    expect(searchParams("Phish", "all", f, NOW)).toEqual({ range: "50", performer_id: 7 });
+  });
+
+  it("a picked venue searches by id, without a distance", () => {
+    const f = { ...emptyUpcomingFilters(), place: denver, pick: { kind: "venue" as const, id: 9, name: "Red Rocks", place: "Morrison, CO" } };
+    expect(searchParams("", "all", f, NOW)).toEqual({ range: "50", venue_id: 9 });
+    expect(whereLabel(f, "Columbus, OH")).toBe("At Red Rocks");
+  });
+
+  it("artists you've seen ignores the box and the pick", () => {
+    const f = { ...emptyUpcomingFilters(), pick: { kind: "artist" as const, id: 7, name: "Phish" } };
+    expect(searchParams("x", "seen", f, NOW)).toEqual({ range: "50", seen_only: true });
+  });
+
+  it("where params for venue suggestions", () => {
+    expect(whereParams(emptyUpcomingFilters())).toEqual({ range: "50" });
+    expect(whereParams({ ...emptyUpcomingFilters(), place: denver, range: "25" }))
+      .toEqual({ range: "25", lat: 39.7, lng: -105, place_label: "Denver, CO" });
+  });
+
+  it("custom dates", () => {
+    const f = { ...emptyUpcomingFilters(), when: "custom" as const, from: "2026-11-03", to: "2026-12-01" };
+    expect(searchParams("", "all", f, NOW)).toEqual({ range: "50", from: "2026-11-03", to: "2026-12-01" });
+    expect(whenLabel(f)).toBe("Nov 3 – Dec 1");
+    expect(whenLabel({ ...f, to: "" })).toBe("From Nov 3");
+    expect(whenLabel({ ...f, from: "", to: "" })).toBe("Next 6 months");
   });
 });

@@ -1,8 +1,15 @@
 // SeatGeek gateway for upcoming shows. Requires a signed-in user.
 //
-// POST { action: "search", q?, artist?, venue?, lat?, lng?, range?, from?, to?, seen_only?, page? }
-//        -> { results: PlanItem[], total, page, pages, near }
+// POST { action: "suggest", q, lat?, lng?, range? }
+//        -> { artists: [{ id, name, upcoming }], venues: [{ id, name, city, state, upcoming }] }
+//        Artists and venues with upcoming shows whose names match, for the search box.
+//        Venues are limited to the same where as search (the place or your home, and the range).
+// POST { action: "search", q?, performer_id?, venue_id?, lat?, lng?, range?, from?, to?, seen_only?, page? }
+//        -> { results: PlanItem[], total, page, pages, near, elsewhere }
+//        q is free text. performer_id / venue_id are exact SeatGeek ids (picked from suggest).
 //        Without lat/lng it searches around your home (if set). range: 25 | 50 | 100 | 250 | "any" (miles).
+//        A venue search ignores the distance. When an artist has no shows nearby,
+//        `elsewhere` is how many they have anywhere (else 0).
 // POST { action: "event", seatgeek_id }            -> PlanItem
 // POST { action: "plan", seatgeek_id, status }     -> PlanItem   (status: going | interested | cant | null to clear)
 //
@@ -11,8 +18,10 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
 import { HttpError, json, serve } from "../_shared/http.ts";
 import { adminClient, requireUser } from "../_shared/supabase.ts";
-import { sgGet, slugify, toEventRow, type SgEvent, type SgEventsPage } from "../_shared/seatgeek.ts";
-import { deezer, nameVariants, norm, wikidataVenue, type Img } from "../_shared/images.ts";
+import {
+  sgGet, slugify, toEventRow, type SgEvent, type SgEventsPage, type SgPerformerHit, type SgVenueHit,
+} from "../_shared/seatgeek.ts";
+import { deezer, km, nameVariants, norm, wikidataVenue, type Img } from "../_shared/images.ts";
 
 const PER_PAGE = 25;
 const RANGES = new Set(["25", "50", "100", "250", "any"]);
@@ -71,6 +80,12 @@ function num(v: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/** A positive whole number, or undefined. */
+function posInt(v: unknown): number | undefined {
+  const n = num(v);
+  return n && Number.isInteger(n) && n > 0 ? n : undefined;
+}
+
 function seatgeekId(v: unknown): number {
   const n = num(v);
   if (!n || !Number.isInteger(n) || n <= 0) throw new HttpError(400, "Missing event id.");
@@ -81,6 +96,22 @@ function addDays(iso: string, days: number): string {
   const d = new Date(iso + "T12:00:00Z");
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+/** Where to search: the place picked (lat/lng), else your home; null for anywhere or no home. */
+async function resolveWhere(db: SupabaseClient, userId: string, body: Record<string, unknown>, range: string) {
+  if (range === "any") return null;
+  let lat = num(body.lat), lng = num(body.lng);
+  let label: string | null = null;
+  if (lat !== undefined && lng !== undefined) {
+    label = clean(body.place_label) ?? null;
+  } else {
+    const { data: me } = await db.from("profiles").select("home_city, home_lat, home_lng").eq("id", userId).single();
+    if (me?.home_lat == null || me?.home_lng == null) return null;
+    lat = me.home_lat as number; lng = me.home_lng as number; label = me.home_city ?? null;
+  }
+  if (Math.abs(lat!) > 90 || Math.abs(lng!) > 180) throw new HttpError(400, "That location doesn't look right.");
+  return { lat: lat!, lng: lng!, miles: Number(range), label };
 }
 
 /** Times you've seen each artist, keyed by lower-cased name. */
@@ -157,27 +188,20 @@ serve(async (req) => {
         per_page: String(PER_PAGE),
         page: String(page),
       });
-      const words = [clean(body.q), clean(body.artist), clean(body.venue)].filter(Boolean).join(" ");
-      if (words) p.set("q", words);
+      const performerId = posInt(body.performer_id);
+      const venueId = posInt(body.venue_id);
+      if (performerId) p.set("performers.id", String(performerId));
+      if (venueId) p.set("venue.id", String(venueId));
+      const q = clean(body.q);
+      if (q && !performerId && !venueId) p.set("q", q);
 
-      // Where: the place picked in the search, else your home.
-      let near: string | null = null;
-      if (range !== "any") {
-        let lat = num(body.lat), lng = num(body.lng);
-        if (lat !== undefined && lng !== undefined) {
-          near = clean(body.place_label) ?? null;
-        } else {
-          const { data: me } = await db.from("profiles").select("home_city, home_lat, home_lng").eq("id", userId).single();
-          if (me?.home_lat != null && me?.home_lng != null) {
-            lat = me.home_lat; lng = me.home_lng; near = me.home_city ?? null;
-          }
-        }
-        if (lat !== undefined && lng !== undefined) {
-          if (Math.abs(lat) > 90 || Math.abs(lng) > 180) throw new HttpError(400, "That location doesn't look right.");
-          p.set("lat", lat.toFixed(3));
-          p.set("lon", lng.toFixed(3));
-          p.set("range", `${range}mi`);
-        }
+      // Where: the place picked in the search, else your home. A venue is its own place.
+      const where = venueId ? null : await resolveWhere(db, userId, body, range);
+      const near = where?.label ?? null;
+      if (where) {
+        p.set("lat", where.lat.toFixed(3));
+        p.set("lon", where.lng.toFixed(3));
+        p.set("range", `${range}mi`);
       }
 
       // "Artists you've seen": SeatGeek matches performers by slug, so we guess slugs from names.
@@ -185,8 +209,10 @@ serve(async (req) => {
         const { data: names, error } = await db.rpc("_top_artist_names", { p_user: userId, p_limit: 40 });
         if (error) throw error;
         const slugs = [...new Set((names ?? []).map((n: string) => slugify(n)).filter(Boolean))];
-        if (!slugs.length) return json({ results: [], total: 0, page, pages: 0, near });
+        if (!slugs.length) return json({ results: [], total: 0, page, pages: 0, near, elsewhere: 0 });
         p.delete("q");
+        p.delete("performers.id");
+        p.delete("venue.id");
         for (const s of slugs) p.append("performers.slug", s);
       }
 
@@ -223,7 +249,52 @@ serve(async (req) => {
         };
       });
       const total = res?.meta?.total ?? 0;
-      return json({ results, total, page, pages: Math.ceil(total / PER_PAGE), near });
+
+      // An artist with nothing nearby: say how many shows they have anywhere in these dates.
+      let elsewhere = 0;
+      if (!total && performerId && p.has("lat") && !body.seen_only) {
+        const any = new URLSearchParams(p);
+        for (const k of ["lat", "lon", "range"]) any.delete(k);
+        any.set("per_page", "1");
+        any.set("page", "1");
+        const all = await sgGet<SgEventsPage>(db, `/events?${any.toString()}`, 15);
+        elsewhere = all?.meta?.total ?? 0;
+      }
+      return json({ results, total, page, pages: Math.ceil(total / PER_PAGE), near, elsewhere });
+    }
+
+    case "suggest": {
+      const q = clean(body.q, 80);
+      if (!q || q.length < 2) return json({ artists: [], venues: [] });
+      const range = String(body.range ?? "50");
+      if (!RANGES.has(range)) throw new HttpError(400, "Pick a distance of 25, 50, 100 or 250 miles, or anywhere.");
+      const where = await resolveWhere(db, userId, body, range);
+
+      const enc = encodeURIComponent(q);
+      const venueGeo = where ? `&lat=${where.lat.toFixed(3)}&lon=${where.lng.toFixed(3)}&range=${range}mi` : "";
+      const [performers, venues] = await Promise.all([
+        sgGet<{ performers: SgPerformerHit[] }>(db, `/performers?q=${enc}&taxonomies.name=concert&per_page=10`, 60),
+        sgGet<{ venues: SgVenueHit[] }>(db, `/venues?q=${enc}${venueGeo}&per_page=25`, 60),
+      ]);
+      const artists = (performers?.performers ?? [])
+        .filter((a) => a.has_upcoming_events || (a.num_upcoming_events ?? 0) > 0)
+        .slice(0, 5)
+        .map((a) => ({ id: a.id, name: a.name, upcoming: a.num_upcoming_events ?? 0 }));
+      // Also check the distance ourselves, in case SeatGeek loosens the range for a name match.
+      const inRange = (v: SgVenueHit) => {
+        if (!where) return true;
+        const { lat, lon } = v.location ?? {};
+        return lat != null && lon != null && km(where.lat, where.lng, lat, lon) <= where.miles * 1.609;
+      };
+      const places = (venues?.venues ?? [])
+        .filter((v) => (v.has_upcoming_events || (v.num_upcoming_events ?? 0) > 0) && inRange(v))
+        .slice(0, 5)
+        .map((v) => ({
+          id: v.id, name: v.name, city: v.city ?? null,
+          state: v.state && /^[A-Z]{2}$/.test(v.state) ? v.state : null,
+          upcoming: v.num_upcoming_events ?? 0,
+        }));
+      return json({ artists, venues: places });
     }
 
     case "event": {

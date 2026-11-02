@@ -10,7 +10,7 @@ import type {
   PersonCard, Profile, PublicProfile, SetDraft, SetlistSearchParams, SetlistSearchResponse, SetlistSong,
   ShowStats, VenueStats, YearInReview,
   MapHome, MapTrip, PastHome,
-  PlanItem, PlanStatus, UpcomingSearchParams, UpcomingSearchResponse,
+  PlanItem, PlanStatus, UpcomingSearchParams, UpcomingSearchResponse, UpcomingSuggestions,
 } from "./types";
 
 /** RPC arg for "this user, or me when omitted". */
@@ -59,6 +59,9 @@ const sg = <T>(body: Record<string, unknown>) => invokeFn<T>("seatgeek", body);
 
 export const upcoming = {
   search: (params: UpcomingSearchParams) => sg<UpcomingSearchResponse>({ action: "search", ...params }),
+  /** Artists and venues with upcoming shows whose names match (venues only within `where`). */
+  suggest: (q: string, where: Pick<UpcomingSearchParams, "range" | "lat" | "lng" | "place_label"> = {}) =>
+    sg<UpcomingSuggestions>({ action: "suggest", q, ...where }),
   /** One event with your plan and crew. Saves it so it can be planned and shared. */
   event: (seatgeekId: number) => sg<PlanItem>({ action: "event", seatgeek_id: seatgeekId }),
   /** Sets your plan (null clears it). Returns the updated event. */

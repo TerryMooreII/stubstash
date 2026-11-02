@@ -19,6 +19,8 @@ export interface SgEvent {
   stats?: { lowest_price?: number | null; listing_count?: number | null };
 }
 export interface SgEventsPage { events: SgEvent[]; meta: { total: number; page: number; per_page: number } }
+export interface SgPerformerHit extends SgPerformer { has_upcoming_events?: boolean; num_upcoming_events?: number; type?: string }
+export interface SgVenueHit extends SgVenue { has_upcoming_events?: boolean; num_upcoming_events?: number }
 
 /** GET a SeatGeek path (with its query string). Returns null on 404. */
 export async function sgGet<T>(db: SupabaseClient, path: string, ttlMinutes = 15): Promise<T | null> {

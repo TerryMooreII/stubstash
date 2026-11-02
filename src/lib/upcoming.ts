@@ -106,6 +106,9 @@ export function replaceItem(list: PlanItem[], next: PlanItem): PlanItem[] {
 }
 
 // ---------------------------------------------------------------- search filters
+//
+// Find shows = the search box (free text, or an artist/venue picked from the
+// suggestions) + where (a city, default home, and a distance) + when + which shows.
 
 export type Range = NonNullable<UpcomingSearchParams["range"]>;
 export const RANGES: { value: Range; label: string }[] = [
@@ -116,44 +119,96 @@ export const RANGES: { value: Range; label: string }[] = [
   { value: "any", label: "Anywhere" },
 ];
 
-/** Quick filters above the results. */
-export type QuickFilter = "all" | "weekend" | "month" | "friends" | "seen";
-export const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
-  { value: "all", label: "Near you" },
-  { value: "weekend", label: "This weekend" },
-  { value: "month", label: "This month" },
+/** Which shows: everything on SeatGeek, your friends' plans, or artists you've seen. */
+export type ShowFilter = "all" | "friends" | "seen";
+export const SHOW_FILTERS: { value: ShowFilter; label: string }[] = [
+  { value: "all", label: "All shows" },
   { value: "friends", label: "Friends going" },
   { value: "seen", label: "Artists you've seen" },
 ];
 
+export type When = "6mo" | "month" | "weekend" | "custom";
+export const WHEN_OPTIONS: { value: When; label: string }[] = [
+  { value: "6mo", label: "Next 6 months" },
+  { value: "month", label: "Next 30 days" },
+  { value: "weekend", label: "This weekend" },
+  { value: "custom", label: "Pick dates" },
+];
+
+/** An artist or venue picked from the search suggestions (matched by SeatGeek id). */
+export type SearchPick =
+  | { kind: "artist"; id: number; name: string }
+  | { kind: "venue"; id: number; name: string; place: string };
+
 export interface UpcomingFilters {
-  artist: string;
-  venue: string;
+  pick: SearchPick | null;
   /** Search around this place; null = your home. */
   place: { label: string; lat: number; lng: number } | null;
   range: Range;
+  when: When;
+  /** Only used when `when` is "custom". */
   from: string;
   to: string;
 }
 
-export const emptyUpcomingFilters = (): UpcomingFilters => ({ artist: "", venue: "", place: null, range: "50", from: "", to: "" });
+export const emptyUpcomingFilters = (): UpcomingFilters =>
+  ({ pick: null, place: null, range: "50", when: "6mo", from: "", to: "" });
 
-/** True when the advanced filters change anything beyond the defaults. */
-export function filtersActive(f: UpcomingFilters): boolean {
-  return !!(f.artist.trim() || f.venue.trim() || f.place || f.range !== "50" || f.from || f.to);
+/** The date range to search, or {} for the default (today to 6 months out). */
+export function whenRange(f: Pick<UpcomingFilters, "when" | "from" | "to">, now = new Date()): { from?: string; to?: string } {
+  if (f.when === "weekend") return weekendRange(now);
+  if (f.when === "month") return nextDays(30, now);
+  if (f.when === "custom") {
+    const out: { from?: string; to?: string } = {};
+    if (f.from) out.from = f.from;
+    if (f.to) out.to = f.to;
+    return out;
+  }
+  return {};
 }
 
-/** Search request for the box text, quick filter and advanced filters. */
-export function searchParams(q: string, quick: QuickFilter, f: UpcomingFilters, now = new Date()): UpcomingSearchParams {
-  const p: UpcomingSearchParams = { range: f.range };
-  if (q.trim()) p.q = q.trim();
-  if (f.artist.trim()) p.artist = f.artist.trim();
-  if (f.venue.trim()) p.venue = f.venue.trim();
-  if (f.place) Object.assign(p, { lat: f.place.lat, lng: f.place.lng, place_label: f.place.label });
-  if (f.from) p.from = f.from;
-  if (f.to) p.to = f.to;
-  if (quick === "weekend") Object.assign(p, weekendRange(now));
-  if (quick === "month") Object.assign(p, nextDays(30, now));
-  if (quick === "seen") p.seen_only = true;
-  return p;
+/** Search request for the box text, the show filter and the filters. */
+export function searchParams(q: string, show: ShowFilter, f: UpcomingFilters, now = new Date()): UpcomingSearchParams {
+  const p: UpcomingSearchParams = { range: f.range, ...whenRange(f, now) };
+  if (show === "seen") return { ...p, seen_only: true, ...placeParams(f) };
+  if (f.pick?.kind === "venue") return { ...p, venue_id: f.pick.id };
+  if (f.pick?.kind === "artist") p.performer_id = f.pick.id;
+  else if (q.trim()) p.q = q.trim();
+  return { ...p, ...placeParams(f) };
+}
+
+function placeParams(f: UpcomingFilters) {
+  return f.place ? { lat: f.place.lat, lng: f.place.lng, place_label: f.place.label } : {};
+}
+
+/** The where part of a search (place or home, and distance), e.g. to keep venue suggestions local. */
+export function whereParams(f: UpcomingFilters): Pick<UpcomingSearchParams, "range" | "lat" | "lng" | "place_label"> {
+  return { range: f.range, ...placeParams(f) };
+}
+
+/** "Within 50 mi of Columbus, OH", "Anywhere", or "At Red Rocks". */
+export function whereLabel(f: UpcomingFilters, homeCity: string | null | undefined): string {
+  if (f.pick?.kind === "venue") return `At ${f.pick.name}`;
+  if (f.range === "any") return "Anywhere";
+  const city = f.place?.label ?? homeCity;
+  return city ? `Within ${f.range} mi of ${city}` : "Anywhere";
+}
+
+/** Short label for the where button: "Columbus, OH · 50 mi" or "Anywhere". */
+export function whereShort(f: UpcomingFilters, homeCity: string | null | undefined): string {
+  if (f.range === "any") return "Anywhere";
+  const city = f.place?.label ?? homeCity;
+  if (!city) return "Anywhere";
+  return `${city.split(",")[0]} · ${f.range} mi`;
+}
+
+const shortDay = (iso: string) => parseDate(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+/** "Next 6 months", "This weekend", "Nov 3 – Dec 1", "From Nov 3". */
+export function whenLabel(f: Pick<UpcomingFilters, "when" | "from" | "to">): string {
+  if (f.when !== "custom" || (!f.from && !f.to)) {
+    return WHEN_OPTIONS.find((o) => o.value === (f.when === "custom" ? "6mo" : f.when))!.label;
+  }
+  if (f.from && f.to) return `${shortDay(f.from)} – ${shortDay(f.to)}`;
+  return f.from ? `From ${shortDay(f.from)}` : `Until ${shortDay(f.to)}`;
 }

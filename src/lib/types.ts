@@ -387,9 +387,12 @@ export interface PlanItem {
 }
 
 export interface UpcomingSearchParams {
+  /** Free text, when nothing was picked from the suggestions. */
   q?: string;
-  artist?: string;
-  venue?: string;
+  /** SeatGeek performer id: only this artist's shows. */
+  performer_id?: number;
+  /** SeatGeek venue id: only shows at this venue (the distance is ignored). */
+  venue_id?: number;
   /** Search around this place instead of your home. */
   lat?: number;
   lng?: number;
@@ -409,4 +412,12 @@ export interface UpcomingSearchResponse {
   pages: number;
   /** The city searched around, when there was one. */
   near: string | null;
+  /** For an artist with nothing nearby: how many shows they have anywhere in these dates. */
+  elsewhere: number;
+}
+
+/** Search box suggestions from SeatGeek. */
+export interface UpcomingSuggestions {
+  artists: { id: number; name: string; upcoming: number }[];
+  venues: { id: number; name: string; city: string | null; state: string | null; upcoming: number }[];
 }
