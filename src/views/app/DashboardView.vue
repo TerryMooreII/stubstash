@@ -218,6 +218,10 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
 .intro__text { min-width: 0; flex: 1 1 420px; }
 .intro__h1 { margin-top: 6px; }
 .intro__road { min-width: 220px; flex: 0 1 300px; }
+/* Phones: the progress bar gets its own full-width row under the headline. */
+@media (max-width: 819px) {
+  .intro__road { flex: 1 1 100%; }
+}
 .intro__road-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--ss-text-muted); margin-bottom: 6px; }
 .intro__road-top b { color: var(--ss-text); }
 
