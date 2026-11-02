@@ -3,7 +3,7 @@
 // (near your home by default, or anywhere with the advanced search) and your plans.
 import { computed, onMounted, ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { SsButton, SsChip, SsEmpty, SsIcon, SsInput, SsPageHeader, SsSkeleton } from "@/design-system";
+import { SsButton, SsChip, SsEmpty, SsIcon, SsInput, SsPageHeader, SsSkeleton, SsTabs } from "@/design-system";
 import EventRow from "@/components/upcoming/EventRow.vue";
 import InviteCard from "@/components/upcoming/InviteCard.vue";
 import PlanCard from "@/components/upcoming/PlanCard.vue";
@@ -39,6 +39,7 @@ function go(t: Tab) {
   const { tab: _old, ...rest } = route.query;
   router.replace({ query: t === "find" ? rest : { ...rest, tab: t } });
 }
+const tabModel = computed({ get: () => tab.value, set: go });
 
 async function loadPlans() {
   try {
@@ -99,14 +100,14 @@ const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) =>
       @respond="(st) => plan(i, st)"
     />
 
-    <div class="tabs" role="tablist" aria-label="Upcoming">
-      <button type="button" role="tab" class="tab" :class="{ on: tab === 'find' }" :aria-selected="tab === 'find'" @click="go('find')">
-        Find shows
-      </button>
-      <button type="button" role="tab" class="tab" :class="{ on: tab === 'plans' }" :aria-selected="tab === 'plans'" @click="go('plans')">
-        Your plans<span v-if="mine.length" class="tab__n">{{ mine.length }}</span>
-      </button>
-    </div>
+    <SsTabs
+      v-model="tabModel"
+      label="Upcoming"
+      :tabs="[
+        { key: 'find', label: 'Find shows' },
+        { key: 'plans', label: 'Your plans', count: mine.length },
+      ]"
+    />
 
     <!-- Your plans -->
     <section v-if="tab === 'plans'" class="ss-stack" role="tabpanel">
@@ -199,46 +200,6 @@ const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) =>
 </template>
 
 <style scoped>
-.tabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: var(--ss-radius-pill);
-  background: var(--ss-surface-1);
-  border: 1px solid var(--ss-line);
-  align-self: flex-start;
-  max-width: 100%;
-}
-.tab {
-  height: 38px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: var(--ss-radius-pill);
-  background: transparent;
-  color: var(--ss-text-3);
-  font-weight: 700;
-  font-size: 15px;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-.tab:hover { color: var(--ss-text); }
-.tab.on { background: var(--ss-accent); color: var(--ss-on-accent); }
-.tab__n {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: var(--ss-radius-pill);
-  background: var(--ss-surface-3);
-  color: var(--ss-text);
-  font-size: 12px;
-  font-weight: 900;
-  display: inline-grid;
-  place-items: center;
-}
-.tab.on .tab__n { background: var(--ss-bg); color: var(--ss-accent); }
 .summary { font-size: 14px; }
 .plans { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .where { font-family: var(--ss-font-mono); font-size: 10px; letter-spacing: 0.12em; color: var(--ss-text-faint); }

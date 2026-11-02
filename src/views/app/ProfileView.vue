@@ -6,7 +6,7 @@ import { SITE_HOST } from "@/lib/url";
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
-  SsAvatar, SsBadgeTile, SsButton, SsCard, SsEmpty, SsIcon, SsSkeleton, SsTicketRow, SsToggle,
+  SsAvatar, SsBadgeTile, SsButton, SsCard, SsEmpty, SsIcon, SsSkeleton, SsTabs, SsTicketRow, SsToggle,
 } from "@/design-system";
 import HeadToHead from "@/components/people/HeadToHead.vue";
 import YearInReviewCard from "@/components/people/YearInReviewCard.vue";
@@ -16,6 +16,7 @@ import { firstName, mediumDate, plural } from "@/lib/format";
 import { entryTicketProps } from "@/lib/shows";
 import ShowListRow from "@/components/shows/ShowListRow.vue";
 import { useAction } from "@/composables/useAction";
+import { useQueryTab } from "@/composables/useQueryTab";
 import { useFriendRequest } from "@/composables/useFriendRequest";
 import { profileBanner } from "@/lib/heroImage";
 import { badgeNumbers, groupBadges } from "@/lib/badgeArt";
@@ -32,6 +33,10 @@ const log = useLog();
 const ui = useUi();
 const router = useRouter();
 const notifications = useNotifications();
+
+// Your own profile: badges and friends are tabs (?tab=friends).
+type Tab = "badges" | "friends";
+const { tab, model: tabModel } = useQueryTab<Tab>("tab", () => ["badges", "friends"], "badges");
 
 const isSelf = computed(
   () => !props.handle || (!!auth.profile && props.handle.replace(/^@/, "").toLowerCase() === auth.profile.handle.toLowerCase()),
@@ -233,9 +238,20 @@ const latest = computed(() => otherLog.value.slice(0, 6));
           <SsButton v-if="isSelf" to="/app/log">Log a show</SsButton>
         </SsEmpty>
 
+        <SsTabs
+          v-if="isSelf"
+          v-model="tabModel"
+          label="Profile sections"
+          :tabs="[
+            { key: 'badges', label: 'Badges', count: earned },
+            { key: 'friends', label: 'Friends', count: friends.length },
+          ]"
+        />
+
         <!-- Badges -->
-        <SsCard>
-          <h2 class="ss-h2 sec-title">
+        <SsCard v-if="!isSelf || tab === 'badges'">
+          <h2 v-if="isSelf" class="sec-sub sec-sub--solo">{{ earned }} of {{ badgeList.length }} badges earned</h2>
+          <h2 v-else class="ss-h2 sec-title">
             Badges <span class="sec-sub">{{ earned }} of {{ badgeList.length }} earned</span>
           </h2>
           <div v-if="loading && !badgeList.length" class="badges">
@@ -265,10 +281,11 @@ const latest = computed(() => otherLog.value.slice(0, 6));
         </SsCard>
 
         <!-- Self: friends head-to-head -->
-        <SsCard v-if="isSelf" title="Friends & head-to-head">
-          <template #aside>
+        <SsCard v-if="isSelf && tab === 'friends'">
+          <div class="ss-between friends-head">
+            <h2 class="sec-sub sec-sub--solo">Head-to-head: who’s been to more</h2>
             <RouterLink to="/app/friends" class="link">+ Find friends</RouterLink>
-          </template>
+          </div>
           <div v-if="friends.length" class="h2h-list">
             <HeadToHead
               v-for="f in friends"
@@ -288,7 +305,7 @@ const latest = computed(() => otherLog.value.slice(0, 6));
         </SsCard>
 
         <!-- Others: shows together + latest -->
-        <template v-else>
+        <template v-if="!isSelf">
           <SsCard v-if="auth.signedIn" title="Shows you were both at">
             <template #aside>{{ plural(shared.length, "show") }}</template>
             <div v-if="shared.length" class="rows">
@@ -384,6 +401,9 @@ const latest = computed(() => otherLog.value.slice(0, 6));
   font-weight: 600;
   font-size: 15px;
 }
+.sec-sub--solo { margin: 0 0 14px; }
+.friends-head { align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.friends-head .sec-sub--solo { margin: 0; }
 .badges {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
