@@ -37,7 +37,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Served from the root of stubstash.terrymooreii.dev.
+          # Served from the root of stubstash.live.
           BASE_PATH: /
           # Public values (they ship in the browser bundle anyway). Set them under
           # Settings > Secrets and variables > Actions > Variables.

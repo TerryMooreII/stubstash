@@ -46,7 +46,7 @@ export async function throttle(key: string, gapMs: number) {
   lastCall[key] = Date.now();
 }
 
-const SITE_URL = "https://stubstash.terrymooreii.dev";
+const SITE_URL = "https://stubstash.live";
 /** CONTACT_EMAIL (as a mailto: link when asked), or the site URL when it isn't set. */
 export function contactUrl(mailto = false): string {
   const email = Deno.env.get("CONTACT_EMAIL");

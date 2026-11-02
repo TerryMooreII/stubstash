@@ -57,16 +57,16 @@ design/                 Claude Design reference files
 | `/u/:handle` | Public profile (if public, or you're friends) |
 | `/add/:handle`, `/invite/:token` | Friend link and "you were there" invites |
 
-## Hosting (GitHub Pages at stubstash.terrymooreii.dev)
+## Hosting (GitHub Pages at stubstash.live)
 
 `.github/workflows/deploy.yml` tests, builds and deploys on every push to `main` (or run it by hand from the Actions tab). `public/CNAME` holds the domain.
 
 One-time setup:
 
-1. **DNS** (terrymooreii.dev): `CNAME` record `stubstash` → `terrymooreii.github.io`.
-2. **GitHub → Settings → Pages:** Source = GitHub Actions; Custom domain = `stubstash.terrymooreii.dev`; tick Enforce HTTPS once the certificate is issued.
+1. **DNS** (stubstash.live): apex `A` records → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`; `AAAA` → `2606:50c0:8000::153`, `2606:50c0:8001::153`, `2606:50c0:8002::153`, `2606:50c0:8003::153`; `CNAME` `www` → `terrymooreii.github.io` (GitHub redirects www to the apex).
+2. **GitHub → Settings → Pages:** Source = GitHub Actions; Custom domain = `stubstash.live`; tick Enforce HTTPS once the certificate is issued.
 3. **GitHub → Settings → Secrets and variables → Actions → Variables:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY`, `VITE_CARTO_API_KEY` (same values as `.env.local`; all public). The CARTO key is free from https://carto.com/basemaps/apikey.
-4. **Supabase → Authentication → URL Configuration:** Site URL `https://stubstash.terrymooreii.dev`; Redirect URLs `https://stubstash.terrymooreii.dev/app/auth/callback`, `https://stubstash.terrymooreii.dev/app/reset-password` (plus the localhost ones for dev).
+4. **Supabase → Authentication → URL Configuration:** Site URL `https://stubstash.live`; Redirect URLs `https://stubstash.live/app/auth/callback`, `https://stubstash.live/app/reset-password` (plus the localhost ones for dev).
 
 Pages has no SPA rewrites, so the workflow copies `index.html` to `404.html`: deep links work, with a 404 status. The app also supports a sub-path build (`BASE_PATH=/something/`) if ever needed.
 
