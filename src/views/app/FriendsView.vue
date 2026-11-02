@@ -4,6 +4,7 @@ import { appUrl } from "@/lib/url";
 // shows, a scannable QR code, an invite link, and your current friends.
 import { computed, onMounted, ref } from "vue";
 import { SsAvatar, SsBackLink, SsButton, SsCard, SsInput, SsPageHeader, SsSkeleton } from "@/design-system";
+import HeadToHead from "@/components/people/HeadToHead.vue";
 import PersonRow from "@/components/people/PersonRow.vue";
 import QrCode from "@/components/people/QrCode.vue";
 import { social } from "@/lib/api";
@@ -15,12 +16,14 @@ import { useDebouncedSearch } from "@/composables/useDebouncedSearch";
 import { useFriendRequest } from "@/composables/useFriendRequest";
 import { useShareLink } from "@/composables/useShareLink";
 import { useAuth } from "@/stores/auth";
+import { useLog } from "@/stores/log";
 import { useUi } from "@/stores/ui";
 
 type Incoming = Awaited<ReturnType<typeof social.incoming>>[number];
 type Suggested = Awaited<ReturnType<typeof social.suggested>>[number];
 
 const auth = useAuth();
+const log = useLog();
 const ui = useUi();
 
 const incoming = ref<Incoming[]>([]);
@@ -48,7 +51,13 @@ async function load() {
     loading.value = false;
   }
 }
-onMounted(load);
+onMounted(() => {
+  load();
+  log.load(); // your show count for head-to-head
+});
+
+/** Longest bar in head-to-head. */
+const maxShows = computed(() => Math.max(1, log.total, ...friends.value.map((f) => f.show_count)));
 
 // ---- search (debounced)
 const { results, searching } = useDebouncedSearch(
@@ -154,6 +163,24 @@ const shareInvite = () =>
       </p>
     </SsCard>
 
+    <!-- Head-to-head -->
+    <SsCard v-if="friends.length" title="Head-to-head">
+      <template #aside><span class="ss-muted">Who’s been to more</span></template>
+      <div class="h2h-list">
+        <HeadToHead
+          v-for="f in friends"
+          :key="f.id"
+          :name="f.display_name"
+          :handle="f.handle"
+          :avatar-path="f.avatar_path"
+          :their-shows="f.show_count"
+          :my-shows="log.total"
+          :shared="f.shared_count"
+          :max="maxShows"
+        />
+      </div>
+    </SsCard>
+
     <div class="cols">
       <SsCard>
         <h2 class="ss-h2">Were at your shows</h2>
@@ -223,6 +250,11 @@ const shareInvite = () =>
 </template>
 
 <style scoped>
+.h2h-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 .request {
   display: flex;
   align-items: center;

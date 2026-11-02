@@ -173,7 +173,7 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
       </div>
 
       <SsCard v-if="badgeList.length" title="Badges">
-        <template #aside><RouterLink to="/app/me" class="more">{{ earned }} of {{ badgeList.length }} →</RouterLink></template>
+        <template #aside><RouterLink to="/app/me/badges" class="more">{{ earned }} of {{ badgeList.length }} →</RouterLink></template>
         <div class="badges">
           <SsBadgeTile
             v-for="b in badgeList"

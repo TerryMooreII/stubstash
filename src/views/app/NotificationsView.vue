@@ -3,7 +3,7 @@
 // read and opens what it's about.
 import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { SsAvatar, SsButton, SsEmpty, SsIcon, SsPageHeader, SsSkeleton, type IconName } from "@/design-system";
+import { SsAvatar, SsBackLink, SsButton, SsEmpty, SsIcon, SsPageHeader, SsSkeleton, type IconName } from "@/design-system";
 import type { AppNotification, NotificationKind } from "@/lib/notifications";
 import { timeAgo } from "@/lib/format";
 import { useNotifications } from "@/stores/notifications";
@@ -30,6 +30,7 @@ async function open(n: AppNotification) {
 
 <template>
   <div class="ss-page">
+    <SsBackLink fallback="/app/me" />
     <SsPageHeader kicker="Notifications" title="What's new">
       <SsButton v-if="store.unread" size="sm" variant="outline" @click="store.markRead()">
           <SsIcon name="check" :size="16" />Mark all read

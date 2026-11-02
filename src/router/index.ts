@@ -50,6 +50,7 @@ const routes: RouteRecordRaw[] = [
       { path: "upcoming/:id(\\d+)", name: "event", component: () => import("@/views/app/EventView.vue"), meta: { nav: "upcoming", title: "Upcoming show" }, props: true },
       { path: "map", name: "map", component: () => import("@/views/app/MapView.vue"), meta: { nav: "map", title: "Map" } },
       { path: "me", name: "me", component: () => import("@/views/app/ProfileView.vue"), meta: { nav: "profile", title: "Profile" } },
+      { path: "me/badges", name: "badges", component: () => import("@/views/app/BadgesView.vue"), meta: { nav: "profile", title: "Badges" } },
       { path: "friends", name: "friends", component: () => import("@/views/app/FriendsView.vue"), meta: { nav: "profile", title: "Friends" } },
       { path: "notifications", name: "notifications", component: () => import("@/views/app/NotificationsView.vue"), meta: { nav: "notifications", title: "Notifications" } },
       { path: "admin", name: "admin", component: () => import("@/views/app/AdminView.vue"), meta: { nav: "admin", admin: true, title: "Admin" } },
