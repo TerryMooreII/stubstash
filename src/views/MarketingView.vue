@@ -21,6 +21,7 @@ const setlist = [
   { song: "Slave to the Traffic Light" },
 ];
 const chips = ["Friends & who-was-there", "Head-to-head stats", "Badges", "Public profile"];
+const planChips = ["Near you or anywhere", "Going / Interested", "Invite your crew", "Log it the morning after"];
 </script>
 
 <template>
@@ -30,6 +31,7 @@ const chips = ["Friends & who-was-there", "Head-to-head stats", "Badges", "Publi
       <RouterLink to="/" class="mk__logo" aria-label="Stubstash home"><SsLogo :size="26" /></RouterLink>
       <nav class="mk__nav" aria-label="Site">
         <a href="#how" class="mk__navlink">How it works</a>
+        <a href="#upcoming" class="mk__navlink">Upcoming</a>
         <a href="#map" class="mk__navlink">The map</a>
         <a href="#install" class="mk__navlink">Get the app</a>
         <RouterLink :to="appLink" class="mk__open">{{ auth.signedIn ? "Open app" : "Sign in" }}</RouterLink>
@@ -128,6 +130,59 @@ const chips = ["Friends & who-was-there", "Head-to-head stats", "Badges", "Publi
       </div>
     </section>
 
+    <!-- upcoming shows + friends -->
+    <section id="upcoming" class="mk__wrap mk__split mk__split--flip">
+      <div class="mk__plans" aria-hidden="true">
+        <div class="mk__invite">
+          <div class="mk__invite-head">
+            <span class="mk__face mk__face--dark">M</span>
+            <div>
+              <div class="mk__mono mk__mono--strong">MAYA INVITED YOU</div>
+              <div class="mk__invite-artist">Billy Strings</div>
+              <div class="mk__invite-when">Sat, Dec 12 · Red Rocks</div>
+            </div>
+          </div>
+          <div class="mk__invite-note">“Row 12 again?” · Dev going</div>
+          <div class="mk__invite-btns">
+            <span class="mk__ib mk__ib--yes">I’m in</span>
+            <span class="mk__ib mk__ib--maybe">Interested</span>
+            <span class="mk__ib mk__ib--no">Can’t make it</span>
+          </div>
+        </div>
+        <div class="mk__plan">
+          <div class="mk__plan-cd"><b>12</b><span>DAYS</span></div>
+          <div class="mk__plan-text">
+            <div class="mk__mono mk__mono--accent">NEXT UP · NOV 13</div>
+            <div class="mk__plan-artist">Khruangbin</div>
+            <div class="mk__plan-sub">Radio City · Dev &amp; Priya going</div>
+          </div>
+          <div class="mk__faces">
+            <span class="mk__face" style="background: var(--ss-teal)">D</span>
+            <span class="mk__face" style="background: var(--ss-lavender)">P</span>
+          </div>
+        </div>
+        <div class="mk__find">
+          <div class="mk__mono">FIND SHOWS · NEAR BROOKLYN, NY · 50 MI</div>
+          <div class="mk__find-row">
+            <span class="mk__find-date"><small>DEC</small>04</span>
+            <span class="mk__find-name">Japanese Breakfast<small>Brooklyn Steel · Never seen live</small></span>
+            <span class="mk__find-btn">Going</span>
+          </div>
+        </div>
+      </div>
+      <div class="mk__split-text">
+        <div class="mk__kicker">UPCOMING SHOWS · WITH YOUR CREW</div>
+        <h2 class="mk__h2">Plan the next one together.</h2>
+        <p class="mk__body">
+          Find concerts near you, or anywhere you’re headed. Mark Going or Interested, invite friends, and see who’s in
+          before anyone buys a ticket. The morning after, log it with the real setlist.
+        </p>
+        <div class="mk__pills">
+          <span v-for="c in planChips" :key="c" class="mk__pill">{{ c }}</span>
+        </div>
+      </div>
+    </section>
+
     <!-- map -->
     <section id="map" class="mk__wrap mk__mapsec">
       <div class="mk__maphead">
@@ -208,9 +263,10 @@ const chips = ["Friends & who-was-there", "Head-to-head stats", "Badges", "Publi
       <SsLogo :size="20" />
       <div class="mk__credits">
         Setlist data from <a href="https://www.setlist.fm" target="_blank" rel="noopener">setlist.fm</a>.
-        Artist and venue images from Wikimedia Commons, fanart.tv and TheAudioDB.
+        Upcoming shows from <a href="https://seatgeek.com" target="_blank" rel="noopener">SeatGeek</a>.
+        Artist and venue images from Deezer, Wikimedia Commons, fanart.tv and TheAudioDB.
         Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors, tiles © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>.
-        Stubstash isn't affiliated with setlist.fm.
+        Stubstash isn't affiliated with setlist.fm or SeatGeek.
       </div>
     </footer>
   </div>
@@ -468,6 +524,76 @@ const chips = ["Friends & who-was-there", "Head-to-head stats", "Badges", "Publi
 @media (max-width: 420px) {
   .mk__tiles { grid-template-columns: 1fr; }
   .mk__tile--dark { grid-column: auto; }
+}
+
+/* upcoming shows */
+.mk__split--flip { padding-top: 0; }
+.mk__plans { flex: 1 1 400px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.mk__mono--strong { font-weight: 700; }
+.mk__invite {
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--ss-accent);
+  color: var(--ss-on-accent);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transform: rotate(-1.5deg);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
+}
+.mk__invite-head { display: flex; gap: 12px; align-items: center; }
+.mk__invite-artist { font-weight: 900; font-size: 26px; line-height: 1; }
+.mk__invite-when { font-weight: 600; font-size: 14px; }
+.mk__invite-note { font-weight: 600; font-style: italic; }
+.mk__invite-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.mk__ib { flex: 1 1 80px; height: 40px; border-radius: var(--ss-radius-pill); display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; }
+.mk__ib--yes { background: var(--ss-bg); color: var(--ss-accent); }
+.mk__ib--maybe { border: 2px solid var(--ss-bg); }
+.mk__ib--no { text-decoration: underline; font-weight: 700; }
+.mk__face {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 900;
+  color: var(--ss-on-accent);
+  border: 2px solid var(--ss-surface-1);
+}
+.mk__face--dark { background: var(--ss-bg); color: var(--ss-accent); border: 0; width: 44px; height: 44px; font-size: 18px; }
+.mk__faces { display: flex; }
+.mk__faces .mk__face + .mk__face { margin-left: -9px; }
+.mk__plan {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--ss-surface-1);
+  border: 1px solid var(--ss-line);
+}
+.mk__plan-cd { padding: 8px 12px; border-radius: 10px; background: var(--ss-accent); color: var(--ss-on-accent); text-align: center; flex-shrink: 0; }
+.mk__plan-cd b { display: block; font-size: 28px; line-height: 0.9; }
+.mk__plan-cd span { font-family: var(--ss-font-mono); font-size: 9px; letter-spacing: 0.12em; font-weight: 700; }
+.mk__plan-text { flex: 1; min-width: 0; }
+.mk__plan-artist { font-weight: 900; font-size: 20px; line-height: 1.1; }
+.mk__plan-sub { font-size: 14px; color: var(--ss-text-3); }
+.mk__find { padding: 16px; border-radius: 16px; border: 1px dashed var(--ss-line-strong); display: flex; flex-direction: column; gap: 10px; }
+.mk__find-row { display: flex; align-items: center; gap: 12px; }
+.mk__find-date { width: 44px; text-align: center; font-weight: 900; font-size: 22px; line-height: 1; flex-shrink: 0; }
+.mk__find-date small { display: block; font-family: var(--ss-font-mono); font-size: 10px; font-weight: 400; color: var(--ss-accent); }
+.mk__find-name { flex: 1; min-width: 0; font-weight: 900; font-size: 17px; display: flex; flex-direction: column; }
+.mk__find-name small { font-weight: 600; font-size: 13px; color: var(--ss-text-muted); }
+.mk__find-btn { padding: 8px 14px; border-radius: var(--ss-radius-pill); border: 1px solid var(--ss-accent); color: var(--ss-accent); font-weight: 900; font-size: 14px; flex-shrink: 0; }
+/* Stacked (phones/tablets): heading first, then the mock-up. */
+@media (max-width: 860px) {
+  .mk__split--flip .mk__split-text { order: -1; }
+}
+@media (max-width: 420px) {
+  .mk__plan { flex-wrap: wrap; }
+  .mk__invite { transform: none; }
 }
 
 /* map */
