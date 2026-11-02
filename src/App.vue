@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { watch } from "vue";
 import { SsToastHost } from "@/design-system";
+import RotateNotice from "@/components/RotateNotice.vue";
 import { useAuth } from "@/stores/auth";
 import { useLog } from "@/stores/log";
 import { useNotifications } from "@/stores/notifications";
@@ -59,4 +60,5 @@ async function syncOutbox() {
 <template>
   <RouterView />
   <SsToastHost />
+  <RotateNotice />
 </template>
