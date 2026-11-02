@@ -14,6 +14,7 @@ import { STATUS_SUB, countdown, crewSummary, daysUntil, eventPlace, logQuery, sh
 import type { PlanItem } from "@/lib/types";
 import { useAction } from "@/composables/useAction";
 import { useAsyncData } from "@/composables/useAsyncData";
+import { mergeFresh, rememberEvent, seededEvent } from "@/lib/eventSeed";
 import { useShareLink } from "@/composables/useShareLink";
 import { useAuth } from "@/stores/auth";
 import { useUi } from "@/stores/ui";
@@ -25,10 +26,16 @@ const auth = useAuth();
 const ui = useUi();
 
 const sgId = computed(() => Number(props.id));
+// Draw straight away from what the list already had (when we came from one),
+// then swap in the server's copy when it arrives.
+const item = ref<PlanItem | null>(seededEvent(sgId.value));
 const { data, loading, error, reload } = useAsyncData(() => upcoming.event(sgId.value), { watch: () => props.id });
-/** Local copy so plan changes show straight away. */
-const item = ref<PlanItem | null>(null);
-watch(data, (d) => (item.value = d));
+watch(() => props.id, () => (item.value = seededEvent(sgId.value)));
+watch(data, (d) => {
+  if (!d) return;
+  item.value = mergeFresh(d, seededEvent(sgId.value));
+  rememberEvent(item.value);
+});
 
 const e = computed(() => item.value?.event ?? null);
 const days = computed(() => (e.value ? daysUntil(e.value.local_date) : 0));
@@ -66,7 +73,8 @@ const { run: setPlan, busy } = useAction(async (status: "going" | "interested" |
   if (!item.value) return;
   const next = item.value.status === status && status !== "cant" ? null : status;
   const wasInvited = item.value.status === "invited" && item.value.invited_by;
-  item.value = { ...(await upcoming.setPlan(sgId.value, next)), seen: item.value.seen };
+  item.value = mergeFresh(await upcoming.setPlan(sgId.value, next), item.value);
+  rememberEvent(item.value);
   if (wasInvited) ui.flash(`${firstName(wasInvited.display_name, wasInvited.handle)} will get your answer`);
   else if (next === "going") ui.flash("You’re going!");
   else if (next === "interested") ui.flash("Saved to your plans");
@@ -76,7 +84,10 @@ const inviteOpen = ref(false);
 async function invited() {
   if (!item.value?.event.id) return;
   const fresh = await upcoming.plan(item.value.event.id).catch(() => null);
-  if (fresh) item.value = { ...fresh, seen: item.value.seen };
+  if (fresh) {
+    item.value = mergeFresh(fresh, item.value);
+    rememberEvent(item.value);
+  }
 }
 
 const { canShare, copy, share } = useShareLink();

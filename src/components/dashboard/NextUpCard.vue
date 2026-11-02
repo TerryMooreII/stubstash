@@ -8,6 +8,7 @@ import CrewAvatars from "@/components/upcoming/CrewAvatars.vue";
 import { upcoming } from "@/lib/api";
 import { dateParts, firstName, plural } from "@/lib/format";
 import { crewSummary, daysUntil } from "@/lib/upcoming";
+import { rememberEvent } from "@/lib/eventSeed";
 import type { PlanItem } from "@/lib/types";
 
 const props = defineProps<{ promptWhenEmpty?: boolean; homeCity?: string | null }>();
@@ -34,7 +35,7 @@ const showPrompt = computed(() => props.promptWhenEmpty && plans.value !== null 
 
 <template>
   <div v-if="next || invites.length || showPrompt" class="next-up">
-    <RouterLink v-if="next && d" :to="`/app/upcoming/${next.event.seatgeek_id}`" class="next">
+    <RouterLink v-if="next && d" :to="`/app/upcoming/${next.event.seatgeek_id}`" class="next" @click="rememberEvent(next)">
       <div class="next__cd">
         <div class="next__n">{{ days === 0 ? "!" : days }}</div>
         <div class="next__lbl">{{ days === 0 ? "TONIGHT" : days === 1 ? "DAY" : "DAYS" }}</div>

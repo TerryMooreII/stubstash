@@ -12,7 +12,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The caller's user id, if they're in public.admins. */
 async function requireAdmin(req: Request, db: ReturnType<typeof adminClient>): Promise<string> {
-  const userId = await requireUser(req);
+  const userId = await requireUser(req, { fresh: true });
   const { data } = await db.from("admins").select("user_id").eq("user_id", userId).maybeSingle();
   if (!data) throw new HttpError(403, "Admins only.");
   return userId;

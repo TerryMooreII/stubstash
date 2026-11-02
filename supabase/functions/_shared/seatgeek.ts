@@ -2,7 +2,7 @@
 // are cached in public.api_cache (the cache key never includes the secret).
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
-import { HttpError, sleep } from "./http.ts";
+import { background, HttpError, sleep } from "./http.ts";
 
 const BASE = "https://api.seatgeek.com/2";
 
@@ -40,7 +40,7 @@ export async function sgGet<T>(db: SupabaseClient, path: string, ttlMinutes = 15
     const res = await fetch(url, { headers: { Accept: "application/json" } });
     if (res.status === 429) { await sleep(1000 * (attempt + 1)); continue; }
     if (res.status === 404) {
-      await db.from("api_cache").upsert({ key, body: { notFound: true }, fetched_at: new Date().toISOString() });
+      background(Promise.resolve(db.from("api_cache").upsert({ key, body: { notFound: true }, fetched_at: new Date().toISOString() })));
       return null;
     }
     if (!res.ok) {
@@ -48,7 +48,7 @@ export async function sgGet<T>(db: SupabaseClient, path: string, ttlMinutes = 15
       throw new HttpError(502, "SeatGeek isn't responding right now.");
     }
     const body = await res.json();
-    await db.from("api_cache").upsert({ key, body, fetched_at: new Date().toISOString() });
+    background(Promise.resolve(db.from("api_cache").upsert({ key, body, fetched_at: new Date().toISOString() })));
     return body as T;
   }
   throw new HttpError(429, "SeatGeek is busy. Try again in a few seconds.");

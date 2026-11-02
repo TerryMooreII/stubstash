@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { SsAvatar } from "@/design-system";
 import { firstName, longDate } from "@/lib/format";
 import { crewSummary } from "@/lib/upcoming";
+import { rememberEvent } from "@/lib/eventSeed";
 import type { PlanItem } from "@/lib/types";
 
 const props = defineProps<{ item: PlanItem; busy?: boolean }>();
@@ -31,7 +32,7 @@ const fromName = computed(() => (from.value ? firstName(from.value.display_name,
       <button type="button" class="ib ib--yes" :disabled="busy" @click="emit('respond', 'going')">I’m in</button>
       <button type="button" class="ib ib--maybe" :disabled="busy" @click="emit('respond', 'interested')">Interested</button>
       <button type="button" class="ib ib--no" :disabled="busy" @click="emit('respond', 'cant')">Can’t make it</button>
-      <RouterLink :to="`/app/upcoming/${e.seatgeek_id}`" class="ib ib--details">Details</RouterLink>
+      <RouterLink :to="`/app/upcoming/${e.seatgeek_id}`" class="ib ib--details" @click="rememberEvent(item)">Details</RouterLink>
     </div>
   </div>
 </template>

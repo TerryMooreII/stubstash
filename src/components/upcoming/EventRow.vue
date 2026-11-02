@@ -7,6 +7,7 @@ import { SsArt } from "@/design-system";
 import PlanToggle from "./PlanToggle.vue";
 import { dateParts, firstName, parseDate } from "@/lib/format";
 import { daysUntil, eventPlace, priceFrom } from "@/lib/upcoming";
+import { rememberEvent } from "@/lib/eventSeed";
 import type { PlanItem } from "@/lib/types";
 
 const props = defineProps<{ item: PlanItem; busy?: boolean }>();
@@ -31,7 +32,10 @@ const tags = computed(() => {
   return out;
 });
 
-const open = () => router.push(`/app/upcoming/${e.value.seatgeek_id}`);
+const open = () => {
+  rememberEvent(props.item);
+  router.push(`/app/upcoming/${e.value.seatgeek_id}`);
+};
 </script>
 
 <template>

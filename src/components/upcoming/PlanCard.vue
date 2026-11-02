@@ -7,6 +7,7 @@ import CrewAvatars from "./CrewAvatars.vue";
 import StatusPill from "./StatusPill.vue";
 import { dateParts } from "@/lib/format";
 import { countdown, crewSummary, eventPlace } from "@/lib/upcoming";
+import { rememberEvent } from "@/lib/eventSeed";
 import type { PlanItem } from "@/lib/types";
 
 const props = defineProps<{ item: PlanItem }>();
@@ -15,7 +16,7 @@ const d = computed(() => dateParts(e.value.local_date));
 </script>
 
 <template>
-  <RouterLink :to="`/app/upcoming/${e.seatgeek_id}`" class="plan-card">
+  <RouterLink :to="`/app/upcoming/${e.seatgeek_id}`" class="plan-card" @click="rememberEvent(item)">
     <SsArt :src="e.image_url" :seed="e.artist" focus="top" class="plan-card__art">
       <div class="plan-card__pills">
         <span class="plan-card__cd">{{ e.date_tbd ? "DATE TBA" : countdown(e.local_date) }}</span>

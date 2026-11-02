@@ -64,3 +64,14 @@ export async function isCron(
   const { data } = await db.rpc("_verify_cron_secret", { p_secret: secret });
   return data === true;
 }
+
+/**
+ * Finish this after the response is sent (cache writes, photo lookups). Uses the
+ * edge runtime's waitUntil so the work isn't cut off; errors are logged, not thrown.
+ */
+export function background(work: Promise<unknown>): void {
+  const p = work.catch((err) => console.warn("background task failed", String(err)));
+  // deno-lint-ignore no-explicit-any
+  const rt = (globalThis as any).EdgeRuntime;
+  if (rt?.waitUntil) rt.waitUntil(p);
+}
