@@ -326,6 +326,9 @@ export const social = {
   incoming: async () =>
     (check(await supabase.rpc("incoming_friend_requests")) as
       { requester_id: string; handle: string; display_name: string; avatar_path: string | null; created_at: string; shared_example: string | null }[]) ?? [],
+  outgoing: async () =>
+    (check(await supabase.rpc("outgoing_friend_requests")) as
+      { addressee_id: string; handle: string; display_name: string; avatar_path: string | null; created_at: string }[]) ?? [],
   request: async (handle: string) => check(await supabase.rpc("send_friend_request", { p_handle: handle })) as "sent" | "friends",
   respond: async (requesterId: string, accept: boolean) => {
     const me = await myId();

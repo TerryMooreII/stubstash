@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { appUrl } from "@/lib/url";
 // Find and manage friends: incoming requests, search, people who were at your
-// shows, a scannable QR code, an invite link, and your current friends.
+// shows, a scannable QR code, an invite link, your current friends, and
+// requests you sent that are still pending.
 import { computed, onMounted, ref } from "vue";
 import { SsAvatar, SsBackLink, SsButton, SsCard, SsInput, SsPageHeader, SsSkeleton } from "@/design-system";
 import HeadToHead from "@/components/people/HeadToHead.vue";
 import PersonRow from "@/components/people/PersonRow.vue";
 import QrCode from "@/components/people/QrCode.vue";
 import { social } from "@/lib/api";
-import { firstName, plural } from "@/lib/format";
+import { firstName, plural, timeAgo } from "@/lib/format";
 import { errorMessage } from "@/lib/supabase";
 import type { Friend, FriendshipState } from "@/lib/types";
 import { useAction, useKeyedAction } from "@/composables/useAction";
@@ -21,6 +22,7 @@ import { useUi } from "@/stores/ui";
 
 type Incoming = Awaited<ReturnType<typeof social.incoming>>[number];
 type Suggested = Awaited<ReturnType<typeof social.suggested>>[number];
+type Outgoing = Awaited<ReturnType<typeof social.outgoing>>[number];
 
 const auth = useAuth();
 const log = useLog();
@@ -29,6 +31,7 @@ const ui = useUi();
 const incoming = ref<Incoming[]>([]);
 const suggested = ref<Suggested[]>([]);
 const friends = ref<Friend[]>([]);
+const outgoing = ref<Outgoing[]>([]);
 const loading = ref(true);
 /** Local friendship overrides after taps, keyed by handle. */
 const states = ref<Record<string, FriendshipState>>({});
@@ -41,10 +44,11 @@ const inviteDisplay = computed(() => inviteUrl.value.replace(/^https?:\/\//, "")
 async function load() {
   loading.value = true;
   try {
-    const [i, s, f] = await Promise.all([social.incoming(), social.suggested(), social.friends()]);
+    const [i, s, f, o] = await Promise.all([social.incoming(), social.suggested(), social.friends(), social.outgoing()]);
     incoming.value = i;
     suggested.value = s;
     friends.value = f;
+    outgoing.value = o;
   } catch (err) {
     ui.error(errorMessage(err));
   } finally {
@@ -78,6 +82,8 @@ const { request, busy: requesting } = useFriendRequest({
     if (res === "friends") {
       await refreshFriends();
       incoming.value = incoming.value.filter((i) => i.handle !== handle);
+    } else {
+      outgoing.value = await social.outgoing();
     }
   },
 });
@@ -103,6 +109,14 @@ const { run: remove } = useAction(async (f: Friend) => {
   states.value[f.handle] = null;
   ui.flash("Removed", "info");
 });
+
+const { run: runCancel, busy: cancelling } = useKeyedAction(async (handle: string, o: Outgoing) => {
+  await social.remove(o.addressee_id);
+  outgoing.value = outgoing.value.filter((x) => x.addressee_id !== o.addressee_id);
+  states.value[handle] = null;
+  ui.flash("Request cancelled", "info");
+});
+const cancel = (o: Outgoing) => runCancel(o.handle, o);
 
 const { canShare, copy, share } = useShareLink();
 const copyInvite = () => copy(inviteUrl.value, "Invite link copied");
@@ -220,6 +234,23 @@ const shareInvite = () =>
           </PersonRow>
         </template>
         <p v-else class="ss-muted">No friends yet. Share your link or QR code to get started.</p>
+
+        <template v-if="!loading && outgoing.length">
+          <h2 class="ss-h2 friends-title">Pending <span class="count">{{ outgoing.length }}</span></h2>
+          <p class="lead">Requests you sent that haven't been accepted yet.</p>
+          <PersonRow
+            v-for="o in outgoing"
+            :key="o.addressee_id"
+            :name="o.display_name"
+            :handle="o.handle"
+            :avatar-path="o.avatar_path"
+            :why="`Sent ${timeAgo(o.created_at, { suffix: ' ago' })}`"
+          >
+            <template #action>
+              <SsButton size="sm" variant="ghost" :loading="cancelling[o.handle]" @click="cancel(o)">Cancel</SsButton>
+            </template>
+          </PersonRow>
+        </template>
       </SsCard>
 
       <div class="ss-stack side">
