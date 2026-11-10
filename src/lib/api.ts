@@ -5,12 +5,13 @@
 
 import { check, invokeFn, supabase } from "./supabase";
 import { cached } from "./offline";
+import { matchVenue } from "./upcoming";
 import type {
   ArtistStats, AttendanceDetail, Badge, DashboardStats, Friend, LogEntry, MapVenue,
   PersonCard, Profile, PublicProfile, SetDraft, SetlistSearchParams, SetlistSearchResponse, SetlistSong,
   ShowStats, VenueStats, YearInReview,
   MapHome, MapTrip, PastHome,
-  PlanItem, PlanStatus, UpcomingSearchParams, UpcomingSearchResponse, UpcomingSuggestions,
+  PlanItem, PlanStatus, UpcomingEvent, UpcomingSearchParams, UpcomingSearchResponse, UpcomingSuggestions,
 } from "./types";
 
 /** RPC arg for "this user, or me when omitted". */
@@ -65,8 +66,21 @@ export const upcoming = {
   /** Artists and venues with upcoming shows whose names match (venues only within `where`). */
   suggest: (q: string, where: Pick<UpcomingSearchParams, "range" | "lat" | "lng" | "place_label"> = {}) =>
     sg<UpcomingSuggestions>({ action: "suggest", q, ...where }),
+  /**
+   * SeatGeek's id for an event's venue, found like the search box does (venue
+   * suggestions near its pin). Null when it can't be found.
+   */
+  venueId: async (e: Pick<UpcomingEvent, "venue_name" | "city" | "lat" | "lng">): Promise<number | null> => {
+    const where = e.lat != null && e.lng != null ? { lat: e.lat, lng: e.lng, range: "25" as const } : { range: "any" as const };
+    const { venues } = await sg<UpcomingSuggestions>({ action: "suggest", q: e.venue_name.slice(0, 80), ...where });
+    return matchVenue(venues, e)?.id ?? null;
+  },
   /** One event with your plan and crew. Saves it so it can be planned and shared. */
-  event: (seatgeekId: number) => sg<PlanItem>({ action: "event", seatgeek_id: seatgeekId }),
+  event: (seatgeekId: number) =>
+    sg<PlanItem & { venue_image_pending?: boolean }>({ action: "event", seatgeek_id: seatgeekId }),
+  /** Looks up the venue photo an event reply said was pending (null url when there's none). */
+  venueImage: (seatgeekId: number) =>
+    sg<{ url: string | null; credit: string | null }>({ action: "venue_image", seatgeek_id: seatgeekId }),
   /** Sets your plan (null clears it). Returns the updated event. */
   setPlan: (seatgeekId: number, status: Exclude<PlanStatus, "invited"> | null) =>
     sg<PlanItem>({ action: "plan", seatgeek_id: seatgeekId, status }),

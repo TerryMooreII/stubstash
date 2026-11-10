@@ -112,3 +112,92 @@ describe("upcoming search params", async () => {
     expect(whenLabel({ ...f, from: "", to: "" })).toBe("Next 6 months");
   });
 });
+
+describe("upcoming search in the URL", async () => {
+  const { emptyUpcomingFilters, hasSearchQuery, searchFromQuery, searchKey, searchToQuery } = await import("./upcoming");
+
+  it("leaves defaults out", () => {
+    expect(searchToQuery({ q: "", show: "all", filters: emptyUpcomingFilters() })).toEqual({});
+    expect(hasSearchQuery({ tab: "plans" })).toBe(false);
+  });
+
+  it("round-trips a full search", () => {
+    const state = {
+      q: "",
+      show: "seen" as const,
+      filters: {
+        ...emptyUpcomingFilters(),
+        pick: { kind: "venue" as const, id: 45, name: "Red Rocks", place: "Morrison, CO" },
+        place: { label: "Denver, CO", lat: 39.7392, lng: -104.9903 },
+        range: "100" as const,
+        when: "custom" as const,
+        from: "2026-12-01",
+        to: "2026-12-31",
+      },
+    };
+    const query = searchToQuery(state);
+    expect(hasSearchQuery(query)).toBe(true);
+    expect(searchFromQuery(query)).toEqual(state);
+    expect(searchKey(searchFromQuery(query))).toBe(searchKey(state));
+  });
+
+  it("keeps free text and an artist pick", () => {
+    expect(searchFromQuery({ q: " phish " }).q).toBe("phish");
+    const s = searchFromQuery({ artist: "12", name: "Phish", q: "ignored" });
+    expect(s.filters.pick).toEqual({ kind: "artist", id: 12, name: "Phish" });
+    expect(s.q).toBe("");
+  });
+
+  it("ignores bad values", () => {
+    const s = searchFromQuery({ range: "7", when: "soon", show: "x", artist: "abc", name: "A", lat: "999", lng: "1", near: "X", from: "nope" });
+    expect(s).toEqual({ q: "", show: "all", filters: emptyUpcomingFilters() });
+    expect(searchFromQuery({ when: "month", from: "2026-12-01" }).filters.from).toBe("");
+  });
+});
+
+describe("searching from an event", async () => {
+  const { citySearch, defaultSearch, emptyUpcomingFilters, venueSearch } = await import("./upcoming");
+  const ev = { venue_name: "Red Rocks", city: "Morrison", state: "CO", country_code: "US", lat: 39.66, lng: -105.2 };
+
+  it("fills in the venue and its city, keeping the dates", () => {
+    const base = { ...defaultSearch(), q: "jam", show: "seen" as const, filters: { ...emptyUpcomingFilters(), when: "month" as const } };
+    expect(venueSearch(ev, base)).toEqual({
+      q: "Red Rocks", show: "all",
+      filters: { ...emptyUpcomingFilters(), when: "month", place: { label: "Morrison, CO", lat: 39.66, lng: -105.2 } },
+    });
+    // With SeatGeek's venue id it's a venue pick, as if chosen from the suggestions.
+    expect(venueSearch(ev, base, 45)).toEqual({
+      q: "", show: "all",
+      filters: {
+        ...emptyUpcomingFilters(), when: "month",
+        pick: { kind: "venue", id: 45, name: "Red Rocks", place: "Morrison, CO" },
+        place: { label: "Morrison, CO", lat: 39.66, lng: -105.2 },
+      },
+    });
+    // No pin: just the name, where stays as it was.
+    expect(venueSearch({ ...ev, lat: null }).filters.place).toBeNull();
+    expect(venueSearch({ ...ev, lat: null }).q).toBe("Red Rocks");
+  });
+
+  it("searches around the city, keeping an artist but not a venue", () => {
+    const artist = { kind: "artist" as const, id: 1, name: "Phish" };
+    const out = citySearch(ev, { ...defaultSearch(), filters: { ...emptyUpcomingFilters(), pick: artist, range: "any" } });
+    expect(out?.filters.pick).toEqual(artist);
+    expect(out?.filters.place).toEqual({ label: "Morrison, CO", lat: 39.66, lng: -105.2 });
+    expect(out?.filters.range).toBe("50");
+    const venuePick = { kind: "venue" as const, id: 2, name: "X", place: "" };
+    expect(citySearch(ev, { ...defaultSearch(), filters: { ...emptyUpcomingFilters(), pick: venuePick } })?.filters.pick).toBeNull();
+    expect(citySearch({ ...ev, lat: null })).toBeNull();
+  });
+});
+
+describe("matchVenue", async () => {
+  const { matchVenue } = await import("./upcoming");
+  const v = (id: number, name: string, city: string | null) => ({ id, name, city, state: null, upcoming: 1 });
+  it("finds the same venue by name and city", () => {
+    const list = [v(1, "Red Rocks Amphitheatre Lot", "Morrison"), v(2, "Red Rocks Amphitheatre", "Morrison"), v(3, "Red Rocks Amphitheatre", "Denver")];
+    expect(matchVenue(list, { venue_name: "Red Rocks Amphitheatre", city: "Morrison" })?.id).toBe(2);
+    expect(matchVenue(list, { venue_name: "red rocks amphitheatre!", city: null })?.id).toBe(2);
+    expect(matchVenue(list, { venue_name: "Fillmore", city: "Morrison" })).toBeNull();
+  });
+});

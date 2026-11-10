@@ -12,7 +12,8 @@
 //        `elsewhere` is how many they have anywhere (else 0). `pending_images` lists
 //        artists whose photos haven't been looked up yet (ask with "images").
 // POST { action: "images", names }                 -> { images: { [lower-cased name]: { url, credit } } }
-// POST { action: "event", seatgeek_id }            -> PlanItem
+// POST { action: "event", seatgeek_id }            -> PlanItem & { venue_image_pending }
+// POST { action: "venue_image", seatgeek_id }      -> { url, credit }   (looks up a pending venue photo)
 // POST { action: "plan", seatgeek_id, status }     -> PlanItem   (status: going | interested | cant | null to clear)
 //
 // PlanItem = { event, status, note, invited_by, crew, seen } (see public._plan_item).
@@ -87,8 +88,10 @@ async function artistImages(
   return { images: out, pending: [] };
 }
 
+type VenueSpot = Pick<EventRow, "venue_name" | "city" | "lat" | "lng">;
+
 /** A venue photo: our catalog first, then Wikidata/Wikipedia near SeatGeek's pin (slow: several requests). */
-async function venueImage(db: SupabaseClient, row: EventRow): Promise<Img | null> {
+async function venueImage(db: SupabaseClient, row: VenueSpot): Promise<Img | null> {
   const { data } = await db.rpc("_venue_image", { p_name: row.venue_name, p_city: row.city });
   const mine = (data ?? [])[0] as { image_url: string; image_credit: string | null } | undefined;
   if (mine) return { url: mine.image_url, source: "", credit: mine.image_credit ?? "" };
@@ -167,12 +170,12 @@ async function planItem(db: SupabaseClient, userId: string, eventId: string, art
   return { ...data, seen: seen.get(name.toLowerCase()) ?? 0 };
 }
 
-interface Saved { id: string; artist: string; local_date: string }
+interface Saved { id: string; artist: string; local_date: string; venue_checked_at: string | null }
 
 /**
  * Saves (or refreshes) an event from SeatGeek and returns it. The artist photo is
- * looked up straight away; the venue photo (several slow requests) is looked up
- * after the response and saved for next time.
+ * looked up straight away; the venue photo (several slow requests) is left for
+ * the app to ask for with "venue_image" (venue_checked_at is null until then).
  */
 async function saveEvent(db: SupabaseClient, sgId: number, maxAgeMinutes: number): Promise<Saved> {
   const { data: have } = await db.from("upcoming_events")
@@ -197,16 +200,7 @@ async function saveEvent(db: SupabaseClient, sgId: number, maxAgeMinutes: number
     .select("id").single();
   if (error) throw error;
 
-  if (!have?.venue_checked_at) {
-    background((async () => {
-      const venue = await venueImage(db, row);
-      await db.from("upcoming_events").update({
-        venue_image_url: venue?.url ?? null, venue_image_credit: venue?.credit || null,
-        venue_checked_at: new Date().toISOString(),
-      }).eq("id", data.id);
-    })());
-  }
-  return { id: data.id, artist: row.artist, local_date: row.local_date };
+  return { id: data.id, artist: row.artist, local_date: row.local_date, venue_checked_at: have?.venue_checked_at ?? null };
 }
 
 serve(async (req) => {
@@ -357,7 +351,24 @@ serve(async (req) => {
 
     case "event": {
       const ev = await saveEvent(db, seatgeekId(body.seatgeek_id), 30);
-      return json(await planItem(db, userId, ev.id, ev.artist));
+      return json({ ...(await planItem(db, userId, ev.id, ev.artist)), venue_image_pending: !ev.venue_checked_at });
+    }
+
+    case "venue_image": {
+      // The venue photo an "event" reply said was pending: looked up now and saved.
+      const { data: ev, error } = await db.from("upcoming_events")
+        .select("id, venue_name, city, lat, lng, venue_image_url, venue_image_credit, venue_checked_at")
+        .eq("seatgeek_id", seatgeekId(body.seatgeek_id)).maybeSingle();
+      if (error) throw error;
+      if (!ev) throw new HttpError(404, "That show isn't available anymore.");
+      if (ev.venue_checked_at) return json({ url: ev.venue_image_url, credit: ev.venue_image_credit });
+      const venue = await venueImage(db, ev);
+      const found = { url: venue?.url ?? null, credit: venue?.credit || null };
+      const { error: saveError } = await db.from("upcoming_events").update({
+        venue_image_url: found.url, venue_image_credit: found.credit, venue_checked_at: new Date().toISOString(),
+      }).eq("id", ev.id);
+      if (saveError) throw saveError;
+      return json(found);
     }
 
     case "plan": {

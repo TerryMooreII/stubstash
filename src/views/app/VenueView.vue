@@ -1,10 +1,13 @@
 <script setup lang="ts">
 // Venue page: photo, your visits, shows here, and a small map where you can
-// fix the pin (the fix is yours only; the shared venue stays as is).
+// fix the pin (the fix is yours only; the shared venue stays as is). "Upcoming
+// shows here" finds the venue on SeatGeek and opens Find shows for it.
 import { computed, ref } from "vue";
-import { SsArt, SsBackLink, SsButton, SsCard, SsEmpty, SsSkeleton, SsStars, SsStatCard } from "@/design-system";
+import { useRouter } from "vue-router";
+import { SsArt, SsBackLink, SsButton, SsCard, SsEmpty, SsIcon, SsSkeleton, SsStars, SsStatCard } from "@/design-system";
 import VenueMap from "@/components/map/VenueMap.vue";
-import { getVenue, setVenuePin, venueStats } from "@/lib/api";
+import { getVenue, setVenuePin, upcoming, venueStats } from "@/lib/api";
+import { emptyUpcomingFilters, searchToQuery } from "@/lib/upcoming";
 import ShowListRow from "@/components/shows/ShowListRow.vue";
 import { useAction } from "@/composables/useAction";
 import { useAsyncData } from "@/composables/useAsyncData";
@@ -16,6 +19,7 @@ import { useUi } from "@/stores/ui";
 const props = defineProps<{ id: string }>();
 const log = useLog();
 const ui = useUi();
+const router = useRouter();
 
 type Venue = NonNullable<Awaited<ReturnType<typeof getVenue>>>;
 const { data, loading, error } = useAsyncData(
@@ -91,6 +95,26 @@ const { run: savePin, busy: savingPin } = useAction(
   },
   { success: "Pin moved. Only your map changes." },
 );
+
+// ----- upcoming shows here (catalog venues don't know their SeatGeek id, so match by name near the pin)
+const simple = (s: string) => s.toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, "");
+const { run: findUpcoming, busy: findingUpcoming } = useAction(async () => {
+  const v = venue.value;
+  if (!v) return;
+  const where = coords.value ? { lat: coords.value.lat, lng: coords.value.lng, range: "25" as const } : { range: "any" as const };
+  const { venues } = await upcoming.suggest(v.name, where);
+  const want = simple(v.name);
+  const hit = venues.find((x) => simple(x.name) === want)
+    ?? venues.find((x) => simple(x.name).includes(want) || want.includes(simple(x.name)))
+    ?? (coords.value ? venues[0] : undefined);
+  if (!hit) {
+    ui.flash(`No upcoming shows at ${v.name} on SeatGeek`, "info");
+    return;
+  }
+  const place = [hit.city, hit.state].filter(Boolean).join(", ");
+  const pick = { kind: "venue" as const, id: hit.id, name: hit.name, place };
+  await router.push({ path: "/app/upcoming", query: searchToQuery({ q: "", show: "all", filters: { ...emptyUpcomingFilters(), pick } }) });
+});
 </script>
 
 <template>
@@ -115,6 +139,9 @@ const { run: savePin, busy: savingPin } = useAction(
         <div class="hero__text">
           <div v-if="kicker" class="ss-kicker">{{ kicker }}</div>
           <h1 class="ss-hero hero__name">{{ venue.name }}</h1>
+          <SsButton v-if="ui.online" class="hero__upcoming" variant="outline" size="sm" :loading="findingUpcoming" @click="findUpcoming">
+            <SsIcon name="calendar" :size="16" />Upcoming shows here
+          </SsButton>
         </div>
       </SsArt>
 
@@ -195,6 +222,7 @@ const { run: savePin, busy: savingPin } = useAction(
   background: linear-gradient(180deg, transparent, rgba(10, 9, 12, 0.92));
 }
 .hero__name { overflow-wrap: anywhere; margin-top: 6px; }
+.hero__upcoming { margin-top: 12px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 .show__art { width: 44px; height: 44px; }
 .show__with { font-size: 13px; color: var(--ss-text-2); overflow-wrap: anywhere; }

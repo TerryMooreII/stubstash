@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // One search result: date, artist photo, artist / venue / price, tags
 // (friends going, seen before, this week) and Interested / Going buttons.
+// Tapping the venue or the city fills them into the search (the page handles "venue" / "city").
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { SsArt } from "@/design-system";
@@ -11,13 +12,15 @@ import { rememberEvent } from "@/lib/eventSeed";
 import type { PlanItem } from "@/lib/types";
 
 const props = defineProps<{ item: PlanItem; busy?: boolean }>();
-const emit = defineEmits<{ plan: [status: "going" | "interested" | null] }>();
+const emit = defineEmits<{ plan: [status: "going" | "interested" | null]; venue: []; city: [] }>();
 const router = useRouter();
 
 const e = computed(() => props.item.event);
 const d = computed(() => dateParts(e.value.local_date));
 const dow = computed(() => parseDate(e.value.local_date).toLocaleDateString("en-US", { weekday: "short" }));
-const line = computed(() => [e.value.venue_name, eventPlace(e.value), priceFrom(e.value)].filter(Boolean).join(" · "));
+const place = computed(() => eventPlace(e.value));
+const price = computed(() => priceFrom(e.value));
+const canCity = computed(() => !!e.value.city && e.value.lat != null && e.value.lng != null);
 
 const tags = computed(() => {
   const out: { label: string; tone: "accent" | "teal" | "plain" }[] = [];
@@ -48,7 +51,15 @@ const open = () => {
     <SsArt :src="e.image_url" :seed="e.artist" shape="circle" class="ev-row__art" />
     <div class="ev-row__text">
       <div class="ev-row__artist">{{ e.artist }}</div>
-      <div class="ev-row__line">{{ line }}</div>
+      <div class="ev-row__line">
+        <button type="button" class="ev-row__link" :aria-label="`Search shows at ${e.venue_name}`" @click.stop="emit('venue')" @keydown.enter.stop>{{ e.venue_name }}</button>
+        <template v-if="place">
+          ·
+          <button v-if="canCity" type="button" class="ev-row__link" :aria-label="`Shows near ${place}`" @click.stop="emit('city')" @keydown.enter.stop>{{ place }}</button>
+          <span v-else>{{ place }}</span>
+        </template>
+        <template v-if="price"> · {{ price }}</template>
+      </div>
       <div class="ev-row__tags">
         <span v-for="t in tags" :key="t.label" class="tag" :class="`tag--${t.tone}`">{{ t.label }}</span>
       </div>
@@ -78,6 +89,19 @@ const open = () => {
 .ev-row__text { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .ev-row__artist { font-weight: 900; font-size: 18px; line-height: 1.1; overflow-wrap: anywhere; }
 .ev-row__line { font-size: 14px; color: var(--ss-text-3); }
+.ev-row__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--ss-line);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.ev-row__link:hover { color: var(--ss-text); text-decoration-color: currentColor; }
 .ev-row__tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { padding: 2px 8px; border-radius: var(--ss-radius-xs); font-size: 12px; font-weight: 700; }
 .tag--accent { background: var(--ss-accent-soft); color: var(--ss-accent); }

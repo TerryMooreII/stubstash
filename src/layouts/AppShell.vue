@@ -19,15 +19,16 @@ const ui = useUi();
 const route = useRoute();
 
 const active = computed(() => route.meta.nav);
-type NavKey = "home" | "shows" | "upcoming" | "map" | "profile";
+type NavKey = "home" | "shows" | "upcoming" | "map" | "friends" | "profile";
 const items: { key: NavKey; label: string; short: string; icon: IconName; to: string }[] = [
   { key: "home", label: "Dashboard", short: "Home", icon: "home", to: "/app" },
   { key: "upcoming", label: "Upcoming", short: "Upcoming", icon: "calendar", to: "/app/upcoming" },
   { key: "shows", label: "My shows", short: "Shows", icon: "ticket", to: "/app/shows" },
   { key: "map", label: "Map", short: "Map", icon: "pin", to: "/app/map" },
+  { key: "friends", label: "Friends", short: "Friends", icon: "users", to: "/app/friends" },
   { key: "profile", label: "Profile & badges", short: "Me", icon: "user", to: "/app/me" },
 ];
-// Phones: Home, Upcoming, (+), Shows, Map. Your profile is the avatar in the top bar.
+// Phones: Home, Upcoming, (+), Shows, Map. Friends and your profile (the avatar) are in the top bar.
 const tabsLeft = items.filter((i) => i.key === "home" || i.key === "upcoming");
 const tabsRight = items.filter((i) => i.key === "shows" || i.key === "map");
 </script>
@@ -80,6 +81,15 @@ const tabsRight = items.filter((i) => i.key === "shows" || i.key === "map");
           <!-- Phones have no side nav, so admins get their Admin link here. -->
           <RouterLink v-if="auth.isAdmin" to="/app/admin" class="top__btn" aria-label="Admin">
             <SsIcon name="lock" :size="16" :stroke="2.2" />
+          </RouterLink>
+          <RouterLink
+            v-if="auth.signedIn"
+            to="/app/friends"
+            class="top__btn"
+            :class="{ 'is-active': active === 'friends' }"
+            aria-label="Friends"
+          >
+            <SsIcon name="users" :size="18" :stroke="2.2" />
           </RouterLink>
           <RouterLink
             v-if="auth.signedIn"
@@ -256,6 +266,7 @@ const tabsRight = items.filter((i) => i.key === "shows" || i.key === "map");
   align-items: center;
   justify-content: center;
 }
+.top__btn.is-active { color: var(--ss-accent); border-color: var(--ss-accent); }
 
 .offline {
   padding: 8px 16px;

@@ -6,7 +6,9 @@
 import { ref, shallowRef } from "vue";
 import { upcoming } from "@/lib/api";
 import { errorMessage } from "@/lib/supabase";
-import { emptyUpcomingFilters, replaceItem, searchParams, type ShowFilter, type UpcomingFilters } from "@/lib/upcoming";
+import {
+  emptyUpcomingFilters, replaceItem, searchParams, type ShowFilter, type UpcomingFilters, type UpcomingSearchState,
+} from "@/lib/upcoming";
 import type { PlanItem } from "@/lib/types";
 
 const q = ref("");
@@ -23,12 +25,15 @@ const loadingMore = ref(false);
 const error = ref<string | null>(null);
 /** True once a search has run, so coming back doesn't search again. */
 const ran = ref(false);
+/** The search last run (what the page keeps in the URL). Typed text only counts once searched. */
+const committed = shallowRef<UpcomingSearchState>({ q: "", show: "all", filters: emptyUpcomingFilters() });
 
 let seq = 0;
 
 async function run(reset = true) {
   const my = ++seq;
   const nextPage = reset ? 1 : page.value + 1;
+  if (reset) committed.value = { q: q.value, show: show.value, filters: filters.value };
   if (reset) loading.value = true;
   else loadingMore.value = true;
   error.value = null;
@@ -102,6 +107,7 @@ function reset() {
   elsewhere.value = 0;
   error.value = null;
   ran.value = false;
+  committed.value = { q: "", show: "all", filters: emptyUpcomingFilters() };
 }
 
 export function useUpcomingSearch(userId: string | null) {
@@ -110,8 +116,15 @@ export function useUpcomingSearch(userId: string | null) {
     owner = userId;
   }
   return {
-    q, show, filters, results, page, pages, total, near, elsewhere, loading, loadingMore, error, ran,
+    q, show, filters, results, page, pages, total, near, elsewhere, loading, loadingMore, error, ran, committed,
     search: () => run(true),
+    /** Replaces the whole search (e.g. from the URL) and runs it. */
+    apply: (state: UpcomingSearchState) => {
+      q.value = state.q;
+      show.value = state.show;
+      filters.value = state.filters;
+      return run(true);
+    },
     more: () => run(false),
     /** Changes some filters and searches again. */
     set: (patch: Partial<UpcomingFilters>) => {

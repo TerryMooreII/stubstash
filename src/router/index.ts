@@ -12,7 +12,7 @@ declare module "vue-router" {
     /** Allowed before onboarding is finished. */
     preOnboarding?: boolean;
     /** Which bottom/side nav item to highlight. */
-    nav?: "home" | "shows" | "log" | "upcoming" | "map" | "profile" | "admin" | "notifications";
+    nav?: "home" | "shows" | "log" | "upcoming" | "map" | "friends" | "profile" | "admin" | "notifications";
     title?: string;
   }
 }
@@ -51,7 +51,7 @@ const routes: RouteRecordRaw[] = [
       { path: "map", name: "map", component: () => import("@/views/app/MapView.vue"), meta: { nav: "map", title: "Map" } },
       { path: "me", name: "me", component: () => import("@/views/app/ProfileView.vue"), meta: { nav: "profile", title: "Profile" } },
       { path: "me/badges", name: "badges", component: () => import("@/views/app/BadgesView.vue"), meta: { nav: "profile", title: "Badges" } },
-      { path: "friends", name: "friends", component: () => import("@/views/app/FriendsView.vue"), meta: { nav: "profile", title: "Friends" } },
+      { path: "friends", name: "friends", component: () => import("@/views/app/FriendsView.vue"), meta: { nav: "friends", title: "Friends" } },
       { path: "notifications", name: "notifications", component: () => import("@/views/app/NotificationsView.vue"), meta: { nav: "notifications", title: "Notifications" } },
       { path: "admin", name: "admin", component: () => import("@/views/app/AdminView.vue"), meta: { nav: "admin", admin: true, title: "Admin" } },
       { path: "settings", name: "settings", component: () => import("@/views/app/SettingsView.vue"), meta: { nav: "profile", title: "Settings" } },

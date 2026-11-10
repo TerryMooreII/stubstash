@@ -10,7 +10,9 @@ import StatusPill from "@/components/upcoming/StatusPill.vue";
 import { upcoming } from "@/lib/api";
 import { firstName, longDate, num } from "@/lib/format";
 import { appUrl } from "@/lib/url";
-import { STATUS_SUB, countdown, crewSummary, daysUntil, eventPlace, logQuery, showTime } from "@/lib/upcoming";
+import {
+  STATUS_SUB, citySearch, countdown, crewSummary, daysUntil, eventPlace, logQuery, searchToQuery, showTime, venueSearch,
+} from "@/lib/upcoming";
 import type { PlanItem } from "@/lib/types";
 import { useAction } from "@/composables/useAction";
 import { useAsyncData } from "@/composables/useAsyncData";
@@ -35,7 +37,17 @@ watch(data, (d) => {
   if (!d) return;
   item.value = mergeFresh(d, seededEvent(sgId.value));
   rememberEvent(item.value);
+  if (d.venue_image_pending && !item.value.event.venue_image_url) void fillVenueImage(sgId.value);
 });
+
+/** Fetches a venue photo the server hasn't looked up yet and shows it when it lands. */
+async function fillVenueImage(id: number) {
+  const img = await upcoming.venueImage(id).catch(() => null);
+  const cur = item.value;
+  if (!img?.url || !cur || cur.event.seatgeek_id !== id || cur.event.venue_image_url) return;
+  item.value = { ...cur, event: { ...cur.event, venue_image_url: img.url, venue_image_credit: img.credit } };
+  rememberEvent(item.value);
+}
 
 const e = computed(() => item.value?.event ?? null);
 const days = computed(() => (e.value ? daysUntil(e.value.local_date) : 0));
@@ -53,6 +65,18 @@ const mapsUrl = computed(() => {
     ? `${e.value.lat},${e.value.lng}`
     : [e.value.venue_name, eventPlace(e.value)].filter(Boolean).join(", ");
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+});
+// Links that open Find shows with this venue (and its city) or this city filled in.
+/** Opens Find shows for this venue, found on SeatGeek first (like picking it from the suggestions). */
+const { run: openVenueSearch, busy: openingVenue } = useAction(async () => {
+  const ev = e.value;
+  if (!ev) return;
+  const id = await upcoming.venueId(ev).catch(() => null);
+  await router.push({ path: "/app/upcoming", query: searchToQuery(venueSearch(ev, undefined, id)) });
+});
+const cityLink = computed(() => {
+  const s = e.value && citySearch(e.value);
+  return s ? { path: "/app/upcoming", query: searchToQuery(s) } : null;
 });
 const canInvite = computed(() => !past.value && (item.value?.status === "going" || item.value?.status === "interested"));
 
@@ -122,7 +146,14 @@ function shareEvent() {
         <div class="hero__body">
           <div class="ss-hero hero__artist">{{ e.artist }}</div>
           <div class="hero__line">{{ when }}</div>
-          <div class="hero__line hero__venue">{{ [e.venue_name, eventPlace(e)].filter(Boolean).join(" · ") }}</div>
+          <div class="hero__line hero__venue">
+            <button type="button" class="search-link" :disabled="openingVenue" @click="openVenueSearch">{{ e.venue_name }}</button>
+            <template v-if="eventPlace(e)">
+              ·
+              <RouterLink v-if="cityLink" :to="cityLink" class="search-link">{{ eventPlace(e) }}</RouterLink>
+              <template v-else>{{ eventPlace(e) }}</template>
+            </template>
+          </div>
           <div v-if="lineup.length" class="hero__lineup">With {{ lineup.join(", ") }}</div>
         </div>
       </SsArt>
@@ -220,8 +251,13 @@ function shareEvent() {
           />
           <div class="venue__body">
             <div class="ss-kicker">THE VENUE</div>
-            <div class="ss-h3 venue__name">{{ e.venue_name }}</div>
-            <div class="ss-muted">{{ eventPlace(e) }}</div>
+            <div class="ss-h3 venue__name">
+              <button type="button" class="search-link" :disabled="openingVenue" @click="openVenueSearch">{{ e.venue_name }}</button>
+            </div>
+            <div class="ss-muted">
+              <RouterLink v-if="cityLink" :to="cityLink" class="search-link">{{ eventPlace(e) }}</RouterLink>
+              <template v-else>{{ eventPlace(e) }}</template>
+            </div>
             <SsButton v-if="mapsUrl" variant="outline" size="sm" :href="mapsUrl"><SsIcon name="pin" :size="16" />Directions</SsButton>
           </div>
         </section>
@@ -337,4 +373,13 @@ a.who:hover { text-decoration: none; color: var(--ss-accent); }
 .venue__art { height: 180px; }
 .venue__body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .venue__name { overflow-wrap: anywhere; }
+.search-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--ss-line);
+  text-underline-offset: 3px;
+}
+.search-link:hover { color: var(--ss-text); text-decoration-color: currentColor; }
+button.search-link { padding: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+button.search-link:disabled { cursor: progress; opacity: 0.7; }
 </style>

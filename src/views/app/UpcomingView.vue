@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Upcoming shows: invites waiting on you, then two tabs: a SeatGeek search
 // (one box for artist, venue or city; then where, when and which shows) and your plans.
-import { computed, onMounted, ref, shallowRef } from "vue";
+import { computed, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsChip, SsEmpty, SsIcon, SsPageHeader, SsSkeleton, SsTabs } from "@/design-system";
 import EventRow from "@/components/upcoming/EventRow.vue";
@@ -13,7 +13,10 @@ import { upcoming } from "@/lib/api";
 import { errorMessage } from "@/lib/supabase";
 import { plural } from "@/lib/format";
 import type { PlaceResult } from "@/lib/geocode";
-import { SHOW_FILTERS, whenLabel, whereLabel, whereShort, type SearchPick, type ShowFilter } from "@/lib/upcoming";
+import {
+  SEARCH_QUERY_KEYS, SHOW_FILTERS, citySearch, hasSearchQuery, venueSearch, searchFromQuery, searchKey, searchToQuery, whenLabel, whereLabel,
+  whereShort, type SearchPick, type ShowFilter, type UpcomingSearchState,
+} from "@/lib/upcoming";
 import type { PlanItem } from "@/lib/types";
 import { useKeyedAction } from "@/composables/useAction";
 import { useUpcomingSearch } from "@/composables/useUpcomingSearch";
@@ -92,6 +95,18 @@ function onClear() {
   if (f.value.pick) s.set({ pick: null });
   else s.search();
 }
+/** Tapped a venue or city on a result: search it from the top of the page. */
+function searchFrom(state: UpcomingSearchState | null) {
+  if (!state) return;
+  s.apply(state);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+/** Tapped a venue: find it on SeatGeek (like picking it from the suggestions), then search it. */
+async function searchVenue(r: PlanItem) {
+  const base = s.committed.value;
+  const id = await upcoming.venueId(r.event).catch(() => null);
+  searchFrom(venueSearch(r.event, base, id));
+}
 function setShow(v: ShowFilter) {
   if (v === "seen") {
     // Your top artists replace whatever was in the box.
@@ -119,9 +134,37 @@ const emptyBody = computed(() => {
   return "Try another search, a wider distance, or different dates.";
 });
 
+// ---- the search lives in the URL, so refresh, back and shared links keep it
+const isSearchKey = (k: string) => (SEARCH_QUERY_KEYS as readonly string[]).includes(k);
+
+function fromUrl() {
+  const wanted = searchFromQuery(route.query);
+  if (!s.ran.value || searchKey(wanted) !== searchKey(s.committed.value)) s.apply(wanted);
+}
+
+/** Puts the last search run in the URL (replace, so back leaves the page instead of stepping through filters). */
+function toUrl() {
+  if (route.name !== "upcoming") return;
+  const search = searchToQuery(s.committed.value);
+  const current = Object.fromEntries(Object.entries(route.query).filter(([k]) => isSearchKey(k)));
+  if (new URLSearchParams(current as Record<string, string>).toString() === new URLSearchParams(search).toString()) return;
+  const rest = Object.fromEntries(Object.entries(route.query).filter(([k]) => !isSearchKey(k)));
+  router.replace({ query: { ...rest, ...search } });
+}
+
 onMounted(() => {
   loadPlans();
-  if (!s.ran.value) s.search();
+  // A search in the URL wins; otherwise keep (and show in the URL) the one from earlier in this visit.
+  if (hasSearchQuery(route.query)) fromUrl();
+  else if (s.ran.value) toUrl();
+  else s.search();
+});
+
+watch(s.committed, toUrl);
+
+// The URL changed under us (a link to a search, or Upcoming tapped again): follow it.
+watch(() => route.query, () => {
+  if (route.name === "upcoming" && searchKey(searchFromQuery(route.query)) !== searchKey(s.committed.value)) fromUrl();
 });
 
 // ---- plan changes
@@ -226,6 +269,8 @@ const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) =>
             :item="r"
             :busy="busy[String(r.event.seatgeek_id)]"
             @plan="(st) => plan(r, st)"
+            @venue="searchVenue(r)"
+            @city="searchFrom(citySearch(r.event, s.committed.value))"
           />
         </div>
         <SsEmpty v-else-if="s.ran.value" :title="emptyTitle" :body="emptyBody">

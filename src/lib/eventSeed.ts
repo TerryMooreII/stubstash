@@ -20,7 +20,7 @@ export function seededEvent(seatgeekId: number): PlanItem | null {
 
 /**
  * The server's copy, keeping the photos we already showed when the server
- * hasn't saved them yet (it looks some up after replying).
+ * hasn't saved them yet (some are looked up after the first reply).
  */
 export function mergeFresh(fresh: PlanItem, seed: PlanItem | null): PlanItem {
   if (!seed) return fresh;
