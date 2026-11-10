@@ -56,6 +56,7 @@ async function run(reset = true) {
       total.value = res.total;
       near.value = res.near;
       elsewhere.value = res.elsewhere ?? 0;
+      if (res.pending_images?.length) void fillImages(res.pending_images);
     }
     ran.value = true;
   } catch (e) {
@@ -68,6 +69,22 @@ async function run(reset = true) {
   }
 }
 
+/**
+ * Fetches photos for artists the search hadn't looked up yet and drops them into
+ * the results. Patched by artist name, so it's safe after a newer search too.
+ */
+async function fillImages(names: string[]) {
+  try {
+    const { images } = await upcoming.images(names);
+    if (!Object.keys(images).length) return;
+    results.value = results.value.map((x) => {
+      const img = x.event.image_url ? null : images[x.event.artist.toLowerCase()];
+      return img ? { ...x, event: { ...x.event, image_url: img.url, image_credit: img.credit } } : x;
+    });
+  } catch {
+    // No photo is fine; the placeholder art stays.
+  }
+}
 
 /** Whose results these are; a different signed-in user starts fresh. */
 let owner: string | null = null;

@@ -5,11 +5,13 @@
 //        Artists and venues with upcoming shows whose names match, for the search box.
 //        Venues are limited to the same where as search (the place or your home, and the range).
 // POST { action: "search", q?, performer_id?, venue_id?, lat?, lng?, range?, from?, to?, seen_only?, page? }
-//        -> { results: PlanItem[], total, page, pages, near, elsewhere }
+//        -> { results: PlanItem[], total, page, pages, near, elsewhere, pending_images }
 //        q is free text. performer_id / venue_id are exact SeatGeek ids (picked from suggest).
 //        Without lat/lng it searches around your home (if set). range: 25 | 50 | 100 | 250 | "any" (miles).
 //        A venue search ignores the distance. When an artist has no shows nearby,
-//        `elsewhere` is how many they have anywhere (else 0).
+//        `elsewhere` is how many they have anywhere (else 0). `pending_images` lists
+//        artists whose photos haven't been looked up yet (ask with "images").
+// POST { action: "images", names }                 -> { images: { [lower-cased name]: { url, credit } } }
 // POST { action: "event", seatgeek_id }            -> PlanItem
 // POST { action: "plan", seatgeek_id, status }     -> PlanItem   (status: going | interested | cant | null to clear)
 //
@@ -53,13 +55,15 @@ async function lookUpAndCache(db: SupabaseClient, key: string, look: () => Promi
 
 /**
  * Artist photos by lower-cased name: our catalog first, then cached Deezer
- * lookups. Artists never looked up are fetched from Deezer: waited for when
- * `wait` is set, otherwise in the background so they're there next time.
+ * lookups. Artists never looked up are fetched from Deezer when `lookUp` is
+ * set; otherwise they're returned as `pending` for the app to ask for next.
  */
-async function artistImages(db: SupabaseClient, names: string[], wait = false): Promise<Map<string, Img>> {
+async function artistImages(
+  db: SupabaseClient, names: string[], lookUp: boolean,
+): Promise<{ images: Map<string, Img>; pending: string[] }> {
   const out = new Map<string, Img>();
   const unique = [...new Set(names.filter(Boolean))];
-  if (!unique.length) return out;
+  if (!unique.length) return { images: out, pending: [] };
   const keyOf = (n: string) => `img:deezer:${norm(n)}`;
   // Our catalog and the Deezer cache, at the same time.
   const [{ data }, cached] = await Promise.all([
@@ -75,13 +79,12 @@ async function artistImages(db: SupabaseClient, names: string[], wait = false): 
     if (!cached.has(keyOf(n))) unknown.push(n);
     else if (cached.get(keyOf(n))) out.set(n.toLowerCase(), cached.get(keyOf(n))!);
   }
-  const lookups = unknown.map(async (n) => {
+  if (!lookUp) return { images: out, pending: unknown };
+  await Promise.all(unknown.map(async (n) => {
     const img = await lookUpAndCache(db, keyOf(n), () => deezer(n));
     if (img) out.set(n.toLowerCase(), img);
-  });
-  if (wait) await Promise.all(lookups);
-  else if (lookups.length) background(Promise.all(lookups));
-  return out;
+  }));
+  return { images: out, pending: [] };
 }
 
 /** A venue photo: our catalog first, then Wikidata/Wikipedia near SeatGeek's pin (slow: several requests). */
@@ -186,7 +189,7 @@ async function saveEvent(db: SupabaseClient, sgId: number, maxAgeMinutes: number
   if (!row.local_date) throw new HttpError(404, "That show doesn't have a date yet.");
   const images: Record<string, unknown> = {};
   if (!have?.image_url) {
-    const a = (await artistImages(db, [row.artist], true)).get(row.artist.toLowerCase());
+    const a = (await artistImages(db, [row.artist], true)).images.get(row.artist.toLowerCase());
     if (a) Object.assign(images, { image_url: a.url, image_credit: a.credit || null });
   }
   const { data, error } = await db.from("upcoming_events")
@@ -266,7 +269,7 @@ serve(async (req) => {
           ? db.rpc("_plan_items_by_seatgeek", { p_viewer: userId, p_ids: rows.map((r) => r.seatgeek_id) })
           : Promise.resolve({ data: [], error: null }),
         seenCounts(db, userId, rows.map((r) => r.artist)),
-        artistImages(db, rows.map((r) => r.artist)),
+        artistImages(db, rows.map((r) => r.artist), false),
       ]);
       if (plans.error) throw plans.error;
       // deno-lint-ignore no-explicit-any
@@ -274,7 +277,7 @@ serve(async (req) => {
 
       const results = rows.map((row) => {
         const item = known.get(row.seatgeek_id);
-        const photo = photos.get(row.artist.toLowerCase());
+        const photo = photos.images.get(row.artist.toLowerCase());
         return {
           // Fresh SeatGeek data over what we saved (our id and images) when someone opened it before.
           event: {
@@ -303,7 +306,19 @@ serve(async (req) => {
         const all = await sgGet<SgEventsPage>(db, `/events?${any.toString()}`, 15);
         elsewhere = all?.meta?.total ?? 0;
       }
-      return json({ results, total, page, pages: Math.ceil(total / PER_PAGE), near, elsewhere });
+      return json({
+        results, total, page, pages: Math.ceil(total / PER_PAGE), near, elsewhere, pending_images: photos.pending,
+      });
+    }
+
+    case "images": {
+      // Photos for the artists a search listed as pending (looked up now and cached).
+      const names = (Array.isArray(body.names) ? body.names : [])
+        .map((n: unknown) => clean(n)).filter((n: string | undefined): n is string => !!n).slice(0, PER_PAGE);
+      const { images } = await artistImages(db, names, true);
+      return json({
+        images: Object.fromEntries([...images].map(([name, img]) => [name, { url: img.url, credit: img.credit || null }])),
+      });
     }
 
     case "suggest": {

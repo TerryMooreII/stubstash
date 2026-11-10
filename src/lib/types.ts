@@ -414,6 +414,8 @@ export interface UpcomingSearchResponse {
   near: string | null;
   /** For an artist with nothing nearby: how many shows they have anywhere in these dates. */
   elsewhere: number;
+  /** Artists whose photos haven't been looked up yet; fetch them with upcoming.images. */
+  pending_images?: string[];
 }
 
 /** Search box suggestions from SeatGeek. */

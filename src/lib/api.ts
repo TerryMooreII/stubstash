@@ -59,6 +59,9 @@ const sg = <T>(body: Record<string, unknown>) => invokeFn<T>("seatgeek", body);
 
 export const upcoming = {
   search: (params: UpcomingSearchParams) => sg<UpcomingSearchResponse>({ action: "search", ...params }),
+  /** Looks up artist photos a search listed as pending. Keyed by lower-cased name. */
+  images: (names: string[]) =>
+    sg<{ images: Record<string, { url: string; credit: string | null }> }>({ action: "images", names }),
   /** Artists and venues with upcoming shows whose names match (venues only within `where`). */
   suggest: (q: string, where: Pick<UpcomingSearchParams, "range" | "lat" | "lng" | "place_label"> = {}) =>
     sg<UpcomingSuggestions>({ action: "suggest", q, ...where }),
