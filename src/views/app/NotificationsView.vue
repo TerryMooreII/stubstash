@@ -19,7 +19,7 @@ const earlier = computed(() => store.items.filter((n) => n.read_at));
 const ICONS: Record<NotificationKind, IconName> = {
   friend_request: "users", friend_accepted: "users", friend_show: "ticket", same_show: "ticket",
   tagged: "users", invite_claimed: "users", badge_earned: "star", rate_show: "star",
-  event_invite: "calendar", event_reply: "calendar", friend_going: "calendar", log_plan: "ticket",
+  event_invite: "calendar", event_reply: "calendar", friend_going: "calendar", log_plan: "ticket", on_this_day: "ticket",
 };
 
 async function open(n: AppNotification) {
@@ -49,7 +49,7 @@ async function open(n: AppNotification) {
       title="Nothing yet"
       body="Friend requests, friends' new shows, badges and morning-after nudges land here."
     >
-      <SsButton size="sm" variant="outline" to="/app/friends">Find friends</SsButton>
+      <SsButton size="sm" variant="outline" to="/app/friends?tab=crew">Find friends</SsButton>
     </SsEmpty>
 
     <template v-else>

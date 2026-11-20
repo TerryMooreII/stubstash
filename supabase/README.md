@@ -92,6 +92,7 @@ Suspending, unsuspending and deleting users go through the `admin` edge function
 | `rate_show` | `rating-nudges` cron |
 | `event_invite`, `event_reply`, `friend_going` | trigger on `event_plans` (a friend invited you; someone answered your invite; a friend is going to a show you're going to or interested in) |
 | `log_plan` | `plan-log-nudges` cron |
+| `on_this_day` | `on-this-day` cron (10am local, a show from this date in an earlier year) |
 
 ## Background jobs (pg_cron)
 
@@ -102,6 +103,7 @@ Suspending, unsuspending and deleting users go through the `admin` edge function
 | `badge-check` | every 5 min | `check_new_badges()`: announces newly earned badges (each once, tracked in `badge_awards`) |
 | `prune-notifications` | daily 04:45 UTC | Deletes notifications read more than 90 days ago |
 | `plan-log-nudges` | hourly at :20 | `queue_plan_log_nudges()`: "how was it? log it" at 10am the day after a show you were going to, unless it's already in your log |
+| `on-this-day` | hourly at :25 | `queue_on_this_day()`: at 10am local time, one notification for a show you went to on this date in an earlier year |
 | `prune-upcoming-events` | daily 04:50 UTC | Deletes upcoming events (and their plans) more than 60 days past |
 | `prune-api-cache` | daily 04:30 UTC | Deletes setlist.fm cache rows older than 2 days |
 

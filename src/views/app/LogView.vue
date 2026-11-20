@@ -11,6 +11,7 @@ import { setlistfm } from "@/lib/api";
 import { errorMessage } from "@/lib/supabase";
 import { num, placeOf } from "@/lib/format";
 import DateBlock from "@/components/shows/DateBlock.vue";
+import LoggedDetails from "@/components/shows/LoggedDetails.vue";
 import { useKeyedAction } from "@/composables/useAction";
 import { outboxAdd } from "@/lib/offline";
 import type { SetlistResult, SetlistSearchParams } from "@/lib/types";
@@ -39,6 +40,8 @@ const error = ref<string | null>(null);
 // Per-result state from this visit: logged attendance ids, in-flight, queued offline.
 const justLogged = reactive<Record<string, string>>({});
 const queued = reactive<Record<string, boolean>>({});
+// Newly added on this visit (not "already in your log"): these get the rate-and-tag strip.
+const fresh = reactive<Record<string, boolean>>({});
 // Expanded result cards (setlist + notes), so people can check it's the right night.
 const expanded = reactive<Record<string, boolean>>({});
 function toggle(id: string) {
@@ -147,6 +150,7 @@ function attendanceFor(r: SetlistResult): string | null {
 const { run: logOne, busy } = useKeyedAction(async (id: string) => {
   const res = await log.logSetlist(id);
   justLogged[id] = res.attendance_id;
+  if (res.created) fresh[id] = true;
   ui.flash(res.created ? (res.show_number ? `Logged! That's show #${res.show_number}` : "Logged!") : "Already in your log");
 });
 
@@ -258,13 +262,15 @@ const matchedNote = computed(() =>
                 Logged <SsIcon name="check" :size="14" />
               </SsButton>
               <SsButton v-else size="sm" variant="outline" :to="`/app/shows/${attendanceFor(r)}`">In your log</SsButton>
-              <RouterLink v-if="justLogged[r.setlistfm_id]" class="result__details" :to="`/app/shows/${attendanceFor(r)}/edit`">
+              <RouterLink v-if="justLogged[r.setlistfm_id] && !fresh[r.setlistfm_id]" class="result__details" :to="`/app/shows/${attendanceFor(r)}/edit`">
                 Add details →
               </RouterLink>
             </template>
             <SsButton v-else-if="queued[r.setlistfm_id]" size="sm" variant="outline" disabled>Queued</SsButton>
             <SsButton v-else size="sm" :loading="busy[r.setlistfm_id]" @click="iWasThere(r)">I was there</SsButton>
           </div>
+
+          <LoggedDetails v-if="fresh[r.setlistfm_id]" :attendance-id="justLogged[r.setlistfm_id]!" :artist="r.artist" />
 
           <div v-if="expanded[r.setlistfm_id]" :id="`setlist-${r.setlistfm_id}`" class="detail">
             <p v-if="r.info" class="detail__info">{{ r.info }}</p>

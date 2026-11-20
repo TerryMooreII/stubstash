@@ -4,7 +4,7 @@ import { check, supabase } from "./supabase";
 export type NotificationKind =
   | "friend_request" | "friend_accepted" | "friend_show" | "same_show"
   | "tagged" | "invite_claimed" | "badge_earned" | "rate_show"
-  | "event_invite" | "event_reply" | "friend_going" | "log_plan";
+  | "event_invite" | "event_reply" | "friend_going" | "log_plan" | "on_this_day";
 
 export interface AppNotification {
   id: string;
@@ -33,6 +33,7 @@ export const NOTIFICATION_KINDS: { kind: NotificationKind; label: string; hint: 
   { kind: "tagged", label: "Tagged at a show", hint: "A friend said you went with them" },
   { kind: "invite_claimed", label: "Invite accepted", hint: "Someone joined from your \"you were there\" invite" },
   { kind: "badge_earned", label: "Badges", hint: "You unlocked a badge" },
+  { kind: "on_this_day", label: "On this day", hint: "10am on the anniversary of a show you went to" },
   { kind: "rate_show", label: "Rate last night", hint: "10am the morning after a show you haven't rated" },
   { kind: "event_invite", label: "Show invites", hint: "A friend invited you to an upcoming show" },
   { kind: "event_reply", label: "Invite replies", hint: "Someone answered your invite" },

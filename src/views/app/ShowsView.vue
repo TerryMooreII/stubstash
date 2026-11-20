@@ -19,11 +19,25 @@ const route = useRoute();
 const router = useRouter();
 onMounted(() => log.load());
 
-// Filter is kept in the URL (?f=2025&q=phish) so back/forward and refresh keep it.
+// Filter and sort are kept in the URL (?f=2025&q=phish&s=rating) so back/forward and refresh keep them.
+const SORTS = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "rating", label: "Top rated" },
+  { value: "songs", label: "Most songs" },
+] as const;
+type Sort = (typeof SORTS)[number]["value"];
 const filter = ref(typeof route.query.f === "string" ? route.query.f : "all");
 const q = ref(typeof route.query.q === "string" ? route.query.q : "");
+const sort = ref<Sort>(SORTS.find((s) => s.value === route.query.s)?.value ?? "newest");
 function syncUrl() {
-  router.replace({ query: { ...(filter.value !== "all" ? { f: filter.value } : {}), ...(q.value ? { q: q.value } : {}) } });
+  router.replace({
+    query: {
+      ...(filter.value !== "all" ? { f: filter.value } : {}),
+      ...(q.value ? { q: q.value } : {}),
+      ...(sort.value !== "newest" ? { s: sort.value } : {}),
+    },
+  });
 }
 function pick(f: string) {
   filter.value = filter.value === f && f !== "all" ? "all" : f;
@@ -35,11 +49,16 @@ const visibleYears = computed(() => years.value.slice(0, 6));
 const olderYears = computed(() => years.value.slice(6));
 const hasFest = computed(() => log.entries.some((e) => e.is_festival));
 const hasManual = computed(() => log.entries.some((e) => e.source === "manual"));
+// "To do" chips only show while there's something to do (or while they're on, so they can be turned off).
+const unratedCount = computed(() => log.shows.filter((g) => g.rating == null).length);
+const noSetlistCount = computed(() => log.shows.filter((g) => !g.song_count).length);
 
 const list = computed(() => {
   const term = q.value.trim().toLowerCase();
-  return log.shows.filter((g) => {
+  const out = log.shows.filter((g) => {
     if (filter.value === "festivals" && !g.is_festival) return false;
+    if (filter.value === "unrated" && g.rating != null) return false;
+    if (filter.value === "nosetlist" && g.song_count) return false;
     if (filter.value === "manual" && !g.acts.some((a) => a.source === "manual")) return false;
     if (/^\d{4}$/.test(filter.value) && !g.event_date.startsWith(filter.value)) return false;
     if (term) {
@@ -51,6 +70,26 @@ const list = computed(() => {
     }
     return true;
   });
+  // log.shows is newest first; the other sorts keep that order for ties.
+  if (sort.value === "oldest") return out.reverse();
+  if (sort.value === "rating") return out.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+  if (sort.value === "songs") return out.sort((a, b) => b.song_count - a.song_count);
+  return out;
+});
+/** By date, across more than one year: a heading where each year starts. */
+const yearHeads = computed(() => {
+  const heads = new Map<string, { year: string; n: number }>();
+  if (sort.value !== "newest" && sort.value !== "oldest") return heads;
+  const counts = new Map<string, number>();
+  for (const g of list.value) counts.set(g.event_date.slice(0, 4), (counts.get(g.event_date.slice(0, 4)) ?? 0) + 1);
+  if (counts.size < 2) return heads;
+  let prev = "";
+  for (const g of list.value) {
+    const year = g.event_date.slice(0, 4);
+    if (year !== prev) heads.set(g.key, { year, n: counts.get(year)! });
+    prev = year;
+  }
+  return heads;
 });
 const fests = computed(() => festivalCount(list.value.flatMap((g) => g.acts)));
 const olderPick = computed({
@@ -158,8 +197,15 @@ function acceptSuggestion(s: FestivalSuggestion) {
           </select>
           <SsChip v-if="hasFest" :active="filter === 'festivals'" @click="pick('festivals')">Festivals</SsChip>
           <SsChip v-if="hasManual" :active="filter === 'manual'" @click="pick('manual')">Added by you</SsChip>
+          <SsChip v-if="unratedCount || filter === 'unrated'" :active="filter === 'unrated'" @click="pick('unrated')">Unrated</SsChip>
+          <SsChip v-if="noSetlistCount || filter === 'nosetlist'" :active="filter === 'nosetlist'" @click="pick('nosetlist')">No setlist</SsChip>
         </div>
-        <SsInput v-model="q" icon="search" placeholder="Filter by artist, venue, city or festival" clearable class="search" @update:model-value="syncUrl" />
+        <div class="tools">
+          <SsInput v-model="q" icon="search" placeholder="Filter by artist, venue, city or festival" clearable class="search" @update:model-value="syncUrl" />
+          <select v-model="sort" class="sort" aria-label="Sort shows" @change="syncUrl">
+            <option v-for="s in SORTS" :key="s.value" :value="s.value">{{ s.label }}</option>
+          </select>
+        </div>
       </div>
 
       <div class="count ss-muted">
@@ -168,7 +214,11 @@ function acceptSuggestion(s: FestivalSuggestion) {
       </div>
 
       <div class="list">
-        <div v-for="g in list" :key="g.key" class="item" :class="{ 'is-picked': picked.has(g.key) }">
+        <template v-for="g in list" :key="g.key">
+        <h2 v-if="yearHeads.has(g.key)" class="year">
+          {{ yearHeads.get(g.key)!.year }} <span class="year__n">{{ plural(yearHeads.get(g.key)!.n, "show") }}</span>
+        </h2>
+        <div class="item" :class="{ 'is-picked': picked.has(g.key) }">
           <SsTicketRow layout="row" v-bind="ticketProps(g)" />
           <!-- In select mode a button covers the ticket, so taps select instead of opening. -->
           <button
@@ -182,8 +232,9 @@ function acceptSuggestion(s: FestivalSuggestion) {
             <span class="item__box"><SsIcon v-if="picked.has(g.key)" name="check" :size="16" :stroke="3" /></span>
           </button>
         </div>
+        </template>
       </div>
-      <SsEmpty v-if="!list.length" title="No shows match that" body="Try a different year or clear the search.">
+      <SsEmpty v-if="!list.length" title="No shows match that" body="Try a different filter or clear the search.">
         <SsButton variant="outline" size="sm" @click="filter = 'all'; q = ''; syncUrl()">Show all</SsButton>
       </SsEmpty>
     </template>
@@ -230,7 +281,30 @@ function acceptSuggestion(s: FestivalSuggestion) {
 }
 .older.is-active { background: var(--ss-accent); border-color: var(--ss-accent); color: var(--ss-on-accent); }
 .older option { color: initial; }
-.search { max-width: 420px; }
+.tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.search { flex: 1 1 260px; max-width: 420px; }
+.sort {
+  height: 46px;
+  padding: 0 14px;
+  border-radius: var(--ss-radius-md);
+  border: 1px solid var(--ss-line-strong);
+  background: var(--ss-surface-1);
+  color: var(--ss-text-2);
+  font-weight: 700;
+  font-size: 14px;
+}
+.sort option { color: initial; }
+.year {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 14px 0 0;
+  font-weight: 900;
+  font-size: 22px;
+  line-height: 1;
+}
+.list > .year:first-child { margin-top: 0; }
+.year__n { font-family: var(--ss-font-mono); font-size: 11px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ss-text-faint); }
 .count { font-size: 14px; margin-top: -8px; }
 .list { display: flex; flex-direction: column; gap: 10px; }
 .is-selecting .list { padding-bottom: 120px; }

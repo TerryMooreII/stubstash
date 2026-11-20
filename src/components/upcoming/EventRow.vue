@@ -4,7 +4,7 @@
 // Tapping the venue or the city fills them into the search (the page handles "venue" / "city").
 import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { SsArt } from "@/design-system";
+import { SsArt, SsIcon } from "@/design-system";
 import PlanToggle from "./PlanToggle.vue";
 import { dateParts, firstName, parseDate } from "@/lib/format";
 import { daysUntil, eventPlace, priceFrom } from "@/lib/upcoming";
@@ -12,7 +12,7 @@ import { rememberEvent } from "@/lib/eventSeed";
 import type { PlanItem } from "@/lib/types";
 
 const props = defineProps<{ item: PlanItem; busy?: boolean }>();
-const emit = defineEmits<{ plan: [status: "going" | "interested" | null]; venue: []; city: [] }>();
+const emit = defineEmits<{ plan: [status: "going" | "interested" | null]; venue: []; city: []; invite: [] }>();
 const router = useRouter();
 
 const e = computed(() => props.item.event);
@@ -20,6 +20,8 @@ const d = computed(() => dateParts(e.value.local_date));
 const dow = computed(() => parseDate(e.value.local_date).toLocaleDateString("en-US", { weekday: "short" }));
 const place = computed(() => eventPlace(e.value));
 const price = computed(() => priceFrom(e.value));
+/** Once you're going or interested you can bring friends along. */
+const canInvite = computed(() => (props.item.status === "going" || props.item.status === "interested") && e.value.status !== "cancelled");
 const canCity = computed(() => !!e.value.city && e.value.lat != null && e.value.lng != null);
 
 const tags = computed(() => {
@@ -64,7 +66,12 @@ const open = () => {
         <span v-for="t in tags" :key="t.label" class="tag" :class="`tag--${t.tone}`">{{ t.label }}</span>
       </div>
     </div>
-    <PlanToggle :status="item.status" :busy="busy" @set="(s) => emit('plan', s)" />
+    <div class="ev-row__plan" @click.stop @keydown.enter.stop>
+      <PlanToggle :status="item.status" :busy="busy" @set="(s) => emit('plan', s)" />
+      <button v-if="canInvite" type="button" class="ev-row__invite" @click="emit('invite')">
+        <SsIcon name="users" :size="15" :stroke="2.2" />Invite friends
+      </button>
+    </div>
   </div>
 </template>
 
@@ -102,6 +109,23 @@ const open = () => {
   cursor: pointer;
 }
 .ev-row__link:hover { color: var(--ss-text); text-decoration-color: currentColor; }
+.ev-row__plan { display: flex; flex-direction: column; align-items: stretch; gap: 6px; flex-shrink: 0; }
+.ev-row__invite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--ss-radius-pill);
+  border: 1px dashed var(--ss-line-strong);
+  background: transparent;
+  color: var(--ss-text-2);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ev-row__invite:hover { border-color: var(--ss-accent); color: var(--ss-accent); }
 .ev-row__tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { padding: 2px 8px; border-radius: var(--ss-radius-xs); font-size: 12px; font-weight: 700; }
 .tag--accent { background: var(--ss-accent-soft); color: var(--ss-accent); }

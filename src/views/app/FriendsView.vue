@@ -4,7 +4,9 @@ import { appUrl } from "@/lib/url";
 // shows, a scannable QR code, an invite link, your current friends, and
 // requests you sent that are still pending.
 import { computed, onMounted, ref } from "vue";
-import { SsAvatar, SsBackLink, SsButton, SsCard, SsInput, SsPageHeader, SsSkeleton } from "@/design-system";
+import { useRoute } from "vue-router";
+import { SsAvatar, SsBackLink, SsButton, SsCard, SsInput, SsPageHeader, SsSkeleton, SsTabs } from "@/design-system";
+import FriendsFeed from "@/components/people/FriendsFeed.vue";
 import HeadToHead from "@/components/people/HeadToHead.vue";
 import PersonRow from "@/components/people/PersonRow.vue";
 import QrCode from "@/components/people/QrCode.vue";
@@ -15,6 +17,7 @@ import type { Friend, FriendshipState } from "@/lib/types";
 import { useAction, useKeyedAction } from "@/composables/useAction";
 import { useDebouncedSearch } from "@/composables/useDebouncedSearch";
 import { useFriendRequest } from "@/composables/useFriendRequest";
+import { useQueryTab } from "@/composables/useQueryTab";
 import { useShareLink } from "@/composables/useShareLink";
 import { useAuth } from "@/stores/auth";
 import { useLog } from "@/stores/log";
@@ -38,6 +41,11 @@ const states = ref<Record<string, FriendshipState>>({});
 
 const q = ref("");
 
+// ---- tabs (?tab=crew): what friends are up to, or finding and managing them
+const route = useRoute();
+const TABS = ["activity", "crew"] as const;
+const { tab, go, model: tabModel } = useQueryTab("tab", () => TABS, "activity");
+
 const inviteUrl = computed(() => appUrl(`/add/${auth.profile?.handle ?? ""}`));
 const inviteDisplay = computed(() => inviteUrl.value.replace(/^https?:\/\//, ""));
 
@@ -49,6 +57,8 @@ async function load() {
     suggested.value = s;
     friends.value = f;
     outgoing.value = o;
+    // Nobody to hear from yet: start on finding people (unless a tab was asked for).
+    if (!f.length && !route.query.tab) go("crew");
   } catch (err) {
     ui.error(errorMessage(err));
   } finally {
@@ -130,7 +140,7 @@ const shareInvite = () =>
 
 <template>
   <div class="ss-page">
-    <SsBackLink to="/app/me" label="Profile" />
+    <SsBackLink v-if="ui.isMobile" to="/app/me" label="Profile" />
     <SsPageHeader kicker="Find your people" title="Who's in your crew?" />
 
     <!-- Incoming requests -->
@@ -146,6 +156,18 @@ const shareInvite = () =>
       </div>
     </div>
 
+    <SsTabs
+      v-model="tabModel"
+      label="Friends"
+      :tabs="[
+        { key: 'activity', label: 'Activity' },
+        { key: 'crew', label: 'Your crew', count: friends.length },
+      ]"
+    />
+
+    <FriendsFeed v-if="tab === 'activity'" :has-friends="loading || friends.length > 0" />
+
+    <template v-else>
     <!-- Search -->
     <SsInput
       v-model="q"
@@ -277,6 +299,7 @@ const shareInvite = () =>
         </SsCard>
       </div>
     </div>
+    </template>
   </div>
 </template>
 

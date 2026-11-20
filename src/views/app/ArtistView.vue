@@ -1,8 +1,11 @@
 <script setup lang="ts">
 // Artist page: your history with one artist (personal stats only).
 import { computed, ref, watch } from "vue";
-import { SsArt, SsBackLink, SsCard, SsChip, SsEmpty, SsIcon, SsSkeleton, SsStars } from "@/design-system";
-import { artistStats, getArtist } from "@/lib/api";
+import { useRouter } from "vue-router";
+import { SsArt, SsBackLink, SsButton, SsCard, SsChip, SsEmpty, SsIcon, SsSkeleton, SsStars } from "@/design-system";
+import { artistStats, getArtist, upcoming } from "@/lib/api";
+import { emptyUpcomingFilters, searchToQuery } from "@/lib/upcoming";
+import { useAction } from "@/composables/useAction";
 import GigPoster from "@/components/poster/GigPoster.vue";
 import DateBlock from "@/components/shows/DateBlock.vue";
 import ShowListRow from "@/components/shows/ShowListRow.vue";
@@ -15,6 +18,7 @@ import { useUi } from "@/stores/ui";
 const props = defineProps<{ id: string }>();
 const log = useLog();
 const ui = useUi();
+const router = useRouter();
 
 type Artist = NonNullable<Awaited<ReturnType<typeof getArtist>>>;
 const { data, loading, error } = useAsyncData(
@@ -39,6 +43,21 @@ const kicker = computed(() => {
   if (artist.value?.genre) parts.push(artist.value.genre);
   if (stats.value?.first) parts.push(`First seen ${parseDate(stats.value.first).getFullYear()}`);
   return parts.join(" · ");
+});
+
+// ----- upcoming shows (catalog artists don't know their SeatGeek id, so match by name)
+const simple = (s: string) => s.toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, "");
+const { run: findUpcoming, busy: findingUpcoming } = useAction(async () => {
+  const a = artist.value;
+  if (!a) return;
+  const { artists } = await upcoming.suggest(a.name.slice(0, 80), { range: "any" });
+  const hit = artists.find((x) => simple(x.name) === simple(a.name));
+  if (!hit) {
+    ui.flash(`No upcoming ${a.name} shows on SeatGeek`, "info");
+    return;
+  }
+  const pick = { kind: "artist" as const, id: hit.id, name: hit.name };
+  await router.push({ path: "/app/upcoming", query: searchToQuery({ q: "", show: "all", filters: { ...emptyUpcomingFilters(), pick } }) });
 });
 </script>
 
@@ -81,9 +100,14 @@ const kicker = computed(() => {
             <template v-if="stats.unique_songs"> · {{ num(stats.unique_songs) }} different songs heard</template>
           </p>
           <p v-else class="hero__line">Not in your log yet.</p>
-          <a v-if="artist.setlistfm_url" :href="artist.setlistfm_url" target="_blank" rel="noopener" class="hero__ext">
-            setlist.fm page <SsIcon name="external" :size="14" />
-          </a>
+          <div class="hero__links">
+            <SsButton v-if="ui.online" variant="outline" size="sm" :loading="findingUpcoming" @click="findUpcoming">
+              <SsIcon name="calendar" :size="16" />Upcoming shows
+            </SsButton>
+            <a v-if="artist.setlistfm_url" :href="artist.setlistfm_url" target="_blank" rel="noopener" class="hero__ext">
+              setlist.fm page <SsIcon name="external" :size="14" />
+            </a>
+          </div>
         </div>
       </header>
 
@@ -154,6 +178,7 @@ const kicker = computed(() => {
 .hero__name { overflow-wrap: anywhere; }
 .hero__line { font-size: 18px; color: var(--ss-text-2); }
 .accent { color: var(--ss-accent); }
+.hero__links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 4px; }
 .hero__ext { font-size: 14px; font-weight: 700; display: inline-flex; gap: 4px; align-items: center; }
 .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--ss-line-soft); }
 .row__t { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }

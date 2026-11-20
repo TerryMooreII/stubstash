@@ -108,3 +108,12 @@ export function inkOn(hex: string): "dark" | "light" {
   const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
   return L > 0.3 ? "dark" : "light";
 }
+
+/** Badges not earned yet, closest to done first (by share of the target, then fewest left). */
+export function withinReach<B extends { earned: boolean; progress: number; target: number; sort_order: number }>(badges: B[], n = 3): B[] {
+  const share = (b: B) => Math.min(1, b.progress / Math.max(1, b.target));
+  return badges
+    .filter((b) => !b.earned)
+    .sort((a, b) => share(b) - share(a) || (a.target - a.progress) - (b.target - b.progress) || a.sort_order - b.sort_order)
+    .slice(0, n);
+}

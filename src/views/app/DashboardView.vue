@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { badgeNumbers } from "@/lib/badgeArt";
+import { badgeNumbers, withinReach } from "@/lib/badgeArt";
 import { computed, onMounted, ref } from "vue";
 import {
   SsBadgeTile, SsBarChart, SsButton, SsCard, SsIcon, SsProgress, SsSkeleton, SsStatCard, SsTicketRow,
 } from "@/design-system";
 import NextUpCard from "@/components/dashboard/NextUpCard.vue";
+import OnThisDayCard from "@/components/dashboard/OnThisDayCard.vue";
 import RareCatches from "@/components/dashboard/RareCatches.vue";
 import StreakCard from "@/components/dashboard/StreakCard.vue";
 import TopArtists from "@/components/dashboard/TopArtists.vue";
@@ -108,6 +109,8 @@ const peak = computed(() => {
 const recent = computed(() => log.shows.slice(0, 3));
 const earned = computed(() => badgeList.value.filter((b) => b.earned).length);
 const badgeNo = computed(() => badgeNumbers(badgeList.value));
+// The badges closest to being earned, with progress; once they're all earned, the full strip.
+const nextBadges = computed(() => withinReach(badgeList.value, 3));
 </script>
 
 <template>
@@ -122,6 +125,9 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
 
     <!-- Your next upcoming show and invites (a "find shows" nudge once you've logged some) -->
     <NextUpCard :prompt-when-empty="!empty && !showSkeleton" :home-city="homeCity" />
+
+    <!-- Shows from this date in earlier years (nothing on other days) -->
+    <OnThisDayCard :shows="log.shows" />
 
     <!-- Loading -->
     <template v-if="showSkeleton">
@@ -194,8 +200,26 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
         <SsTicketRow v-for="g in recent" :key="g.key" v-bind="ticketProps(g)" />
       </div>
 
-      <SsCard v-if="badgeList.length" title="Badges">
-        <template #aside><RouterLink to="/app/me/badges" class="more">{{ earned }} of {{ badgeList.length }} →</RouterLink></template>
+      <SsCard v-if="nextBadges.length" title="Next badges">
+        <template #aside><RouterLink to="/app/me/badges" class="more">{{ earned }} of {{ badgeList.length }} earned →</RouterLink></template>
+        <div class="reach">
+          <SsBadgeTile
+            v-for="b in nextBadges"
+            :key="b.key"
+            layout="card"
+            :badge-key="b.key"
+            :index="badgeNo.get(b.key) ?? 0"
+            :name="b.name"
+            :description="b.description"
+            :color="b.color"
+            :earned="b.earned"
+            :progress="b.progress"
+            :target="b.target"
+          />
+        </div>
+      </SsCard>
+      <SsCard v-else-if="badgeList.length" title="Badges">
+        <template #aside><RouterLink to="/app/me/badges" class="more">All {{ badgeList.length }} earned →</RouterLink></template>
         <div class="badges">
           <SsBadgeTile
             v-for="b in badgeList"
@@ -260,6 +284,7 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
 }
 
 .more { font-weight: 700; font-size: 15px; }
+.reach { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .badges { position: relative; display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 6px; }
 
 .hero-empty {

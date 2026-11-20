@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badgeArt, badgeNumbers, groupBadges, inkOn } from "./badgeArt";
+import { badgeArt, badgeNumbers, groupBadges, inkOn, withinReach } from "./badgeArt";
 
 describe("badge art", () => {
   it("groups badges in display order and keeps incoming order", () => {
@@ -21,5 +21,17 @@ describe("badge art", () => {
   it("picks readable ink", () => {
     expect(inkOn("#fad672")).toBe("dark");
     expect(inkOn("#404346")).toBe("light");
+  });
+});
+
+describe("withinReach", () => {
+  const b = (key: string, progress: number, target: number, earned = false, sort_order = 0) => ({ key, progress, target, earned, sort_order });
+  it("lists unearned badges, closest to done first", () => {
+    const out = withinReach([b("a", 1, 10), b("b", 9, 10), b("done", 5, 5, true), b("c", 45, 50), b("d", 0, 1)], 3);
+    expect(out.map((x) => x.key)).toEqual(["b", "c", "a"]);
+  });
+  it("breaks ties by fewest left, then list order", () => {
+    const out = withinReach([b("far", 50, 100), b("near", 1, 2), b("z", 0, 1, false, 2), b("y", 0, 1, false, 1)]);
+    expect(out.map((x) => x.key)).toEqual(["near", "far", "y"]);
   });
 });

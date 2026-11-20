@@ -10,11 +10,13 @@ import StatusPill from "@/components/upcoming/StatusPill.vue";
 import { upcoming } from "@/lib/api";
 import { firstName, longDate, num } from "@/lib/format";
 import { appUrl } from "@/lib/url";
+import { downloadIcs, eventIcs, icsFileName } from "@/lib/ics";
 import {
   STATUS_SUB, citySearch, countdown, crewSummary, daysUntil, eventPlace, logQuery, searchToQuery, showTime, venueSearch,
 } from "@/lib/upcoming";
 import type { PlanItem } from "@/lib/types";
 import { useAction } from "@/composables/useAction";
+import { useOptimisticPlan } from "@/composables/useOptimisticPlan";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { mergeFresh, rememberEvent, seededEvent } from "@/lib/eventSeed";
 import { useShareLink } from "@/composables/useShareLink";
@@ -93,16 +95,24 @@ const OPTIONS = [
   { value: "cant", label: "Can’t go" },
 ] as const;
 
-const { run: setPlan, busy } = useAction(async (status: "going" | "interested" | "cant") => {
+// Shown straight away, saved in the background (see useOptimisticPlan).
+const { setPlan: savePlan } = useOptimisticPlan({
+  apply: (next) => {
+    // Still on this event? (The save may land after moving to another one.)
+    if (next.event.seatgeek_id !== sgId.value) return;
+    item.value = mergeFresh(next, item.value);
+    rememberEvent(item.value);
+  },
+});
+function setPlan(status: "going" | "interested" | "cant") {
   if (!item.value) return;
   const next = item.value.status === status && status !== "cant" ? null : status;
   const wasInvited = item.value.status === "invited" && item.value.invited_by;
-  item.value = mergeFresh(await upcoming.setPlan(sgId.value, next), item.value);
-  rememberEvent(item.value);
   if (wasInvited) ui.flash(`${firstName(wasInvited.display_name, wasInvited.handle)} will get your answer`);
   else if (next === "going") ui.flash("You’re going!");
   else if (next === "interested") ui.flash("Saved to your plans");
-});
+  void savePlan(item.value, next);
+}
 
 const inviteOpen = ref(false);
 async function invited() {
@@ -116,6 +126,9 @@ async function invited() {
 
 const { canShare, copy, share } = useShareLink();
 const link = computed(() => appUrl(`/app/upcoming/${props.id}`));
+function addToCalendar() {
+  if (e.value) downloadIcs(eventIcs(e.value, link.value), icsFileName(e.value));
+}
 function shareEvent() {
   if (!e.value) return;
   const text = `${e.value.artist} · ${longDate(e.value.local_date)} at ${e.value.venue_name}. You in?`;
@@ -188,12 +201,19 @@ function shareEvent() {
           class="switch__opt"
           :class="[`is-${o.value}`, { 'is-on': item.status === o.value }]"
           :aria-pressed="item.status === o.value"
-          :disabled="busy || cancelled"
+          :disabled="cancelled"
           @click="setPlan(o.value)"
         >
           {{ item.status === o.value && o.value === "going" ? "✓ Going" : o.label }}
         </button>
       </div>
+
+      <!-- Going or interested: bring friends -->
+      <button v-if="canInvite && !cancelled" type="button" class="bring" @click="inviteOpen = true">
+        <SsIcon name="users" :size="18" :stroke="2.2" />
+        <span class="bring__text"><b>Who’s coming with?</b> Tag friends and they’ll get an invite.</span>
+        <span class="bring__go">Invite →</span>
+      </button>
 
       <div class="grid">
         <!-- The crew -->
@@ -232,6 +252,9 @@ function shareEvent() {
           <div v-else-if="!past" class="ss-muted">See seats and prices on SeatGeek.</div>
           <SsButton v-if="e.ticket_url && !past" variant="light" :href="e.ticket_url" block>
             Get tickets on SeatGeek <SsIcon name="external" :size="16" />
+          </SsButton>
+          <SsButton v-if="!past && !cancelled && !e.date_tbd" variant="outline" block @click="addToCalendar">
+            <SsIcon name="calendar" :size="16" />Add to calendar
           </SsButton>
           <SsButton variant="outline" block @click="shareEvent">
             <SsIcon name="share" :size="16" />{{ canShare ? "Share this show" : "Copy show link" }}
@@ -340,6 +363,23 @@ function shareEvent() {
 .switch__opt.is-interested.is-on { background: var(--ss-teal); }
 .switch__opt.is-cant.is-on { background: var(--ss-surface-3); color: var(--ss-text); }
 
+.bring {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--ss-radius-md);
+  border: 1px dashed var(--ss-line-strong);
+  background: var(--ss-surface-1);
+  color: var(--ss-text-2);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.bring:hover { border-color: var(--ss-accent); }
+.bring__text { flex: 1; min-width: 0; }
+.bring__text b { color: var(--ss-text); }
+.bring__go { color: var(--ss-accent); font-weight: 700; white-space: nowrap; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 14px; align-items: start; }
 .crew, .tickets { display: flex; flex-direction: column; gap: 12px; }
 .crew__head { align-items: baseline; gap: 10px; }

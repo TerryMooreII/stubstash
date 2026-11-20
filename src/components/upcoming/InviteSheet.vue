@@ -59,12 +59,28 @@ function toggle(id: string) {
 
 const sendLabel = computed(() => (picked.value.size ? `Invite ${plural(picked.value.size, "friend")}` : "Pick friends to invite"));
 
+/** The saved event's id. A plan made a moment ago may still be on its way to the server, so wait for it briefly. */
+function eventId(): Promise<string | null> {
+  if (props.item.event.id) return Promise.resolve(props.item.event.id);
+  return new Promise((resolve) => {
+    const stop = watch(() => props.item.event.id, (id) => id && done(id));
+    const timer = setTimeout(() => done(null), 10_000);
+    function done(id: string | null) {
+      stop();
+      clearTimeout(timer);
+      resolve(id);
+    }
+  });
+}
+
 async function send() {
-  if (!picked.value.size || !props.item.event.id) return;
+  if (!picked.value.size) return;
   sending.value = true;
   try {
     const ids = [...picked.value];
-    const n = await upcoming.invite(props.item.event.id, ids, note.value);
+    const id = await eventId();
+    if (!id) throw new Error("Your plan hasn't saved yet. Try again in a moment.");
+    const n = await upcoming.invite(id, ids, note.value);
     const names = friends.value.filter((f) => ids.includes(f.id)).map((f) => firstName(f.display_name, f.handle));
     ui.flash(n ? `Invited ${names.length <= 2 ? names.join(" & ") : plural(n, "friend")}` : "They're already in", n ? "accent" : "info");
     open.value = false;

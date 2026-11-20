@@ -6,6 +6,7 @@ import { useRoute, useRouter } from "vue-router";
 import { SsButton, SsChip, SsEmpty, SsIcon, SsPageHeader, SsSkeleton, SsTabs } from "@/design-system";
 import EventRow from "@/components/upcoming/EventRow.vue";
 import InviteCard from "@/components/upcoming/InviteCard.vue";
+import InviteSheet from "@/components/upcoming/InviteSheet.vue";
 import PlanCard from "@/components/upcoming/PlanCard.vue";
 import UpcomingFilterSheet from "@/components/upcoming/UpcomingFilterSheet.vue";
 import UpcomingSearchBox from "@/components/upcoming/UpcomingSearchBox.vue";
@@ -18,7 +19,7 @@ import {
   whereShort, type SearchPick, type ShowFilter, type UpcomingSearchState,
 } from "@/lib/upcoming";
 import type { PlanItem } from "@/lib/types";
-import { useKeyedAction } from "@/composables/useAction";
+import { useOptimisticPlan, type PlanChoice } from "@/composables/useOptimisticPlan";
 import { useUpcomingSearch } from "@/composables/useUpcomingSearch";
 import { useAuth } from "@/stores/auth";
 import { useUi } from "@/stores/ui";
@@ -167,16 +168,44 @@ watch(() => route.query, () => {
   if (route.name === "upcoming" && searchKey(searchFromQuery(route.query)) !== searchKey(s.committed.value)) fromUrl();
 });
 
-// ---- plan changes
-const { run: setPlan, busy } = useKeyedAction(async (_key: string, item: PlanItem, status: "going" | "interested" | "cant" | null) => {
-  const next = await upcoming.setPlan(item.event.seatgeek_id, status);
-  s.update(next);
+// ---- plan changes: shown straight away, saved in the background
+/** Swaps an event into Your plans (adding it if it's new), soonest first. */
+function putPlan(next: PlanItem) {
+  const rest = plans.value.filter((p) => p.event.seatgeek_id !== next.event.seatgeek_id);
+  plans.value = next.status ? [...rest, next].sort((a, b) => a.event.local_date.localeCompare(b.event.local_date)) : rest;
+}
+const { setPlan } = useOptimisticPlan({
+  apply: (next) => {
+    s.update(next);
+    putPlan(next);
+  },
+  saved: () => void loadPlans(),
+});
+function plan(item: PlanItem, status: PlanChoice) {
   if (status === "going") ui.flash("You’re going! It’s in Your plans");
   else if (status === "interested") ui.flash("Saved to Your plans");
   else if (status === "cant") ui.flash("Got it. We’ll let them know", "info");
-  await loadPlans();
-});
-const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) => setPlan(String(item.event.seatgeek_id), item, status);
+  void setPlan(item, status);
+}
+
+// ---- invite friends to a show you're going to or interested in
+const inviteId = ref<number | null>(null);
+/** Read from the lists, so it picks up the saved event once the plan lands. */
+const inviteItem = computed(() =>
+  inviteId.value == null
+    ? null
+    : s.results.value.find((r) => r.event.seatgeek_id === inviteId.value)
+      ?? plans.value.find((p) => p.event.seatgeek_id === inviteId.value)
+      ?? null,
+);
+const inviteOpen = computed({ get: () => !!inviteItem.value, set: (v) => !v && (inviteId.value = null) });
+async function invited(item: PlanItem) {
+  if (!item.event.id) return;
+  const fresh = await upcoming.plan(item.event.id).catch(() => null);
+  if (!fresh) return;
+  s.update(fresh);
+  putPlan({ ...fresh, seen: item.seen });
+}
 </script>
 
 <template>
@@ -188,7 +217,6 @@ const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) =>
       v-for="i in invites"
       :key="i.event.seatgeek_id"
       :item="i"
-      :busy="busy[String(i.event.seatgeek_id)]"
       @respond="(st) => plan(i, st)"
     />
 
@@ -267,8 +295,8 @@ const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) =>
             v-for="r in s.results.value"
             :key="r.event.seatgeek_id"
             :item="r"
-            :busy="busy[String(r.event.seatgeek_id)]"
             @plan="(st) => plan(r, st)"
+            @invite="inviteId = r.event.seatgeek_id"
             @venue="searchVenue(r)"
             @city="searchFrom(citySearch(r.event, s.committed.value))"
           />
@@ -285,6 +313,8 @@ const plan = (item: PlanItem, status: "going" | "interested" | "cant" | null) =>
         </div>
       </template>
     </section>
+
+    <InviteSheet v-if="inviteItem" v-model="inviteOpen" :item="inviteItem" @done="invited(inviteItem)" />
   </div>
 </template>
 

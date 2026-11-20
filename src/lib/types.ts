@@ -237,6 +237,28 @@ export interface Friend extends PersonCard {
   since: string;
 }
 
+/** One row of friends_feed(): a show a friend went to (the headliner stands for the bill). */
+export interface FeedItem {
+  attendance_id: string;
+  user_id: string;
+  handle: string;
+  display_name: string;
+  avatar_path: string | null;
+  event_date: string;
+  artist_name: string;
+  artist_image: string | null;
+  venue_name: string;
+  city: string | null;
+  state_code: string | null;
+  country_code: string | null;
+  rating: number | null;
+  /** Acts on the bill that they logged. */
+  acts: number;
+  /** You logged this show too. */
+  was_there: boolean;
+  logged_at: string;
+}
+
 export interface PublicProfile extends PersonCard {
   home_city: string | null;
   is_public: boolean;

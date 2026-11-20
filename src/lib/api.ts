@@ -7,7 +7,7 @@ import { check, invokeFn, supabase } from "./supabase";
 import { cached } from "./offline";
 import { matchVenue } from "./upcoming";
 import type {
-  ArtistStats, AttendanceDetail, Badge, DashboardStats, Friend, LogEntry, MapVenue,
+  ArtistStats, AttendanceDetail, Badge, DashboardStats, FeedItem, Friend, LogEntry, MapVenue,
   PersonCard, Profile, PublicProfile, SetDraft, SetlistSearchParams, SetlistSearchResponse, SetlistSong,
   ShowStats, VenueStats, YearInReview,
   MapHome, MapTrip, PastHome,
@@ -329,6 +329,17 @@ export async function setCompanions(attendanceId: string, people: { name: string
     .select("id, name, companion_user_id")) as { id: string; name: string; companion_user_id: string | null }[];
 }
 
+/** Adds one person to "who was there" (leaves the others alone, so nobody is notified twice). */
+export async function addCompanion(attendanceId: string, person: { name: string; user_id?: string | null }) {
+  return check(await supabase.from("attendance_companions")
+    .insert({ attendance_id: attendanceId, name: person.name.slice(0, 60), companion_user_id: person.user_id ?? null })
+    .select("id").single()) as { id: string };
+}
+
+export async function removeCompanion(id: string) {
+  check(await supabase.from("attendance_companions").delete().eq("id", id));
+}
+
 export async function setVenuePin(venueId: string, lat: number, lng: number) {
   check(await supabase.from("user_venue_pins").upsert({ user_id: await myId(), venue_id: venueId, lat, lng, updated_at: new Date().toISOString() }));
 }
@@ -340,6 +351,8 @@ export const social = {
   suggested: async () =>
     (check(await supabase.rpc("suggested_people")) as (PersonCard & { shared_count: number; example: string | null })[]) ?? [],
   friends: async () => cached("my_friends", async () => (check(await supabase.rpc("my_friends")) as Friend[]) ?? []),
+  /** Shows your friends have been to lately, newest first. */
+  feed: async () => cached("friends_feed", async () => (check(await supabase.rpc("friends_feed")) as FeedItem[]) ?? []),
   incoming: async () =>
     (check(await supabase.rpc("incoming_friend_requests")) as
       { requester_id: string; handle: string; display_name: string; avatar_path: string | null; created_at: string; shared_example: string | null }[]) ?? [],

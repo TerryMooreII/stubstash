@@ -147,7 +147,7 @@ const latest = computed(() => otherLog.value.slice(0, 6));
   <div class="ss-page">
     <!-- Not found -->
     <SsEmpty v-if="notFound" title="No one by that handle" body="Check the spelling, or they may have changed it.">
-      <SsButton :to="auth.signedIn ? '/app/friends' : '/'" variant="outline">{{ auth.signedIn ? "Find friends" : "Go home" }}</SsButton>
+      <SsButton :to="auth.signedIn ? '/app/friends?tab=crew' : '/'" variant="outline">{{ auth.signedIn ? "Find friends" : "Go home" }}</SsButton>
     </SsEmpty>
 
     <template v-else>

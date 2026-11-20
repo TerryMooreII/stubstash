@@ -71,7 +71,7 @@ function openVenue(id: string) {
         :title="`${ownerName}'s map is private`"
         body="Add them as a friend to see where they've been."
       >
-        <SsButton v-if="auth.signedIn" to="/app/friends" size="sm">Find friends</SsButton>
+        <SsButton v-if="auth.signedIn" to="/app/friends?tab=crew" size="sm">Find friends</SsButton>
       </SsEmpty>
       <SsEmpty v-else-if="blocked === 'missing'" title="No one by that name" body="Check the link and try again." />
       <SsEmpty v-else title="The map didn't load" :body="error ?? undefined">
