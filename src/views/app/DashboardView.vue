@@ -9,11 +9,11 @@ import RareCatches from "@/components/dashboard/RareCatches.vue";
 import StreakCard from "@/components/dashboard/StreakCard.vue";
 import TopArtists from "@/components/dashboard/TopArtists.vue";
 import TopSongs from "@/components/dashboard/TopSongs.vue";
-import { badges as fetchBadges } from "@/lib/api";
-import { compact, num, plural } from "@/lib/format";
+import { badges as fetchBadges, social } from "@/lib/api";
+import { compact, firstName, num, plural } from "@/lib/format";
 import { ticketProps } from "@/lib/shows";
 import { nextMilestone } from "@/lib/milestones";
-import type { Badge } from "@/lib/types";
+import type { Badge, Friend } from "@/lib/types";
 import { useAuth } from "@/stores/auth";
 import { useLog } from "@/stores/log";
 import { useUi } from "@/stores/ui";
@@ -22,10 +22,13 @@ const auth = useAuth();
 const log = useLog();
 const ui = useUi();
 const badgeList = ref<Badge[]>([]);
+// null until loaded (or if the request failed), so we never flash "0 friends".
+const friends = ref<Friend[] | null>(null);
 
 onMounted(() => {
   log.load();
   fetchBadges().then((b) => (badgeList.value = b)).catch(() => {});
+  social.friends().then((f) => (friends.value = f)).catch(() => {});
 });
 
 const s = computed(() => log.stats);
@@ -46,10 +49,22 @@ const headline = computed(() => `${plural(shows.value, "show")} deep. ${mileston
 const progress = computed(() => Math.round((shows.value / milestone.value.target) * 100));
 
 const homeCity = computed(() => auth.profile?.home_city ?? s.value?.home.city ?? null);
+const friendsCard = computed(() => {
+  const f = friends.value;
+  const base = { label: "Friends", to: "/app/friends" };
+  if (!f) return { ...base, value: "–", caption: "See your crew →" };
+  if (!f.length) return { ...base, value: "0", caption: "Find your concert crew →", tone: "outline" as const, cta: true };
+  // Call out whoever you've shared the most shows with.
+  const top = f.reduce((a, b) => (b.shared_count > a.shared_count ? b : a));
+  const caption = top.shared_count > 0
+    ? `${plural(top.shared_count, "show")} with ${firstName(top.display_name, top.handle)}`
+    : "Compare your stashes →";
+  return { ...base, value: num(f.length), caption };
+});
 const statCards = computed(() => {
   const x = t.value;
   if (!x) return [];
-  return [
+  const cards: { label: string; value: string; caption: string; tone?: "accent" | "outline"; noHome?: boolean; to?: string; cta?: boolean }[] = [
     // Shows = a venue on a date (headliner + openers); festivals still count as shows.
     {
       label: "Shows",
@@ -61,9 +76,15 @@ const statCards = computed(() => {
     { label: "Artists", value: num(x.artists), caption: `${num(x.artists_multi)} seen more than once` },
     { label: "Venues", value: num(x.venues), caption: s.value?.top_venues[0] ? `${s.value.top_venues[0].name} is home turf` : "" },
     { label: "Songs heard", value: num(x.songs), caption: `${num(x.unique_songs)} different songs` },
-    { label: "Miles traveled", value: compact(x.miles), caption: s.value?.home.past_homes ? `from ${s.value.home.past_homes + 1} homes` : homeCity.value ? `from ${homeCity.value}` : "", noHome: !s.value?.home.has_coords },
-    { label: "Cities", value: num(x.cities), caption: `in ${plural(x.countries, "country", "countries")}` },
+    {
+      label: "Miles traveled",
+      value: compact(x.miles),
+      caption: `${plural(x.cities, "city", "cities")} · ${plural(x.countries, "country", "countries")}`,
+      noHome: !s.value?.home.has_coords,
+    },
+    friendsCard.value,
   ];
+  return cards;
 });
 
 const thisYear = new Date().getFullYear();
@@ -143,8 +164,9 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
       </div>
 
       <div class="stats">
-        <SsStatCard v-for="c in statCards" :key="c.label" :label="c.label" :value="c.value" :tone="c.tone ?? 'default'">
+        <SsStatCard v-for="c in statCards" :key="c.label" :label="c.label" :value="c.value" :tone="c.tone ?? 'default'" :to="c.to">
           <RouterLink v-if="c.noHome" to="/app/settings" class="set-home">Set your home base</RouterLink>
+          <b v-else-if="c.cta" class="stat-cta">{{ c.caption }}</b>
           <template v-else>{{ c.caption }}</template>
         </SsStatCard>
       </div>
@@ -231,6 +253,7 @@ const badgeNo = computed(() => badgeNumbers(badgeList.value));
   .stats :deep(.ss-stat__value) { font-size: 38px; }
 }
 .set-home { color: inherit; text-decoration: underline; }
+.stat-cta { color: var(--ss-accent); }
 
 @media (min-width: 820px) {
   .wide { grid-column: span 2; }

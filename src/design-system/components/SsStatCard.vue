@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // Dashboard number tile: mono label, huge number, small caption.
+// Pass `to` to make the whole tile a link.
+import type { RouteLocationRaw } from "vue-router";
 withDefaults(
   defineProps<{
     label: string;
@@ -7,17 +9,18 @@ withDefaults(
     caption?: string;
     tone?: "default" | "accent" | "butter" | "teal" | "outline";
     size?: "md" | "lg" | "sm";
+    to?: RouteLocationRaw;
   }>(),
   { tone: "default", size: "md" },
 );
 </script>
 
 <template>
-  <div class="ss-stat" :class="[`ss-stat--${tone}`, `ss-stat--${size}`]">
+  <component :is="to ? 'RouterLink' : 'div'" :to="to" class="ss-stat" :class="[`ss-stat--${tone}`, `ss-stat--${size}`, { 'ss-stat--link': to }]">
     <div class="ss-stat__label">{{ label }}</div>
     <div class="ss-stat__value ss-num">{{ value }}</div>
     <div v-if="caption || $slots.default" class="ss-stat__caption"><slot>{{ caption }}</slot></div>
-  </div>
+  </component>
 </template>
 
 <style scoped>
@@ -34,6 +37,8 @@ withDefaults(
   min-height: 132px;
   min-width: 0;
 }
+.ss-stat--link { text-decoration: none; transition: border-color 0.15s, transform 0.15s; }
+.ss-stat--link:hover { text-decoration: none; color: var(--ss-text); border-color: var(--ss-accent); transform: translateY(-1px); }
 .ss-stat--sm { min-height: 0; padding: 14px; border-radius: var(--ss-radius-md); }
 .ss-stat--accent { background: var(--ss-accent); border-color: var(--ss-accent); color: var(--ss-on-accent); }
 .ss-stat--butter { background: var(--ss-butter); border-color: var(--ss-butter); color: var(--ss-on-accent); }
